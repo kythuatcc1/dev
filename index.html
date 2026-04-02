@@ -25,6 +25,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://sbyklnmmpicgtjgiybrk.supabase.co">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDvHWAOu4atHoyDuISmm8Q7o0cxG2qDoSE&libraries=places&language=vi" async defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;700&family=Syne:wght@700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
@@ -40,7 +41,7 @@
 
   /* ── HÌNH NỀN ── Thay URL bên dưới để đổi ảnh nền */
   --bg-image: url('https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=1920&q=80');
-  --bg-overlay: rgba(6, 8, 16, 0.72); /* độ tối phủ lên ảnh — tăng số để tối hơn */
+  --bg-overlay: rgba(6, 8, 16, 0.2); /* độ tối phủ lên ảnh — tăng số để tối hơn */
 }
 
 /* ── BASE (Mobile first) ── */
@@ -49,28 +50,28 @@ body {
   color:var(--text); min-height:100vh;
   background-color: #060810;
 }
-/* Lớp ảnh nền — fixed, không cuộn, không bị ảnh hưởng bởi nội dung */
+/* ── Layer nền cố định (không cuộn) ── */
 #bg-layer {
   position: fixed;
   inset: 0;
-  z-index: 0;
-  pointer-events: none;
+  z-index: -1;
   background-color: #060810;
   background-image: var(--bg-image);
   background-size: var(--bg-size, cover);
-  background-position: var(--bg-pos, center center);
+  background-position: var(--bg-pos-x, 50%) var(--bg-pos-y, 50%);
   background-repeat: no-repeat;
 }
-/* Lớp phủ tối lên trên ảnh nền */
-#bg-overlay-layer {
+/* Lớp phủ tối lên trên ảnh nền — đặt trên body, dưới tất cả content */
+body::before {
+  content: '';
   position: fixed;
   inset: 0;
   background: var(--bg-overlay);
-  z-index: 1;
+  z-index: 0;
   pointer-events: none;
 }
 /* Các trang trong suốt để thấy ảnh nền */
-.page { width:100%; background: transparent; min-height:100vh; display:none; flex-direction:column; position: relative; z-index: 2; }
+.page { width:100%; background: transparent; min-height:100vh; display:none; flex-direction:column; contain:layout style; position: relative; z-index: 1; }
 .page.active { display:flex; }
 
 .hdr {
@@ -110,27 +111,6 @@ body {
   padding:10px 20px; border-radius:30px; font-size:13px; font-weight:500;
   z-index:999; opacity:0; transition:all .25s; white-space:nowrap; pointer-events:none;
 }
-/* Google Maps Autocomplete dropdown — luôn nổi trên mọi thứ */
-.pac-container {
-  z-index: 99999 !important;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: #1a1e28;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-  font-family: 'Be Vietnam Pro', sans-serif;
-  margin-top: 4px;
-}
-.pac-item {
-  padding: 10px 14px;
-  color: #f0f2f7;
-  border-top: 1px solid rgba(255,255,255,0.05);
-  cursor: pointer;
-  font-size: 13px;
-}
-.pac-item:hover, .pac-item-selected { background: rgba(200,255,71,0.08); }
-.pac-item-query { color: #c8ff47; font-weight: 600; }
-.pac-matched { color: #47d4ff; }
-.pac-icon { filter: invert(1) brightness(0.6); }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 .toast.ok { border-color:rgba(34,197,94,.4); color:var(--green); }
 .toast.err { border-color:rgba(239,68,68,.4); color:var(--red); }
@@ -138,8 +118,7 @@ body {
 /* ── DESKTOP (≥ 768px) ── */
 @media (min-width: 768px) {
   body { background-color:#08090f; flex-direction:row; }
-  /* Trên desktop: dịch tâm ảnh sang phải để canh giữa vùng nội dung */
-  #bg-layer { background-position: calc(50% + calc(var(--sidebar-w) / 2)) 50%; }
+  #bg-layer { background-position: calc(var(--bg-pos-x, 50%) + calc(var(--sidebar-w) / 2)) var(--bg-pos-y, 50%); }
 
   /* Desktop wrapper */
   #desktop-layout {
@@ -350,6 +329,51 @@ body {
 .exp-badge-sel  { background:rgba(71,212,255,.12); color:var(--accent2); }
 .exp-badge-pers { background:rgba(167,139,250,.12); color:#a78bfa; }
 
+/* ── Google Maps Autocomplete Dropdown ── */
+.pac-container {
+  background: var(--bg2) !important;
+  border: 1px solid rgba(200,255,71,.25) !important;
+  border-radius: 12px !important;
+  margin-top: 4px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5) !important;
+  font-family: 'Be Vietnam Pro', sans-serif !important;
+  z-index: 99999 !important;
+  overflow: hidden;
+}
+.pac-item {
+  padding: 10px 14px !important;
+  border-top: 1px solid rgba(255,255,255,.06) !important;
+  color: var(--text) !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  transition: background .15s;
+}
+.pac-item:first-child { border-top: none !important; }
+.pac-item:hover, .pac-item-selected {
+  background: rgba(200,255,71,.1) !important;
+}
+.pac-item-query {
+  color: var(--accent) !important;
+  font-size: 13px !important;
+  font-weight: 600;
+}
+.pac-matched { color: var(--accent) !important; font-weight: 700; }
+.pac-icon { display: none !important; }
+.pac-logo:after { display: none !important; }
+
+/* Wrapper địa chỉ có icon map */
+.address-field-wrap {
+  position: relative;
+}
+.address-field-wrap .map-link {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 18px; cursor: pointer; text-decoration: none;
+  opacity: .7; transition: opacity .2s;
+  display: none;
+}
+.address-field-wrap .map-link.visible { display: block; }
+.address-field-wrap .map-link:hover { opacity: 1; }
+
 /* ── Add expense modal (bottom sheet) ── */
 .sheet-handle { width:36px; height:4px; background:var(--border); border-radius:2px; margin:0 auto 18px; }
 .sheet { background:var(--bg2); border-radius:20px 20px 0 0; padding:20px 20px 36px; max-height:90vh; overflow-y:auto; }
@@ -447,15 +471,12 @@ body {
 </style>
 </head>
 <body>
+<div id="bg-layer"></div>
 
 <!-- ▸ Thay 2 dòng này -->
 <script>
 const SUPA_URL = 'https://sbyklnmmpicgtjgiybrk.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNieWtsbm1tcGljZ3RqZ2l5YnJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM5NDg0MTMsImV4cCI6MjA4OTUyNDQxM30.MNsdqKs6CuMSNL4aXlt-COhlOWf_C4YSgVvN5P2LvYo';
-
-// ── Google Maps Places API Key ──
-// Lấy tại: https://console.cloud.google.com → Bật "Places API" → Tạo API Key
-const GMAPS_KEY = 'AIzaSyDvHWAOu4atHoyDuISmm8Q7o0cxG2qDoSE';
 
 // ── Cấu hình ngân hàng nhận tiền quỹ ──
 // Thay bằng thông tin tài khoản thực của bạn
@@ -464,18 +485,6 @@ const BANK_ACCOUNT = '96247KIMKHANH';
 const BANK_NAME    = 'NGUYEN KIM KHANH';
 </script>
 
-<div id="bg-layer"></div>
-<script>
-// Load Google Maps Places API nếu đã cấu hình key
-(function() {
-  if (!window.GMAPS_KEY || window.GMAPS_KEY === 'YOUR_GOOGLE_MAPS_API_KEY') return;
-  const s = document.createElement('script');
-  s.src = `https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&libraries=places&language=vi&region=VN&callback=initGMapsPlaces`;
-  s.async = true; s.defer = true;
-  document.head.appendChild(s);
-})();
-</script>
-<div id="bg-overlay-layer"></div>
 <div class="toast" id="toast"></div>
 <div class="overlay" id="overlay"><div class="spin"></div></div>
 <div class="lightbox" id="lightbox" onclick="closeLightbox()">
@@ -511,6 +520,9 @@ const BANK_NAME    = 'NGUYEN KIM KHANH';
   <div id="snav-admin" style="display:none">
     <button class="snav-item" onclick="goPage('pg-admin')">
       <span class="snav-icon">🔑</span> Admin quỹ
+    </button>
+    <button class="snav-item" onclick="openDiscountSettings()" style="color:var(--muted)">
+      <span class="snav-icon">⚙️</span> Cài đặt ưu đãi
     </button>
   </div>
   <div id="sidebar-user">
@@ -653,15 +665,14 @@ const BANK_NAME    = 'NGUYEN KIM KHANH';
       <div class="fg"><label class="fl">Ngày</label><input class="fi" id="c-date" type="date"></div>
       <div class="fg"><label class="fl">Giờ</label><input class="fi" id="c-time" type="time" value="17:00"></div>
     </div>
+    <div class="fg"><label class="fl">Địa điểm</label><input class="fi" id="c-loc" type="text" placeholder="Tên sân · Quận/Huyện"></div>
     <div class="fg">
-      <label class="fl">Địa điểm</label>
-      <div style="position:relative">
-        <input class="fi" id="c-loc" type="text" placeholder="Gõ tên sân để tìm..."
-          autocomplete="off" style="padding-right:40px">
-        <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;pointer-events:none;opacity:.5">📍</span>
+      <label class="fl">Địa chỉ sân</label>
+      <div class="address-field-wrap">
+        <input class="fi" id="c-address" type="text" placeholder="Nhập địa chỉ để tìm trên bản đồ..." style="padding-right:38px">
+        <a id="c-address-maplink" class="map-link" target="_blank" title="Mở bản đồ">🗺️</a>
       </div>
     </div>
-
     <div class="row2">
       <div class="fg"><label class="fl">Phí sân (đ)</label><input class="fi" id="c-fee" type="number" placeholder="300000"></div>
       <div class="fg"><label class="fl">Số người tối đa</label><input class="fi" id="c-max" type="number" value="10"></div>
@@ -701,6 +712,18 @@ const BANK_NAME    = 'NGUYEN KIM KHANH';
         <div class="mi"><span class="ml">Phí sân</span><span class="mv" id="s-fee" style="color:var(--accent2)">—</span></div>
         <div class="mi"><span class="ml">Tối đa</span><span class="mv" id="s-max">—</span></div>
         <div class="mi" id="s-total-wrap" style="display:none"><span class="ml">Tổng chi phí</span><span class="mv" id="s-total" style="color:var(--accent);font-weight:800">—</span></div>
+      </div>
+      <!-- Địa chỉ sân -->
+      <div id="s-address-wrap" style="display:none;margin-top:10px;padding:10px 12px;background:rgba(255,255,255,.04);border-radius:10px;border:1px solid rgba(255,255,255,.07)">
+        <span style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px">📍 Địa chỉ sân</span>
+        <div style="margin-top:4px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <span id="s-address" style="font-size:13px;color:var(--text);line-height:1.4">—</span>
+          <a id="s-address-maplink" href="#" target="_blank"
+            style="flex-shrink:0;font-size:12px;font-weight:600;color:var(--accent2);text-decoration:none;
+            background:rgba(71,212,255,.1);padding:4px 10px;border-radius:20px;white-space:nowrap;border:1px solid rgba(71,212,255,.2)">
+            🗺️ Xem bản đồ
+          </a>
+        </div>
       </div>
       <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span class="badge" id="s-badge"></span>
@@ -825,13 +848,14 @@ const BANK_NAME    = 'NGUYEN KIM KHANH';
       </div>
     </div>
     <div class="fg"><label class="fl">Địa điểm</label>
-      <div style="position:relative">
-        <input class="fi" id="edit-loc" type="text" placeholder="Gõ tên sân để tìm..."
-          autocomplete="off" style="padding-right:40px">
-        <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;pointer-events:none;opacity:.5">📍</span>
+      <input class="fi" id="edit-loc" placeholder="Tên sân · Quận/Huyện">
+    </div>
+    <div class="fg"><label class="fl">Địa chỉ sân</label>
+      <div class="address-field-wrap">
+        <input class="fi" id="edit-address" placeholder="Nhập địa chỉ để tìm trên bản đồ..." style="padding-right:38px">
+        <a id="edit-address-maplink" class="map-link" target="_blank" title="Mở bản đồ">🗺️</a>
       </div>
     </div>
-
     <div class="row2">
       <div class="fg"><label class="fl">Phí sân (đ)</label>
         <input class="fi" id="edit-fee" type="number">
@@ -1004,6 +1028,27 @@ const BANK_NAME    = 'NGUYEN KIM KHANH';
     <div class="hdr-title">Quản lý quỹ</div>
   </div>
   <div class="content">
+    <!-- Công cụ admin -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      <button onclick="openDiscountSettings()"
+        style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;
+        border-radius:14px;background:rgba(200,255,71,.08);border:1px solid rgba(200,255,71,.2);
+        color:var(--accent);font-family:'Be Vietnam Pro',sans-serif;font-size:11px;font-weight:700;cursor:pointer">
+        <span style="font-size:22px">⚙️</span>Cài đặt ưu đãi
+      </button>
+      <button onclick="triggerBgPicker()"
+        style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;
+        border-radius:14px;background:rgba(71,212,255,.08);border:1px solid rgba(71,212,255,.2);
+        color:var(--accent2);font-family:'Be Vietnam Pro',sans-serif;font-size:11px;font-weight:700;cursor:pointer">
+        <span style="font-size:22px">🖼️</span>Đổi hình nền
+      </button>
+      <button onclick="openBgAdjust()"
+        style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;
+        border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+        color:var(--muted);font-family:'Be Vietnam Pro',sans-serif;font-size:11px;font-weight:700;cursor:pointer">
+        <span style="font-size:22px">🔍</span>Chỉnh vị trí
+      </button>
+    </div>
     <!-- Tổng quỹ -->
     <div class="fund-hero" style="background:linear-gradient(135deg,#0e1a20,#081018);border-color:rgba(71,212,255,.2)">
       <div style="color:var(--muted);font-size:12px;margin-bottom:4px">Tổng quỹ</div>
@@ -1293,6 +1338,8 @@ function init() {
   if (document.getElementById('sidebar-username')) document.getElementById('sidebar-username').textContent = me.name;
   if (isDesktop()) initDesktopLayout();
   document.getElementById('admin-panel-btn').style.display = me.is_admin ? '' : 'none';
+  const _hab = document.getElementById('home-admin-btn'); if (_hab) _hab.style.display = me.is_admin ? '' : 'none';
+  const _gnavAdmin = document.getElementById('gnav-admin'); if (_gnavAdmin) _gnavAdmin.style.display = me.is_admin ? '' : 'none';
   goPageDirect('pg-home');
   showAdminTabIfNeeded();
   loadHome();
@@ -1308,6 +1355,8 @@ function init() {
         updateBalanceDisplay(me.fund_balance || 0);
         document.getElementById('home-name').textContent = me.name;
         document.getElementById('admin-panel-btn').style.display = me.is_admin ? '' : 'none';
+  const _hab = document.getElementById('home-admin-btn'); if (_hab) _hab.style.display = me.is_admin ? '' : 'none';
+  const _gnavAdmin = document.getElementById('gnav-admin'); if (_gnavAdmin) _gnavAdmin.style.display = me.is_admin ? '' : 'none';
         setTimeout(checkAndShowLowFundAlert, 800);
       } else {
         me = null;
@@ -1351,6 +1400,8 @@ async function quickLogin() {
   if (document.getElementById('sidebar-username')) document.getElementById('sidebar-username').textContent = me.name;
   if (isDesktop()) initDesktopLayout();
     document.getElementById('admin-panel-btn').style.display = me.is_admin ? '' : 'none';
+  const _hab = document.getElementById('home-admin-btn'); if (_hab) _hab.style.display = me.is_admin ? '' : 'none';
+  const _gnavAdmin = document.getElementById('gnav-admin'); if (_gnavAdmin) _gnavAdmin.style.display = me.is_admin ? '' : 'none';
     toast(`Chào ${me.name}! 🏸`, 'ok');
     startAllRealtime();
     goPage('pg-home');
@@ -1397,9 +1448,9 @@ function goPage(id) {
   const gbnav = document.getElementById('global-bnav');
   if (gbnav) gbnav.style.display = noNav ? 'none' : '';
   // Highlight đúng nút
-  const navMap = { 'pg-home':'home', 'pg-create':'create', 'pg-fund':'fund', 'pg-admin':'fund' };
+  const navMap = { 'pg-home':'home', 'pg-create':'create', 'pg-fund':'fund', 'pg-admin':'admin' };
   const active = navMap[id] || '';
-  ['home','fund','create'].forEach(n => {
+  ['home','fund','create','admin'].forEach(n => {
     document.getElementById('gnav-'+n)?.classList.toggle('active', active===n);
     // legacy ids còn trong DOM (nếu có)
     document.getElementById('nav-'+n)?.classList.toggle('active', active===n);
@@ -1416,7 +1467,6 @@ function goPage(id) {
   if (id === 'pg-home') { showAdminTabIfNeeded(); loadHome(); }
   if (id === 'pg-fund') loadFundPage();
   if (id === 'pg-admin') loadAdminPage();
-  if (id === 'pg-create') { setTimeout(() => enableLazyAC('c-loc'), 200); }
 }
 
 function isDesktop() { return window.innerWidth >= 768; }
@@ -1432,6 +1482,10 @@ function initDesktopLayout() {
     document.getElementById('snav-bg-admin').style.display = me.is_admin ? '' : 'none';
     const _homeBgBtn = document.getElementById('home-bg-btn');
     if (_homeBgBtn) _homeBgBtn.style.display = me.is_admin ? '' : 'none';
+    const _homeAdminBtn = document.getElementById('home-admin-btn');
+    if (_homeAdminBtn) _homeAdminBtn.style.display = me.is_admin ? '' : 'none';
+    const _gnavAdmin = document.getElementById('gnav-admin');
+    if (_gnavAdmin) _gnavAdmin.style.display = me.is_admin ? '' : 'none';
   }
 }
 
@@ -1501,6 +1555,8 @@ async function doEnter() {
   if (isDesktop()) initDesktopLayout();
   // Hiện nút admin nếu là admin
   document.getElementById('admin-panel-btn').style.display = me.is_admin ? '' : 'none';
+  const _hab = document.getElementById('home-admin-btn'); if (_hab) _hab.style.display = me.is_admin ? '' : 'none';
+  const _gnavAdmin = document.getElementById('gnav-admin'); if (_gnavAdmin) _gnavAdmin.style.display = me.is_admin ? '' : 'none';
   load(false);
   toast(`Chào ${me.name}! 🏸`,'ok');
   startAllRealtime();
@@ -1827,7 +1883,7 @@ function renderSessionCard(s, confirmedCount=0, totalCount=0, iVoted=false, gues
             <span style="font-size:11px;color:var(--muted);margin-left:auto;white-space:nowrap">Host: ${s.profiles?.name||'?'}</span>
           </div>
           <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px;
-            white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(s.location||s.title).split('||')[0]}</div>
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.location || s.title}</div>
           <div style="height:1px;background:var(--border);margin-bottom:8px"></div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             ${memberBadge}
@@ -1848,28 +1904,27 @@ function renderSessionCard(s, confirmedCount=0, totalCount=0, iVoted=false, gues
 // TẠO BUỔI
 // ═══════════════════════════════════════
 async function doCreate() {
-  const title = document.getElementById('c-title').value.trim();
-  const date  = document.getElementById('c-date').value;
-  const time  = document.getElementById('c-time').value;
+  const title   = document.getElementById('c-title').value.trim();
+  const date    = document.getElementById('c-date').value;
+  const time    = document.getElementById('c-time').value;
   const loc     = document.getElementById('c-loc').value.trim();
-  const _cPid   = gmapsPlaceIds['c-loc'] || '';
-  const locSave = _cPid ? loc + '||' + _cPid : loc;
-  delete gmapsPlaceIds['c-loc'];
-  const fee   = parseFloat(document.getElementById('c-fee').value)||0;
-  const max   = parseInt(document.getElementById('c-max').value)||10;
+  const address = document.getElementById('c-address').value.trim();
+  const fee     = parseFloat(document.getElementById('c-fee').value)||0;
+  const max     = parseInt(document.getElementById('c-max').value)||10;
   if (!title) return toast('Nhập tên buổi chơi','err');
   load(true);
   const code = genCode();
   const scheduled_at = date&&time ? new Date(`${date}T${time}`).toISOString() : null;
   const { data: session, error } = await db.from('sessions').insert({
-    title, code, host_id:me.id, scheduled_at, location: locSave, court_fee:fee, max_players:max, status:'voting'
+    title, code, host_id:me.id, scheduled_at, location:loc, court_address:address, court_fee:fee, max_players:max, status:'voting'
   }).select().single();
   if (error) { load(false); return toast(error.message,'err'); }
   // Host tự join
   await db.from('session_members').insert({session_id:session.id, user_id:me.id});
   load(false);
-  ['c-title','c-date','c-loc','c-fee'].forEach(id=>document.getElementById(id).value='');
+  ['c-title','c-date','c-loc','c-address','c-fee'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('c-max').value='10';
+  document.getElementById('c-address-maplink').classList.remove('visible');
   toast('Tạo buổi thành công! Đang hiển thị cho mọi người 🎉','ok');
   openSession(session.id);
 }
@@ -1967,28 +2022,22 @@ function renderSession() {
   document.getElementById('s-hdr').textContent      = session.title;
   document.getElementById('s-title').textContent    = session.title;
   document.getElementById('s-dt').textContent       = session.scheduled_at ? fmtD(session.scheduled_at) : '—';
-  const _slEl = document.getElementById('s-loc');
-  const _slRaw = session.location || '';
-  if (_slRaw) {
-    // Format: "Tên sân||place_id:ChIJ..." (nếu chọn từ autocomplete)
-    // Hoặc chỉ "Tên sân" (nhập tay)
-    const _slParts  = _slRaw.split('||');
-    const _slName   = _slParts[0];
-    const _slPid    = _slParts[1] || ''; // place_id nếu có
-    const _mapsHref = _slPid
-      ? `https://www.google.com/maps/place/?q=place_id:${_slPid}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(_slName)}`;
-    _slEl.innerHTML = `<a href="${_mapsHref}" target="_blank" rel="noopener"
-      style="color:var(--accent2);text-decoration:none;display:inline-flex;align-items:center;gap:5px;
-      border-bottom:1px dashed rgba(71,212,255,.4);cursor:pointer">
-      📍 ${_slName}
-    </a>`;
-  } else {
-    _slEl.textContent = '—';
-  }
+  document.getElementById('s-loc').textContent      = session.location || '—';
   document.getElementById('s-fee').textContent      = fmt(session.court_fee);
   document.getElementById('s-max').textContent      = session.max_players + ' người';
   document.getElementById('s-host-lbl').textContent = `Host: ${session.profiles?.name||'?'}`;
+
+  // Hiển thị địa chỉ sân
+  const addressWrap   = document.getElementById('s-address-wrap');
+  const addressEl     = document.getElementById('s-address');
+  const addressMapLnk = document.getElementById('s-address-maplink');
+  if (session.court_address) {
+    addressEl.textContent = session.court_address;
+    addressMapLnk.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(session.court_address);
+    addressWrap.style.display = '';
+  } else {
+    addressWrap.style.display = 'none';
+  }
 
   // Tổng chi phí = phí sân + tất cả khoản phụ (async, không block render)
   (async () => {
@@ -2125,12 +2174,21 @@ function renderSession() {
   }).join('') || '<div class="empty"><div class="empty-icon">👥</div><div>Chưa có thành viên nào</div></div>';
 
   // Nút thêm thành viên (admin only, buổi đang mở)
-  const addMemberBtn = me.is_admin && !isLocked ? `
-    <button onclick="openAddMemberSheet()"
-      style="margin-top:8px;width:100%;padding:11px;border-radius:12px;
-      background:rgba(71,212,255,.08);border:1px dashed rgba(71,212,255,.3);
-      color:var(--accent2);font-family:'Be Vietnam Pro',sans-serif;font-size:13px;
-      font-weight:700;cursor:pointer">+ Thêm thành viên từ danh sách</button>` : '';
+  const totalParticipants = confirmedCount + (curSession.guests||[]).length;
+  const slotsLeft = session.max_players - totalParticipants;
+  const isFull = slotsLeft <= 0;
+  const addMemberBtn = me.is_admin && !isLocked ? (
+    isFull
+      ? `<div style="margin-top:8px;width:100%;padding:11px;border-radius:12px;
+          background:rgba(239,68,68,.07);border:1px dashed rgba(239,68,68,.3);
+          color:var(--red);font-size:12px;text-align:center">
+          🔒 Đã đủ ${session.max_players}/${session.max_players} người — không thể thêm</div>`
+      : `<button onclick="openAddMemberSheet()"
+          style="margin-top:8px;width:100%;padding:11px;border-radius:12px;
+          background:rgba(71,212,255,.08);border:1px dashed rgba(71,212,255,.3);
+          color:var(--accent2);font-family:'Be Vietnam Pro',sans-serif;font-size:13px;
+          font-weight:700;cursor:pointer">+ Thêm thành viên (còn ${slotsLeft} chỗ)</button>`
+  ) : '';
 
   document.getElementById('vote-list').innerHTML = myBtn + memberRows + addMemberBtn;
 
@@ -2241,12 +2299,21 @@ async function doVote() {
 // CHỈNH SỬA BUỔI (host only)
 // ═══════════════════════════════════════
 function openEditSheet() {
-  reattachPlacesAC();
   const { session } = curSession;
-  document.getElementById('edit-title').value = session.title || '';
-  document.getElementById('edit-loc').value   = (session.location || '').split('||')[0];
-  document.getElementById('edit-fee').value   = session.court_fee || '';
-  document.getElementById('edit-max').value   = session.max_players || 10;
+  document.getElementById('edit-title').value   = session.title || '';
+  document.getElementById('edit-loc').value     = session.location || '';
+  document.getElementById('edit-address').value = session.court_address || '';
+  document.getElementById('edit-fee').value     = session.court_fee || '';
+  document.getElementById('edit-max').value     = session.max_players || 10;
+
+  // Cập nhật map link cho edit form
+  const editMapLink = document.getElementById('edit-address-maplink');
+  if (session.court_address) {
+    editMapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(session.court_address);
+    editMapLink.classList.add('visible');
+  } else {
+    editMapLink.classList.remove('visible');
+  }
 
   if (session.scheduled_at) {
     const d = new Date(session.scheduled_at);
@@ -2266,29 +2333,27 @@ function closeEditSheet(e) {
 }
 
 async function doEditSession() {
-  const title = document.getElementById('edit-title').value.trim();
+  const title   = document.getElementById('edit-title').value.trim();
   const loc     = document.getElementById('edit-loc').value.trim();
-  const _ePid   = gmapsPlaceIds['edit-loc'] || '';
-  const locSave = _ePid ? loc + '||' + _ePid : loc;
-  delete gmapsPlaceIds['edit-loc'];
-  const fee   = parseFloat(document.getElementById('edit-fee').value) || 0;
-  const max   = parseInt(document.getElementById('edit-max').value) || 10;
-  const date  = document.getElementById('edit-date').value;
-  const time  = document.getElementById('edit-time').value;
+  const address = document.getElementById('edit-address').value.trim();
+  const fee     = parseFloat(document.getElementById('edit-fee').value) || 0;
+  const max     = parseInt(document.getElementById('edit-max').value) || 10;
+  const date    = document.getElementById('edit-date').value;
+  const time    = document.getElementById('edit-time').value;
   if (!title) return toast('Nhập tên buổi', 'err');
 
   const scheduled_at = date && time ? new Date(`${date}T${time}`).toISOString() : null;
 
   load(true);
   const { error } = await db.from('sessions').update({
-    title, location: locSave, court_fee: fee, max_players: max, scheduled_at
+    title, location: loc, court_address: address, court_fee: fee, max_players: max, scheduled_at
   }).eq('id', curSession.session.id);
   load(false);
 
   if (error) return toast(error.message, 'err');
 
   // Cập nhật local state ngay
-  curSession.session = { ...curSession.session, title, location: loc, court_fee: fee, max_players: max, scheduled_at };
+  curSession.session = { ...curSession.session, title, location: loc, court_address: address, court_fee: fee, max_players: max, scheduled_at };
   closeEditSheet({});
   toast('✓ Đã cập nhật thông tin buổi', 'ok');
   renderSession();
@@ -2446,6 +2511,22 @@ function resetConfirmBtn() {
 
 async function adminConfirmAddMembers() {
   if (pendingAddIds.size === 0) return;
+
+  // Kiểm tra slots còn lại
+  const { session, votes, guests } = curSession;
+  const selfVoteCount = (votes||[]).filter(v => v.voter_id === v.target_id).length;
+  const guestCount    = (guests||[]).length;
+  const totalNow      = selfVoteCount + guestCount;
+  const slotsLeft     = (session.max_players || 10) - totalNow;
+  if (slotsLeft <= 0) {
+    toast(`Đã đủ ${session.max_players}/${session.max_players} người, không thể thêm!`, 'err');
+    return;
+  }
+  if (pendingAddIds.size > slotsLeft) {
+    toast(`Chỉ còn ${slotsLeft} chỗ trống, bạn đang chọn ${pendingAddIds.size} người!`, 'err');
+    return;
+  }
+
   const btn = document.getElementById('add-member-confirm-btn');
   btn.disabled = true;
   btn.innerHTML = '\u23f3 \u0110ang th\u00eam... <span id="add-member-confirm-count"></span>';
@@ -3038,8 +3119,8 @@ async function doClose() {
   //
   //  Khách vãng lai: chỉ nhận phần chia đều phần dư (nếu có)
   // ─────────────────────────────────────────────────────────────
-  const DISCOUNT_RATES = [0.20, 0.15, 0.15, 0.15, 0.10, 0.10, 0.08, 0.08];
-  const FUND_PER_PERSON = 15000;
+  const DISCOUNT_RATES = discountSettings.rates.map(r => r / 100);
+  const FUND_PER_PERSON = discountSettings.fundPerPerson;
 
   // Tổng chi phí toàn buổi (phí sân + mọi khoản phụ)
   const totalAllExpenses = (expenses||[]).reduce((s, e) => s + (e.amount || 0), 0);
@@ -3960,6 +4041,8 @@ async function loadFundPage() {
   }
   document.getElementById('fund-status-text').textContent = statusText;
   document.getElementById('admin-panel-btn').style.display = me.is_admin ? '' : 'none';
+  const _hab = document.getElementById('home-admin-btn'); if (_hab) _hab.style.display = me.is_admin ? '' : 'none';
+  const _gnavAdmin = document.getElementById('gnav-admin'); if (_gnavAdmin) _gnavAdmin.style.display = me.is_admin ? '' : 'none';
 
   // Hiển thị nợ buổi nếu có
   const debtEl = document.getElementById('fund-debt-list');
@@ -4585,79 +4668,113 @@ if ('serviceWorker' in navigator) {
   }, { passive: true });
 })();
 
-// ── GOOGLE MAPS PLACES AUTOCOMPLETE ──
-const gmapsPlaceIds   = {};  // { inputId: place_id }
-const gmapsACAttached = {};  // { inputId: true } — tránh gắn 2 lần
+// ── CÀI ĐẶT TỶ LỆ ƯU ĐÃI ──────────────────────────────────────────
+// Mặc định: 15k/người, tỷ lệ 8 vị trí
+const DEFAULT_DISCOUNT = {
+  fundPerPerson: 15000,
+  rates: [20, 15, 15, 15, 10, 10, 7.5, 7.5]  // % → tổng = 100%
+};
+let discountSettings = JSON.parse(JSON.stringify(DEFAULT_DISCOUNT));
 
-// Callback khi Google Maps JS load xong (tên hàm khớp với &callback= trong URL)
-function initGMapsPlaces() {
-  console.log('[Maps] Places API loaded OK');
-  // Thử gắn ngay nếu input đang visible
-  ['c-loc','edit-loc'].forEach(id => {
-    if (!gmapsACAttached[id]) attachPlacesAC(id);
-  });
+async function loadDiscountSettings() {
+  const cached = localStorage.getItem('cvDiscountSettings');
+  if (cached) { try { discountSettings = { ...DEFAULT_DISCOUNT, ...JSON.parse(cached) }; } catch(e) {} }
+  const tryLoad = async (retries = 10) => {
+    if (!db) { if (retries > 0) setTimeout(() => tryLoad(retries - 1), 200); return; }
+    try {
+      const { data } = await db.from('settings').select('value').eq('key','discount_settings').single();
+      if (data?.value) {
+        discountSettings = { ...DEFAULT_DISCOUNT, ...JSON.parse(data.value) };
+        localStorage.setItem('cvDiscountSettings', data.value);
+      }
+    } catch(e) {}
+  };
+  setTimeout(tryLoad, 900);
 }
 
-// Gọi khi navigate đến trang có input địa điểm
-function enableLazyAC(inputId) {
-  const input = document.getElementById(inputId);
-  if (!input) return;
-  // Nếu Maps đã sẵn sàng → gắn luôn, không cần chờ focus
-  if (window.google?.maps?.places) {
-    attachPlacesAC(inputId);
-    return;
+async function saveDiscountSettings(s) {
+  discountSettings = s;
+  const val = JSON.stringify(s);
+  localStorage.setItem('cvDiscountSettings', val);
+  try {
+    await db.from('settings').upsert({ key:'discount_settings', value: val }, { onConflict:'key' });
+    toast('✓ Đã lưu cài đặt ưu đãi!', 'ok');
+  } catch(e) { toast('✓ Đã lưu (chỉ thiết bị này)', 'ok'); }
+}
+
+function openDiscountSettings() {
+  if (!me?.is_admin) return;
+  const s = discountSettings;
+  document.getElementById('ds-fund').value = s.fundPerPerson;
+  // Render rows
+  renderDiscountRows(s.rates);
+  document.getElementById('discount-settings-panel').style.display = 'flex';
+}
+
+function renderDiscountRows(rates) {
+  const container = document.getElementById('ds-rates-container');
+  container.innerHTML = '';
+  rates.forEach((r, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px';
+    row.innerHTML = `
+      <div style="width:24px;height:24px;border-radius:50%;background:rgba(200,255,71,.12);
+        color:var(--accent);font-size:11px;font-weight:700;display:flex;align-items:center;
+        justify-content:center;flex-shrink:0">${i+1}</div>
+      <input type="number" value="${r}" min="0" max="100" step="0.5"
+        data-idx="${i}"
+        style="flex:1;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+          border-radius:8px;color:#f0f2f7;padding:8px 10px;font-size:14px;font-family:'Be Vietnam Pro',sans-serif;outline:none"
+        oninput="updateDiscountRow(${i},this.value)">
+      <span style="color:var(--muted);font-size:13px;flex-shrink:0">%</span>
+      <button onclick="removeDiscountRow(${i})"
+        style="background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:8px;
+          color:#ef4444;width:28px;height:28px;cursor:pointer;font-size:14px;flex-shrink:0">✕</button>
+    `;
+    container.appendChild(row);
+  });
+  updateDiscountTotal();
+}
+
+function updateDiscountRow(idx, val) {
+  discountSettings.rates[idx] = parseFloat(val) || 0;
+  updateDiscountTotal();
+}
+
+function removeDiscountRow(idx) {
+  discountSettings.rates.splice(idx, 1);
+  renderDiscountRows(discountSettings.rates);
+}
+
+function addDiscountRow() {
+  discountSettings.rates.push(0);
+  renderDiscountRows(discountSettings.rates);
+}
+
+function updateDiscountTotal() {
+  const total = discountSettings.rates.reduce((s,r) => s + (parseFloat(r)||0), 0);
+  const el = document.getElementById('ds-total');
+  if (el) {
+    el.textContent = total.toFixed(1) + '%';
+    el.style.color = Math.abs(total - 100) < 0.1 ? '#22c55e' : total > 100 ? '#ef4444' : '#fbbf24';
   }
-  // Chưa sẵn sàng → gắn khi focus (và cũng poll Maps)
-  if (!gmapsACAttached['__listener_' + inputId]) {
-    gmapsACAttached['__listener_' + inputId] = true;
-    input.addEventListener('focus', function onFocus() {
-      attachPlacesAC(inputId);
-    });
-  }
-  // Poll Maps API mỗi 500ms tối đa 20 lần (~10 giây)
-  let tries = 0;
-  const poll = setInterval(() => {
-    tries++;
-    if (window.google?.maps?.places) {
-      clearInterval(poll);
-      attachPlacesAC(inputId);
-    } else if (tries > 20) {
-      clearInterval(poll);
-      console.warn('[Maps] Places API không load được sau 10 giây');
-    }
-  }, 500);
 }
 
-function attachPlacesAC(inputId) {
-  if (gmapsACAttached[inputId]) return;
-  const input = document.getElementById(inputId);
-  if (!input) return;
-  if (!window.google?.maps?.places) return;
-
-  gmapsACAttached[inputId] = true;
-  console.log('[Maps] Gắn autocomplete vào', inputId);
-
-  const ac = new google.maps.places.Autocomplete(input, {
-    types: ['establishment', 'geocode'],
-    componentRestrictions: { country: 'vn' },
-    fields: ['name', 'formatted_address', 'place_id']
-  });
-
-  ac.addListener('place_changed', () => {
-    const place = ac.getPlace();
-    if (!place.place_id) return;
-    gmapsPlaceIds[inputId] = place.place_id;
-    input.value = place.name || place.formatted_address || input.value;
-  });
-
-  input.addEventListener('input', () => { delete gmapsPlaceIds[inputId]; });
+function closeDiscountSettings() {
+  document.getElementById('discount-settings-panel').style.display = 'none';
 }
 
-// Re-attach khi mở edit sheet
-function reattachPlacesAC() {
-  delete gmapsACAttached['edit-loc'];
-  delete gmapsACAttached['__listener_edit-loc'];
-  setTimeout(() => enableLazyAC('edit-loc'), 400);
+async function confirmDiscountSettings() {
+  const fundVal = parseInt(document.getElementById('ds-fund').value) || 15000;
+  const s = { fundPerPerson: fundVal, rates: [...discountSettings.rates] };
+  await saveDiscountSettings(s);
+  closeDiscountSettings();
+}
+
+function resetDiscountSettings() {
+  discountSettings = JSON.parse(JSON.stringify(DEFAULT_DISCOUNT));
+  document.getElementById('ds-fund').value = discountSettings.fundPerPerson;
+  renderDiscountRows(discountSettings.rates);
 }
 
 // ── HÌNH NỀN CHUNG (lưu Supabase — tất cả thành viên thấy) ──
@@ -4728,30 +4845,29 @@ async function removeBgImage() {
   } catch(e) {}
   localStorage.removeItem('cvBgImage');
   localStorage.removeItem('cvBgTransform');
-  const _bgEl = document.getElementById('bg-layer');
-  if (_bgEl) { _bgEl.style.backgroundImage = ''; _bgEl.style.backgroundSize = ''; _bgEl.style.backgroundPosition = ''; }
+  document.documentElement.style.removeProperty('--bg-image');
+  document.documentElement.style.removeProperty('--bg-size');
+  document.documentElement.style.removeProperty('--bg-pos-x');
+  document.documentElement.style.removeProperty('--bg-pos-y');
   closeBgAdjust();
   load(false);
   toast('Đã xoá hình nền', 'ok');
 }
 
 function setBgImage(src) {
-  const el = document.getElementById('bg-layer');
-  if (!el) return;
   if (src) {
-    el.style.backgroundImage = `url('${src}')`;
+    document.documentElement.style.setProperty('--bg-image', `url('${src}')`);
   } else {
-    el.style.backgroundImage = '';
+    document.documentElement.style.removeProperty('--bg-image');
   }
 }
 
-// Áp dụng zoom/pan trực tiếp lên #bg-layer
+// Áp dụng zoom/pan vào CSS variables
 function applyBgTransform() {
-  const el = document.getElementById('bg-layer');
-  if (!el) return;
   const { zoom, x, y } = bgState;
-  el.style.backgroundSize     = zoom === 100 ? 'cover' : zoom + '%';
-  el.style.backgroundPosition = `${x}% ${y}%`;
+  document.documentElement.style.setProperty('--bg-size', zoom + '%');
+  document.documentElement.style.setProperty('--bg-pos-x', x + '%');
+  document.documentElement.style.setProperty('--bg-pos-y', y + '%');
 }
 
 // ── Panel chỉnh zoom/pan ──
@@ -4856,9 +4972,10 @@ async function loadSavedBg() {
 
 // Gọi init sau khi DOM và defer scripts sẵn sàng
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => { loadSavedBg(); init(); });
+  document.addEventListener('DOMContentLoaded', () => { loadSavedBg(); loadDiscountSettings(); init(); });
 } else {
   loadSavedBg();
+  loadDiscountSettings();
   init();
 }
 </script>
@@ -4882,9 +4999,9 @@ if (document.readyState === 'loading') {
   <!-- Zoom -->
   <div style="margin-bottom:12px">
     <div style="display:flex;justify-content:space-between;font-size:11px;color:#6b7280;margin-bottom:6px">
-      <span>Phóng to</span><span id="bg-zoom-val">100%</span>
+      <span>Thu nhỏ / Phóng to</span><span id="bg-zoom-val">100%</span>
     </div>
-    <input type="range" id="bg-zoom" min="100" max="300" value="100" step="1"
+    <input type="range" id="bg-zoom" min="30" max="300" value="100" step="1"
       style="width:100%;accent-color:#c8ff47;cursor:pointer" oninput="onBgZoom(this.value)">
   </div>
 
@@ -4924,7 +5041,137 @@ if (document.readyState === 'loading') {
   <button class="ni" id="gnav-home" onclick="goPage('pg-home')"><span class="ni-icon">🏠</span>Trang chủ</button>
   <button class="ni" id="gnav-fund" onclick="goPage('pg-fund')"><span class="ni-icon">🏦</span>Quỹ</button>
   <button class="ni" id="gnav-create" onclick="goPage('pg-create')"><span class="ni-icon">➕</span>Tạo buổi</button>
+  <button class="ni" id="gnav-admin" onclick="goPage('pg-admin')" style="display:none"><span class="ni-icon">🔑</span>Admin</button>
 </div>
+
+<!-- ══ PANEL CÀI ĐẶT TỶ LỆ ƯU ĐÃI ══ -->
+<div id="discount-settings-panel" style="
+  display:none; position:fixed; inset:0; z-index:10000;
+  background:rgba(0,0,0,0.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center; padding:16px">
+  <div style="background:rgba(15,17,24,0.98); backdrop-filter:blur(20px);
+    border:1px solid rgba(255,255,255,0.12); border-radius:20px;
+    padding:20px; width:100%; max-width:400px; max-height:88vh; overflow-y:auto;
+    box-shadow:0 12px 60px rgba(0,0,0,0.7)">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#f0f2f7">⚙️ Cài đặt tỷ lệ ưu đãi</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">Lưu 1 lần, áp dụng cho mọi buổi</div>
+      </div>
+      <button onclick="closeDiscountSettings()" style="background:rgba(255,255,255,.08);border:none;
+        border-radius:8px;color:#9ca3af;padding:4px 10px;cursor:pointer;font-size:14px">✕</button>
+    </div>
+
+    <!-- Quỹ mỗi người -->
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600">
+        💰 Quỹ đóng góp mỗi thành viên CLB
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" id="ds-fund" min="0" step="1000"
+          style="flex:1;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+            border-radius:8px;color:#f0f2f7;padding:10px 12px;font-size:15px;
+            font-family:'Be Vietnam Pro',sans-serif;outline:none">
+        <span style="color:var(--muted);font-size:13px;flex-shrink:0">đ / người</span>
+      </div>
+    </div>
+
+    <!-- Tỷ lệ theo vị trí -->
+    <div style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:12px;color:var(--muted);font-weight:600">🏅 Tỷ lệ ưu đãi theo thứ tự bình chọn</div>
+        <div style="font-size:11px;color:var(--muted)">
+          Tổng: <span id="ds-total" style="font-weight:700">—</span>
+        </div>
+      </div>
+      <div id="ds-rates-container"></div>
+      <button onclick="addDiscountRow()" style="width:100%;padding:8px;margin-top:4px;
+        background:rgba(200,255,71,.07);border:1px dashed rgba(200,255,71,.3);
+        border-radius:10px;color:var(--accent);font-family:'Be Vietnam Pro',sans-serif;
+        font-size:13px;cursor:pointer">+ Thêm vị trí</button>
+    </div>
+
+    <div style="font-size:11px;color:var(--muted);margin-bottom:16px;padding:8px 10px;
+      background:rgba(255,255,255,.04);border-radius:8px;line-height:1.6">
+      💡 Tổng tỷ lệ = 100% → không có phần dư. &lt; 100% → phần dư chia đều cho tất cả người tham gia. Vị trí 1 thường là host sân.
+    </div>
+
+    <!-- Buttons -->
+    <div style="display:flex;gap:8px">
+      <button onclick="resetDiscountSettings()" style="flex:1;padding:11px;border-radius:12px;
+        background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);
+        color:#9ca3af;font-family:'Be Vietnam Pro',sans-serif;font-size:13px;cursor:pointer">
+        ↺ Về mặc định
+      </button>
+      <button onclick="confirmDiscountSettings()" style="flex:2;padding:11px;border-radius:12px;
+        background:var(--accent);border:none;color:#080d00;
+        font-family:'Be Vietnam Pro',sans-serif;font-size:13px;font-weight:700;cursor:pointer">
+        ✓ Lưu cài đặt
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// GOOGLE MAPS PLACES AUTOCOMPLETE
+// ═══════════════════════════════════════
+function initGoogleMapsAutocomplete() {
+  if (typeof google === 'undefined' || !google.maps || !google.maps.places) {
+    // API chưa load xong, thử lại sau 500ms
+    setTimeout(initGoogleMapsAutocomplete, 500);
+    return;
+  }
+
+  const BIAS = { lat: 10.7769, lng: 106.7009 }; // TP.HCM
+  const BOUNDS = new google.maps.LatLngBounds(
+    new google.maps.LatLng(10.3, 106.3),
+    new google.maps.LatLng(11.2, 107.2)
+  );
+
+  function setupAutocomplete(inputId, mapLinkId) {
+    const input = document.getElementById(inputId);
+    const mapLink = document.getElementById(mapLinkId);
+    if (!input) return;
+
+    const ac = new google.maps.places.Autocomplete(input, {
+      bounds: BOUNDS,
+      strictBounds: false,
+      componentRestrictions: { country: 'vn' },
+      fields: ['formatted_address', 'name', 'geometry']
+    });
+
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      let addr = '';
+      if (place.formatted_address) {
+        addr = place.formatted_address;
+      } else if (place.name) {
+        addr = place.name;
+      }
+      if (addr && mapLink) {
+        mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr);
+        mapLink.classList.add('visible');
+      }
+    });
+
+    // Ẩn/hiện icon bản đồ khi xoá text
+    input.addEventListener('input', () => {
+      if (!input.value.trim()) {
+        mapLink && mapLink.classList.remove('visible');
+      }
+    });
+  }
+
+  setupAutocomplete('c-address', 'c-address-maplink');
+  setupAutocomplete('edit-address', 'edit-address-maplink');
+}
+
+// Gọi sau khi trang load xong
+window.addEventListener('load', initGoogleMapsAutocomplete);
+</script>
 
 </body>
 </html>
