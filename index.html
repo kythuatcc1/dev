@@ -25,6 +25,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://sbyklnmmpicgtjgiybrk.supabase.co">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDvHWAOu4atHoyDuISmm8Q7o0cxG2qDoSE&libraries=places&language=vi&callback=initGoogleMapsAutocomplete" async defer></script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -329,44 +330,37 @@ body::before {
 .exp-badge-sel  { background:rgba(71,212,255,.12); color:var(--accent2); }
 .exp-badge-pers { background:rgba(167,139,250,.12); color:#a78bfa; }
 
-/* ── Custom Places Autocomplete Dropdown ── */
-.places-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0; right: 0;
-  background: rgba(22,25,32,0.98);
-  border: 1px solid rgba(200,255,71,.25);
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0,0,0,.6);
-  z-index: 99999;
+/* ── Google Maps Autocomplete Dropdown ── */
+.pac-container {
+  background: rgba(22,25,32,0.98) !important;
+  border: 1px solid rgba(200,255,71,.25) !important;
+  border-radius: 12px !important;
+  margin-top: 4px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5) !important;
+  font-family: 'Be Vietnam Pro', sans-serif !important;
+  z-index: 99999 !important;
   overflow: hidden;
-  display: none;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
-.places-dropdown.open { display: block; }
-.places-item {
-  padding: 10px 14px;
-  border-top: 1px solid rgba(255,255,255,.06);
-  color: #f0f2f7;
-  font-size: 13px;
-  font-family: 'Be Vietnam Pro', sans-serif;
-  cursor: pointer;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  transition: background .12s;
-  line-height: 1.4;
+.pac-item {
+  padding: 10px 14px !important;
+  border-top: 1px solid rgba(255,255,255,.06) !important;
+  color: #f0f2f7 !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  transition: background .15s;
 }
-.places-item:first-child { border-top: none; }
-.places-item:hover, .places-item.active {
-  background: rgba(200,255,71,.1);
+.pac-item:first-child { border-top: none !important; }
+.pac-item:hover, .pac-item-selected {
+  background: rgba(200,255,71,.1) !important;
 }
-.places-item-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
-.places-item-text { flex: 1; min-width: 0; }
-.places-item-main { font-weight: 600; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.places-item-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.places-loading { padding: 12px 14px; font-size: 12px; color: var(--muted); text-align: center; }
+.pac-item-query {
+  color: #c8ff47 !important;
+  font-size: 13px !important;
+  font-weight: 600;
+}
+.pac-matched { color: #c8ff47 !important; font-weight: 700; }
+.pac-icon { display: none !important; }
+.pac-logo:after { display: none !important; }
 
 /* Wrapper địa chỉ có icon map */
 .address-field-wrap {
@@ -678,7 +672,6 @@ const BANK_NAME    = 'NGUYEN KIM KHANH';
       <div class="address-field-wrap">
         <input class="fi" id="c-address" type="text" placeholder="Nhập địa chỉ để tìm trên bản đồ..." style="padding-right:38px" autocomplete="off">
         <a id="c-address-maplink" class="map-link" target="_blank" title="Mở bản đồ">🗺️</a>
-        <div class="places-dropdown" id="c-address-dropdown"></div>
       </div>
     </div>
     <div class="row2">
@@ -862,7 +855,6 @@ const BANK_NAME    = 'NGUYEN KIM KHANH';
       <div class="address-field-wrap">
         <input class="fi" id="edit-address" placeholder="Nhập địa chỉ để tìm trên bản đồ..." style="padding-right:38px" autocomplete="off">
         <a id="edit-address-maplink" class="map-link" target="_blank" title="Mở bản đồ">🗺️</a>
-        <div class="places-dropdown" id="edit-address-dropdown"></div>
       </div>
     </div>
     <div class="row2">
@@ -5125,137 +5117,44 @@ if (document.readyState === 'loading') {
 
 <script>
 // ═══════════════════════════════════════
-// CUSTOM PLACES AUTOCOMPLETE — dùng Places API (New) qua fetch
-// Không cần Maps JS API → không bị chặn domain
+// GOOGLE MAPS PLACES AUTOCOMPLETE
+// Dùng callback= để đảm bảo API load xong mới chạy
 // ═══════════════════════════════════════
-const PLACES_API_KEY = 'AIzaSyDvHWAOu4atHoyDuISmm8Q7o0cxG2qDoSE';
+function initGoogleMapsAutocomplete() {
+  const BOUNDS = new google.maps.LatLngBounds(
+    new google.maps.LatLng(10.3, 106.3),
+    new google.maps.LatLng(11.2, 107.2)
+  );
 
-let _acTimers = {};
+  function setupAutocomplete(inputId, mapLinkId) {
+    const input   = document.getElementById(inputId);
+    const mapLink = document.getElementById(mapLinkId);
+    if (!input) return;
 
-async function fetchPlacesSuggestions(query) {
-  try {
-    const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': PLACES_API_KEY
-      },
-      body: JSON.stringify({
-        input: query,
-        languageCode: 'vi',
-        includedRegionCodes: ['vn'],
-        locationBias: {
-          circle: {
-            center: { latitude: 10.7769, longitude: 106.7009 },
-            radius: 60000
-          }
-        }
-      })
+    const ac = new google.maps.places.Autocomplete(input, {
+      bounds: BOUNDS,
+      strictBounds: false,
+      componentRestrictions: { country: 'vn' },
+      fields: ['formatted_address', 'name', 'geometry']
     });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.suggestions || [];
-  } catch (e) {
-    return [];
-  }
-}
 
-function setupPlacesAutocomplete(inputId, dropdownId, mapLinkId) {
-  const input    = document.getElementById(inputId);
-  const dropdown = document.getElementById(dropdownId);
-  const mapLink  = document.getElementById(mapLinkId);
-  if (!input || !dropdown) return;
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      const addr  = place.formatted_address || place.name || '';
+      if (addr && mapLink) {
+        mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(addr);
+        mapLink.classList.add('visible');
+      }
+    });
 
-  let activeIdx = -1;
-  let currentSuggestions = [];
-
-  function closeDropdown() {
-    dropdown.classList.remove('open');
-    dropdown.innerHTML = '';
-    activeIdx = -1;
-    currentSuggestions = [];
-  }
-
-  function setActiveItem(idx) {
-    const items = dropdown.querySelectorAll('.places-item');
-    items.forEach((el, i) => el.classList.toggle('active', i === idx));
-    activeIdx = idx;
-  }
-
-  function selectSuggestion(s) {
-    const main = s.placePrediction?.structuredFormat?.mainText?.text || '';
-    const sub  = s.placePrediction?.structuredFormat?.secondaryText?.text || '';
-    const full = sub ? `${main}, ${sub}` : main;
-    input.value = full;
-    if (mapLink) {
-      mapLink.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(full);
-      mapLink.classList.add('visible');
-    }
-    closeDropdown();
-  }
-
-  function renderSuggestions(suggestions) {
-    currentSuggestions = suggestions;
-    if (!suggestions.length) { closeDropdown(); return; }
-    dropdown.innerHTML = suggestions.map((s, i) => {
-      const main = s.placePrediction?.structuredFormat?.mainText?.text || '';
-      const sub  = s.placePrediction?.structuredFormat?.secondaryText?.text || '';
-      return `<div class="places-item" data-idx="${i}">
-        <span class="places-item-icon">📍</span>
-        <span class="places-item-text">
-          <div class="places-item-main">${main}</div>
-          ${sub ? `<div class="places-item-sub">${sub}</div>` : ''}
-        </span>
-      </div>`;
-    }).join('');
-    dropdown.classList.add('open');
-
-    dropdown.querySelectorAll('.places-item').forEach(el => {
-      el.addEventListener('mousedown', e => {
-        e.preventDefault();
-        selectSuggestion(currentSuggestions[+el.dataset.idx]);
-      });
+    input.addEventListener('input', () => {
+      if (!input.value.trim() && mapLink) mapLink.classList.remove('visible');
     });
   }
 
-  input.addEventListener('input', () => {
-    const q = input.value.trim();
-    if (mapLink && !q) mapLink.classList.remove('visible');
-    clearTimeout(_acTimers[inputId]);
-    if (q.length < 2) { closeDropdown(); return; }
-    dropdown.innerHTML = '<div class="places-loading">Đang tìm...</div>';
-    dropdown.classList.add('open');
-    _acTimers[inputId] = setTimeout(async () => {
-      const suggestions = await fetchPlacesSuggestions(q);
-      renderSuggestions(suggestions);
-    }, 280);
-  });
-
-  input.addEventListener('keydown', e => {
-    if (!dropdown.classList.contains('open')) return;
-    const items = dropdown.querySelectorAll('.places-item');
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveItem(Math.min(activeIdx + 1, items.length - 1));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveItem(Math.max(activeIdx - 1, 0));
-    } else if (e.key === 'Enter' && activeIdx >= 0) {
-      e.preventDefault();
-      selectSuggestion(currentSuggestions[activeIdx]);
-    } else if (e.key === 'Escape') {
-      closeDropdown();
-    }
-  });
-
-  input.addEventListener('blur', () => setTimeout(closeDropdown, 150));
+  setupAutocomplete('c-address',    'c-address-maplink');
+  setupAutocomplete('edit-address', 'edit-address-maplink');
 }
-
-// Khởi tạo ngay sau DOM load — không cần Maps JS API
-document.addEventListener('DOMContentLoaded', () => {
-  setupPlacesAutocomplete('c-address',    'c-address-dropdown',    'c-address-maplink');
-  setupPlacesAutocomplete('edit-address', 'edit-address-dropdown', 'edit-address-maplink');
-});
 </script>
 
 </body>
