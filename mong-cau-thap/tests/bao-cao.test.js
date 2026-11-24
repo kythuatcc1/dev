@@ -42,7 +42,10 @@ test('Xuất thuyết minh từ số liệu mặc định: file docx hợp lệ,
   [
     'THUYẾT MINH TÍNH TOÁN', 'MÓNG CẨU THÁP CT1 LLT5020-10', 'CHƯƠNG I. TỔNG QUAN', 'PHẦN 3. THÔNG SỐ CẨU THÁP',
     'CHƯƠNG II. TÍNH TOÁN MÓNG CẨU THÁP CT1 LLT5020-10', 'A. THÔNG SỐ ĐẦU VÀO',
-    '956.80', '5238.83', '647.33', '3668.59', '5501.91', '1442.12', 'CB500-V', 'TCVN 10304:2025'
+    '956.80', '5238.83', '647.33', '3668.59', '5501.91', '1442.12', 'CB500-V', 'TCVN 10304:2025',
+    'B. KIỂM TRA TẢI TRỌNG TÁC DỤNG LÊN CỌC', '3199', '-2237', 'C. KIỂM TRA XUYÊN THỦNG CHO ĐÀI MÓNG', '26013',
+    'D. TÍNH CỐT THÉP CHO ĐÀI MÓNG', '173.9', '-155.2', 'E. KIỂM TRA BULONG', '1497', '438.0', '393.7', '414.0', '746.5',
+    '4162.5', 'F. KẾT LUẬN', 'Móng cẩu tháp đủ khả năng chịu lực'
   ].forEach((t) => assert.ok(chu.includes(t), 'thiếu: ' + t));
   const header = docTrongZip(buf, 'word/header1.xml') || docTrongZip(buf, 'word/header2.xml');
   assert.match(header.replace(/<[^>]+>/g, ''), /HỒ SƠ THẨM TRA/);

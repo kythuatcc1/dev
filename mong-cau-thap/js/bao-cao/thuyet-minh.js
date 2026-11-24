@@ -145,13 +145,25 @@
       var ok = r.kl ? [p(r.kl, { bold: true, color: r.kl === 'OK' ? MAU.ok : MAU.fail, align: x.AlignmentType.CENTER, spacing: { after: 0 } })] : [p('', { spacing: { after: 0 } })];
       // dòng chỉ có nhãn (đề mục cho bảng phía sau) thì dính với nội dung sau
       var lien = { spacing: { after: 0, line: 276 }, keepNext: r.keepNext || (!r.ky && (r.gt == null || r.gt === '')) };
-      return hangBang([
-        o(p(r.nhan || '', Object.assign({ bold: r.dam, italics: r.nghieng, indent: { left: r.thut === undefined ? thut : r.thut } }, lien)), cot[0], { vien: false, vAlign: x.VerticalAlign.TOP }),
+      var oNhan = o(p(r.nhan || '', Object.assign({ bold: r.dam, italics: r.nghieng, indent: { left: r.thut === undefined ? thut : r.thut } }, lien)), cot[0], { vien: false, vAlign: x.VerticalAlign.TOP });
+      if (r.gtRong) {
+        // giá trị dài (chữ) chiếm cả 3 cột giá trị – đơn vị – kết luận
+        return hangBang([oNhan, o(p(r.ky || '', lien), cot[1], { vien: false, vAlign: x.VerticalAlign.TOP }),
+          o(p(r.gt == null ? '' : r.gt, Object.assign({ color: r.nhap ? MAU.nhap : undefined }, lien)), cot[2] + cot[3] + cot[4], { vien: false, span: 3, vAlign: x.VerticalAlign.TOP })]);
+      }
+      var cells = [
+        oNhan,
         o(p(r.ky || '', lien), cot[1], { vien: false, vAlign: x.VerticalAlign.TOP }),
-        o(p(r.gt == null ? '' : r.gt, Object.assign({ align: x.AlignmentType.CENTER, color: r.nhap ? MAU.nhap : undefined, bold: r.gtDam }, lien)), cot[2], { vien: false, vAlign: x.VerticalAlign.TOP }),
-        o(p(r.dv || '', lien), cot[3], { vien: false, vAlign: x.VerticalAlign.TOP }),
-        o(ok, cot[4], { vien: false, vAlign: x.VerticalAlign.TOP })
-      ]);
+        o(p(r.gt == null ? '' : r.gt, Object.assign({ align: x.AlignmentType.CENTER, color: r.nhap ? MAU.nhap : undefined, bold: r.gtDam }, lien)), cot[2], { vien: false, vAlign: x.VerticalAlign.TOP })
+      ];
+      if (r.dv && String(r.dv).replace(/[_^]\{|\}/g, '').length > 6 && !r.kl) {
+        // ghi chú dài trong cột đơn vị: gộp với cột kết luận cho đỡ bẻ dòng
+        cells.push(o(p(r.dv, Object.assign({}, lien, { size: 22 })), cot[3] + cot[4], { vien: false, span: 2, vAlign: x.VerticalAlign.TOP }));
+      } else {
+        cells.push(o(p(r.dv || '', lien), cot[3], { vien: false, vAlign: x.VerticalAlign.TOP }));
+        cells.push(o(ok, cot[4], { vien: false, vAlign: x.VerticalAlign.TOP }));
+      }
+      return hangBang(cells);
     });
     return bang(hang, cot, { borders: { top: KHONG_VIEN, bottom: KHONG_VIEN, left: KHONG_VIEN, right: KHONG_VIEN, insideHorizontal: KHONG_VIEN, insideVertical: KHONG_VIEN } });
   }
@@ -168,10 +180,10 @@
     var trong = { top: KHONG_VIEN, bottom: KHONG_VIEN, left: KHONG_VIEN, right: VIEN };
     var hang = [];
     hang.push(hangBang([o(p('', { spacing: { after: 0 } }), rongNhan, { borders: trong })].concat(
-      cfg.tieuDe.map(function (t) { return o(p(t, Object.assign({ bold: true }, giua)), rongCot); }))));
+      cfg.tieuDe.map(function (t) { return o(p(t, Object.assign({ bold: true }, giua)), rongCot); })), { header: true }));
     if (cfg.donVi) {
       hang.push(hangBang([o(p('', { spacing: { after: 0 } }), rongNhan, { borders: trong })].concat(
-        cfg.donVi.map(function (t) { return o(p(t, Object.assign({ bold: true }, giua)), rongCot); }))));
+        cfg.donVi.map(function (t) { return o(p(t, Object.assign({ bold: true }, giua)), rongCot); })), { header: true }));
     }
     cfg.hang.forEach(function (h) {
       hang.push(hangBang([o(p(h.nhan, { spacing: { after: 0, line: 260 }, indent: { left: 360 }, keepNext: true }), rongNhan, { borders: trong })].concat(
@@ -489,6 +501,276 @@
     return out;
   }
 
+  // ---------------- Công thức phân số (bảng không viền, gạch phân số = viền dưới tử số) ----------------
+  // items: chuỗi (ô thường, chiếm 2 dòng) hoặc { tu, mau } (phân số)
+  function congThuc(items, opt) {
+    var x = D();
+    opt = opt || {};
+    var giua = { align: x.AlignmentType.CENTER, spacing: { after: 0, line: 260 } };
+    var cot = items.map(function (it) {
+      var dai = typeof it === 'string' ? it.replace(/[_^]\{|\}/g, '').length : Math.max(String(it.tu).length, String(it.mau).length);
+      return Math.max(360, dai * 140 + 260);
+    });
+    var tong = cot.reduce(function (a, b) { return a + b; }, 0);
+    var thut = opt.thut || 0;
+    if (thut) { cot.unshift(thut); }
+    var vienTu = { top: KHONG_VIEN, left: KHONG_VIEN, right: KHONG_VIEN, bottom: VIEN };
+    var h1 = [], h2 = [];
+    if (thut) {
+      h1.push(o(p('', giua), thut, { vien: false, rowSpan: 2 }));
+    }
+    items.forEach(function (it, i) {
+      var w = cot[thut ? i + 1 : i];
+      if (typeof it === 'string') {
+        h1.push(o(p(it, Object.assign({ bold: opt.dam }, giua)), w, { vien: false, rowSpan: 2 }));
+      } else {
+        h1.push(o(p(it.tu, Object.assign({ bold: opt.dam }, giua)), w, { borders: vienTu, margins: { top: 0, bottom: 0, left: 40, right: 40 } }));
+        h2.push(o(p(it.mau, Object.assign({ bold: opt.dam }, giua)), w, { vien: false, margins: { top: 0, bottom: 0, left: 40, right: 40 } }));
+      }
+    });
+    if (!h2.length) h2.push(o(p('', giua), cot[cot.length - 1], { vien: false }));
+    return bang([hangBang(h1), hangBang(h2)], cot, {
+      align: opt.giua ? x.AlignmentType.CENTER : undefined,
+      borders: { top: KHONG_VIEN, bottom: KHONG_VIEN, left: KHONG_VIEN, right: KHONG_VIEN, insideHorizontal: KHONG_VIEN, insideVertical: KHONG_VIEN }
+    });
+  }
+
+  // Dòng kiểm tra: "Pmax = 3199 (kN) < 4243 (kN) OK" – bảng không viền
+  function dongKiemTra(ds) {
+    var x = D();
+    var cot = [1300, 500, 1300, 900, 500, 1300, 900, 900];
+    var tong = cot.reduce(function (a, b) { return a + b; }, 0);
+    cot.unshift(RONG - tong);
+    var hang = ds.map(function (r) {
+      var c = { spacing: { after: 0, line: 276 } };
+      var giua = Object.assign({ align: x.AlignmentType.CENTER }, c);
+      return hangBang([
+        o(p('', c), cot[0], { vien: false }),
+        o(p(r.ky, c), cot[1], { vien: false }),
+        o(p('=', giua), cot[2], { vien: false }),
+        o(p(r.trai, Object.assign({ bold: true }, giua)), cot[3], { vien: false }),
+        o(p('(' + r.dv + ')', c), cot[4], { vien: false }),
+        o(p(r.dau, giua), cot[5], { vien: false }),
+        o(p(r.phai, giua), cot[6], { vien: false }),
+        o(p('(' + r.dv + ')', c), cot[7], { vien: false }),
+        o(p(r.ok ? 'OK' : 'FAIL', Object.assign({ bold: true, color: r.ok ? MAU.ok : MAU.fail }, giua)), cot[8], { vien: false })
+      ]);
+    });
+    return bang(hang, cot, { borders: { top: KHONG_VIEN, bottom: KHONG_VIEN, left: KHONG_VIEN, right: KHONG_VIEN, insideHorizontal: KHONG_VIEN, insideVertical: KHONG_VIEN } });
+  }
+
+  function okKl(ok) { return ok ? 'OK' : 'FAIL'; }
+
+  // ---------------- Chương II – Phần 2, mục B ----------------
+  function phan2MucB(s, kq) {
+    var x = D();
+    var B = kq.B;
+    var out = [muc('B. KIỂM TRA TẢI TRỌNG TÁC DỤNG LÊN CỌC')];
+    if (!B || !B.hopLe) { out.push(doan('Chưa đủ số liệu: ' + ((B && B.loi) || []).join('; '))); return out; }
+    out.push(bangThongSo([
+      { nhan: 'Số lượng cọc trong đài:', ky: 'n=', gt: String(B.n), dv: 'cọc' },
+      { nhan: 'Sức chịu tải của cọc khi chịu nén:', ky: 'Q_{a}=', gt: f(B.Qa, 0), dv: 'kN' },
+      { nhan: "Sức chịu tải của cọc khi chịu kéo:", ky: "Q_{a}'=", gt: f(B.QaKeo, 0), dv: 'kN' }
+    ]));
+    out.push(tieuMuc('Tải trọng:'));
+    out.push(p('Tải trọng tác dụng lên cọc lớn nhất khi tay cần xoay theo phương đi qua tim cọc.', { indent: { left: 360 }, spacing: { after: 40 } }));
+    out.push(p('Ở đây, tải trọng lớn nhất và nhỏ nhất tác dụng lên từng cọc có thể tính theo công thức:', { indent: { left: 360 } }));
+    out.push(congThuc(['P_{imax/imin}=', { tu: 'N_{tt}', mau: 'n' }, '±', { tu: 'M×cosα×x_{max}', mau: 'Σx_{i}^{2}' }, '±',
+      { tu: 'M×sinα×y_{max}', mau: 'Σy_{i}^{2}' }], { giua: true }));
+    out.push(tieuMuc('Tọa độ từng cọc:'));
+    var soCot = Math.max(B.n, 9);
+    var w0 = 1000, wc = Math.floor((RONG - w0) / soCot);
+    var cot = [w0].concat(new Array(soCot).fill(wc));
+    var giua = { align: x.AlignmentType.CENTER, spacing: { after: 0, line: 260 }, keepNext: true };
+    var nen = 'DCE6F1';
+    function dong(nhan, ham, mau, fill) {
+      var cells = [o(p(nhan, giua), w0)];
+      for (var i = 0; i < soCot; i++) {
+        var c = B.coc[i];
+        cells.push(o(p(c ? ham(c) : '', Object.assign({ color: mau }, giua)), wc, { fill: fill }));
+      }
+      return hangBang(cells);
+    }
+    var hdr = [o(p('Dir', giua), w0)];
+    for (var i = 0; i < soCot; i++) hdr.push(o(p(String(i + 1), giua), wc));
+    out.push(bang([
+      hangBang(hdr),
+      dong('x_{i}', function (c) { return f(c.x, 3); }, MAU.nhap),
+      dong('y_{i}', function (c) { return f(c.y, 3); }, MAU.nhap),
+      dong('α_{i} (^{0})', function (c) { return f(c.alpha, 1); }),
+      dong('P_{imax}', function (c) { return f(c.Pimax, 0); }, undefined, nen),
+      dong('P_{imin}', function (c) { return f(c.Pimin, 0); }, undefined, nen)
+    ], cot));
+    out.push(p('Tải trọng lớn nhất và nhỏ nhất tác dụng lên cọc:', { indent: { left: 360 }, spacing: { before: 120, after: 40 }, keepNext: true }));
+    out.push(dongKiemTra([
+      { ky: 'P_{max}', trai: f(B.Pmax, 0), dv: 'kN', dau: B.Pmax < B.Qa ? '<' : '>', phai: f(B.Qa, 0), ok: B.kiemTraNen.ok },
+      { ky: 'P_{min}', trai: f(B.Pmin, 0), dv: 'kN', dau: B.Pmin < B.QaKeo ? '<' : '>', phai: f(B.QaKeo, 0), ok: B.kiemTraKeo.ok }
+    ]));
+    return out;
+  }
+
+  // ---------------- Mục C – xuyên thủng (app tính đầy đủ) ----------------
+  function phan2MucC(s, kq) {
+    var x = D();
+    var C = kq.C;
+    var out = [muc('C. KIỂM TRA XUYÊN THỦNG CHO ĐÀI MÓNG')];
+    if (!C || !C.hopLe) { out.push(doan('Chưa đủ số liệu: ' + ((C && C.loi) || []).join('; '))); return out; }
+    out.push(bangThongSo([
+      { nhan: 'Kích thước chân cẩu tháp:', ky: 'H_{t}=', gt: f(C.Ht, 1), dv: 'm' },
+      { nhan: 'Chiều cao làm việc của đài (h_{0} = H − a):', ky: 'h_{0}=', gt: f(C.h0, 2), dv: 'm' },
+      { nhan: 'Cạnh đáy tháp xuyên 45° tại cao trình cốt thép chịu kéo (B_{xt} = H_{t} + 2h_{0}):', ky: 'B_{xt}=', gt: f(C.Bxt, 2), dv: 'm' }
+    ]));
+    out.push(p('Cọc không nằm trọn trong đáy tháp xuyên thì phản lực của cọc đó gây xuyên thủng cho đài (lấy toàn bộ phản lực của cọc):',
+      { indent: { left: 360 }, align: x.AlignmentType.JUSTIFIED, keepNext: true }));
+    out.push(bangDayDu(['Cọc', '|x_{i}|+D/2 (m)', '|y_{i}|+D/2 (m)', 'Vị trí so với tháp xuyên', 'P_{imax} (kN)', 'Tính vào F (kN)'],
+      C.coc.map(function (c) {
+        return [String(c.stt), f(c.mepX, 2), f(c.mepY, 2), c.trongThap ? 'Nằm trong' : 'Nằm ngoài', f(c.Pimax, 0), f(c.F, 0)];
+      }), [800, 1500, 1500, 2638, 1600, 1600]));
+    if (C.baoTrumTatCa) {
+      out.push(p('Tháp xuyên bao trùm tất cả các đầu cọc nên lực gây xuyên thủng F = 0.', { indent: { left: 360 }, spacing: { before: 100 } }));
+    }
+    out.push(bangThongSo([
+      { nhan: 'Lực gây xuyên thủng (F = ΣP_{imax} các cọc nằm ngoài tháp xuyên):', ky: 'F=', gt: f(C.F, 0), dv: 'kN' },
+      { nhan: 'Chu vi đường bao tính toán cách mép chân cẩu h_{0}/2 (u = 4(H_{t} + h_{0})):', ky: 'u=', gt: f(C.u, 2), dv: 'm' },
+      { nhan: 'Khả năng chống xuyên thủng của đài (mục 8.1.6.2.1 TCVN 5574:2018):' },
+      { nhan: 'F_{b,ult} = R_{bt}·u·h_{0}', thut: 720, ky: 'F_{b,ult}=', gt: f(C.Fbult, 0), dv: 'kN', kl: okKl(C.ok) }
+    ]));
+    return out;
+  }
+
+  // ---------------- Mục D – cốt thép đài ----------------
+  function bangThepBC(Dd, keys) {
+    var x = D();
+    var cot = [1100, 1250, 1050, 1050, 1250, 800, 800, 1300, 1038];
+    var g0 = { align: x.AlignmentType.CENTER, spacing: { after: 0, line: 260 }, keepNext: true };
+    var b = function (t) { return p(t, Object.assign({ bold: true }, g0)); };
+    var hang = [
+      hangBang([o(b('Phương'), cot[0], { rowSpan: 3 }), o(b('M_{tt}'), cot[1], { rowSpan: 2 }), o(b('α'), cot[2], { rowSpan: 3 }),
+        o(b('ξ'), cot[3], { rowSpan: 3 }), o(b('A_{s,cal}'), cot[4], { rowSpan: 2 }), o(b('Thép chọn'), cot[5] + cot[6], { span: 2 }),
+        o(b('A_{s,design}'), cot[7], { rowSpan: 2 }), o(b('Kiểm tra'), cot[8], { rowSpan: 3 })]),
+      hangBang([o(b('d'), cot[5]), o(b('a'), cot[6])]),
+      hangBang([o(b('kNm/m'), cot[1]), o(b('mm2/m'), cot[4]), o(b('mm'), cot[5]), o(b('mm'), cot[6]), o(b('mm2/m'), cot[7])])
+    ];
+    keys.forEach(function (k) {
+      var t = Dd[k];
+      hang.push(hangBang([
+        o(p(k.slice(-1), g0), cot[0]), o(p(f(t.M, 1), g0), cot[1]), o(p(f(t.alpha, 3), g0), cot[2]), o(p(f(t.xi, 3), g0), cot[3]),
+        o(p(t.duTietDien ? f(t.As, 0) : 'αm>0.5', g0), cot[4]),
+        o(p(g(t.d), Object.assign({ color: MAU.nhap }, g0)), cot[5]), o(p(g(t.s), Object.assign({ color: MAU.nhap }, g0)), cot[6]),
+        o(p(f(t.AsChon, 0), g0), cot[7]),
+        o(p(okKl(t.ok), Object.assign({ bold: true, color: t.ok ? MAU.ok : MAU.fail }, g0)), cot[8])
+      ]));
+    });
+    return bang(hang, cot);
+  }
+
+  function phan2MucD(s, kq) {
+    var x = D();
+    var Dd = kq.D;
+    var out = [muc('D. TÍNH CỐT THÉP CHO ĐÀI MÓNG')];
+    if (!Dd || !Dd.hopLe) { out.push(doan('Chưa đủ số liệu: ' + ((Dd && Dd.loi) || []).join('; '))); return out; }
+    out.push(p('Thiên về an toàn, moment trong đài móng được tính với hàng cọc có phản lực P = P_{imax/imin}', { indent: { left: 360 } }));
+    out.push(p('α_{m} = M/(R_{b}·b·h_{0}^{2});   ξ = 1 − √(1 − 2α_{m});   A_{s} = ξ·R_{b}·b·h_{0}/R_{s};   b = 1000 mm',
+      { italics: true, size: 22, indent: { left: 360 } }));
+    out.push(tieuMuc('Với thép lớp dưới:'));
+    out.push(p('M = ΣQ_{tti}×l_{i}  =  ΣP_{imax}×l_{o}', { bold: true, align: x.AlignmentType.CENTER, keepNext: true }));
+    out.push(bangThepBC(Dd, ['duoiX', 'duoiY']));
+    out.push(tieuMuc('Với thép lớp trên:'));
+    out.push(p('M = ΣQ_{tti}×l_{i}  =  ΣP_{imin}×l_{o}', { bold: true, align: x.AlignmentType.CENTER, keepNext: true }));
+    out.push(bangThepBC(Dd, ['trenX', 'trenY']));
+    return out;
+  }
+
+  // ---------------- Mục E – bulong ----------------
+  function phan2MucE(s, kq) {
+    var x = D();
+    var E = kq.E;
+    var out = [muc('E. KIỂM TRA BULONG')];
+    if (!E || !E.hopLe) { out.push(doan('Chưa đủ số liệu: ' + ((E && E.loi) || []).join('; '))); return out; }
+    out.push(tieuMuc('E.1. Thông số bulong'));
+    out.push(bangThongSo([
+      { nhan: 'Đường kính bulong:', ky: 'd_{bl}=', gt: g(E.d), dv: 'mm', nhap: true },
+      { nhan: 'Chất lượng, độ chính xác bulong:', ky: '', gt: E.loai, nhap: true, gtRong: true },
+      { nhan: 'Diện tích danh định bulong:', ky: 'A=', gt: f(E.A, 2), dv: 'cm2' },
+      { nhan: 'Diện tích giảm yếu bulong:', ky: 'A_{bn}=', gt: f(E.Abn, 2), dv: 'cm2' },
+      { nhan: 'Cấp độ bền bulong:', ky: 'Grade =', gt: g(E.capBen), dv: '', nhap: true },
+      { nhan: 'Cường độ chịu cắt của bulong:', ky: 'f_{vb}=', gt: g(E.fvb), dv: 'MPa' },
+      { nhan: 'Cường độ chịu kéo của bulong:', ky: 'f_{ba}=', gt: g(E.fba), dv: 'MPa' },
+      { nhan: 'Cường độ chịu ép mặt của bulong:', ky: 'f_{cb}=', gt: g(E.fcb), dv: 'MPa', nhap: true },
+      { nhan: 'Số lượng bulong:', ky: 'n=', gt: g(E.n), dv: 'con', nhap: true }
+    ]));
+
+    out.push(tieuMuc('E.2. Kiểm tra chiều dài bulong'));
+    out.push(bangThongSo([
+      { nhan: 'Tổng chiều dài của bulong (bao gồm cả đoạn bẻ móc):', ky: 'L_{1}+L_{2}=', gt: g(E.L1L2), dv: 'mm', nhap: true },
+      { nhan: 'Chiều dài của bulong nằm trong bê tông:', ky: 'L_{1}=', gt: g(E.L1), dv: 'mm' },
+      { nhan: 'Chiều dài đoạn bulong bẻ móc:', ky: 'L_{2}=', gt: g(E.L2), dv: 'mm', nhap: true },
+      { nhan: 'Chiều dài đoạn bulong trên mặt móng:', ky: 'L_{3}=', gt: g(E.L3), dv: 'mm', nhap: true },
+      { nhan: 'Hệ số điều kiện làm việc của bulong:', ky: 'γ_{b}=', gt: g(E.gammaB), dv: '' },
+      { nhan: 'Chiều dài neo yêu cầu của bulong' },
+      { nhan: 'H_{0}=25d_{bl}.m_{1}.m_{2} ; m_{1}=R_{bt}(B12,5)/R_{bt} ; m_{2}=f_{yb}/235 (Bảng L.1, CT L.10 TCVN 5575:2024)', thut: 720,
+        ky: 'H_{0}=', gt: f(E.H0, 0), dv: 'mm', kl: okKl(E.kiemTra.neo) },
+      { nhan: 'Trong đó:', thut: 720, nghieng: true, ky: 'η_{1}=', gt: g(E.eta1), dv: '(bulong trơn)', nhap: true },
+      { nhan: '', ky: 'η_{2}=', gt: g(E.eta2), dv: '(d_{bl} ≥ 36mm)', nhap: true },
+      { nhan: '', ky: 'α_{1}=', gt: g(E.alpha1), dv: '(bulong trơn có móc, chịu kéo)', nhap: true }
+    ]));
+
+    out.push(tieuMuc('E.3. Kiểm tra bulong chịu kéo'));
+    out.push(bangThongSo([
+      { nhan: 'Lực nhổ lớn nhất theo catalogue tại 1 chân cẩu tháp:', ky: 'P_{ct}=', gt: f(E.Pct, 1), dv: 'kN' },
+      { nhan: 'Lực nhổ tính toán lớn nhất tại 1 chân cẩu tháp:', ky: 'P_{t}=', gt: f(E.Pt, 1), dv: 'kN' },
+      { nhan: 'Lực nhổ tính toán lớn nhất tại 1 bulong:', ky: 'P_{t}/1bl=', gt: f(E.Pt1, 1), dv: 'kN' },
+      { nhan: 'Khả năng chịu kéo của 1 bulong neo (mục L.4.2, Phụ lục L TCVN 5575:2024), hệ số tải trọng:', ky: 'k_{0}=', gt: g(E.k0), dv: '(tải trọng động)', nhap: true },
+      { nhan: '[N]_{tb}=f_{ba}.A_{bn}/k_{0}', thut: 720, ky: '[N]_{tb}=', gt: f(E.Ntb, 1), dv: 'kN', kl: okKl(E.kiemTra.keo) }
+    ]));
+
+    out.push(tieuMuc('E.4. Kiểm tra bulong chịu tuột'));
+    out.push(bangThongSo([
+      { nhan: 'Cường độ bám dính tính toán của bulong với bê tông (CT 256, mục 10.3.5.4 TCVN 5574:2018):', ky: 'R_{bond}=', gt: f(E.Rbond, 2), dv: 'MPa' },
+      { nhan: 'Khả năng chịu tuột của 1 bulong (mục 10.3.5.6 TCVN 5574:2018):' },
+      { nhan: '[N]=π.d_{bl}.(L_{1}+L_{2}).R_{bond}', thut: 720, ky: '[N]=', gt: f(E.Ntuot, 1), dv: 'kN', kl: okKl(E.kiemTra.tuot) }
+    ]));
+
+    out.push(tieuMuc('E.5. Kiểm tra bulong chịu cắt'));
+    out.push(p('Lực cắt lớn nhất tại 1 chân cẩu tháp theo catalogue:', { indent: { left: 360 }, keepNext: true }));
+    out.push(congThuc(['-  Khi cẩu làm việc:', 'P_{stc1}=', { tu: E.nhanFh, mau: '2' }, '+', { tu: E.nhanT, mau: 'H_{t}' }, '=', f(E.Pstc1, 1), 'kN'], { thut: 360 }));
+    out.push(congThuc(['-  Khi cẩu không làm việc:', 'P_{stc2}=', { tu: E.nhanFh, mau: '2' }, '=', f(E.Pstc2, 1), 'kN'], { thut: 360 }));
+    out.push(bangThongSo([
+      { nhan: 'Lực cắt tiêu chuẩn lớn nhất tại 1 chân cẩu tháp:', ky: 'P_{stc}=', gt: f(E.Pstc, 1), dv: 'kN' },
+      { nhan: 'Lực cắt tính toán lớn nhất tại 1 chân cẩu tháp:', ky: 'P_{s}=', gt: f(E.Ps, 1), dv: 'kN' },
+      { nhan: 'Lực cắt tính toán lớn nhất tại 1 bulong:', ky: 'P_{s}/1bl=', gt: f(E.Ps1, 1), dv: 'kN' },
+      { nhan: 'Số lượng mặt cắt tính toán:', ky: 'n_{v}=', gt: g(E.nv), dv: '', nhap: true },
+      { nhan: 'Khả năng chịu cắt của 1 bulong (CT 186, mục 14.2.9 TCVN 5575:2024):' },
+      { nhan: '[N]_{vb}=f_{vb}γ_{b}An_{v}', thut: 720, ky: '[N]_{vb}=', gt: f(E.Nvb, 1), dv: 'kN', kl: okKl(E.kiemTra.cat) }
+    ]));
+
+    out.push(tieuMuc('E.6. Kiểm tra bulong chịu ép mặt'));
+    out.push(bangThongSo([
+      { nhan: 'Lực ép mặt tính toán lớn nhất tại 1 bulong:', ky: 'P_{s}/1bl=', gt: f(E.Ps1, 1), dv: 'kN' },
+      { nhan: 'Tổng chiều dày các bản thép cùng trượt về một phía:', ky: 'Σt=', gt: g(E.tongT), dv: 'mm' },
+      { nhan: 'Khả năng chịu ép mặt của 1 bulong (CT 187, mục 14.2.9 TCVN 5575:2024):' },
+      { nhan: '[N]_{cb}=f_{cb}γ_{b}dΣt', thut: 720, ky: '[N]_{cb}=', gt: f(E.Ncb, 1), dv: 'kN', kl: okKl(E.kiemTra.epMat) }
+    ]));
+
+    out.push(tieuMuc('E.7. Kiểm tra chọc thủng của 1 cụm bulong'));
+    out.push(bangThongSo([
+      { nhan: 'Đường kính đáy bé tháp chọc thủng:', ky: 'D_{1}=', gt: f(E.D1, 2), dv: 'm' },
+      { nhan: 'Đường kính đáy lớn tháp chọc thủng:', ky: 'D_{2}=', gt: f(E.D2, 2), dv: 'm' },
+      { nhan: 'Lực gây chọc thủng của 1 cụm bu lông:', ky: 'P_{xt}=', gt: f(E.Pxt, 1), dv: 'kN' },
+      { nhan: 'Khả năng chống chọc thủng của 1 cụm bu lông (mục 8.1.6.2.1 TCVN 5574:2018):' },
+      { nhan: '[P]_{xt}=0.4×R_{bt}.L_{1}.π(D_{1}+D_{2})/2', thut: 720, ky: '[P]_{xt}=', gt: f(E.PxtGh, 1), dv: 'kN', kl: okKl(E.kiemTra.chocThung) }
+    ]));
+    return out;
+  }
+
+  function phan2MucF(s, kq) {
+    var F = kq.F;
+    var out = [muc('F. KẾT LUẬN')];
+    if (!F || !F.hopLe) { out.push(doan('Chưa đủ số liệu để kết luận.')); return out; }
+    out.push(p(F.ketLuan, { bold: true, color: F.ok ? MAU.ok : MAU.fail, indent: { left: 360 }, spacing: { before: 60 } }));
+    return out;
+  }
+
   // ---------------- Tài liệu ----------------
   function kieuChu() {
     var hd = function (id, ten, co, giua) {
@@ -527,7 +809,12 @@
       .concat(chuongI(s, kq, tenTM))
       .concat(chuong('CHƯƠNG II. TÍNH TOÁN MÓNG CẨU THÁP ' + tenTM))
       .concat(phan1SCT(s))
-      .concat(phan2MucA(s, kq));
+      .concat(phan2MucA(s, kq))
+      .concat(phan2MucB(s, kq))
+      .concat(phan2MucC(s, kq))
+      .concat(phan2MucD(s, kq))
+      .concat(phan2MucE(s, kq))
+      .concat(phan2MucF(s, kq));
 
     // Hai bảng liền nhau (không có đoạn văn ở giữa) sẽ bị Word/LibreOffice gộp thành một bảng
     // và chia lại cột → chèn một đoạn trống rất mỏng giữa chúng.
