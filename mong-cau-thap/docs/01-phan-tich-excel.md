@@ -148,6 +148,7 @@ File gồm 15 sheet, khoảng 2.000 dòng macro VBA, 11 biểu đồ và nhiều
 5. **η2** trong kiểm tra ổn định đất (sheet `Kiem tra tai ngang`, G128) lấy từ sheet mô hình (= 0,529), không lấy giá trị vừa tính ngay trong sheet (J124 = 0,459).
 6. **l0**: SCT cọc dùng l0 = 10,4 m (từ đáy đài −2,6 đến đáy hố đào −13), nhưng `Kiem tra tai ngang` lại dùng l0 = 0.
 7. **A0, B0, C0** đang nhập tay cố định (ứng với αε·L ≥ 4). App có thể tự tra bảng theo αε·L.
+8. **Cẩu MCT.205** (sheet `Solieu`, ô G78:G82 – chiều cao từ hàng 78 trở đi): Mqđ khi làm việc = √(MV² + MR²) và **không nhân hệ số n**. Các hàng phía trên lại dùng (MV + MR)·n.
 
 ## 7. Đề xuất phạm vi và thứ tự làm app
 

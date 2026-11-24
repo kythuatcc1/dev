@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Móng cẩu tháp</title>
+<meta name="description" content="Tính toán móng cọc cẩu tháp theo TCVN 10304:2025, TCVN 5574:2018, TCVN 5575:2024 và xuất thuyết minh">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="topbar">
+  <button class="nav-toggle" type="button" aria-label="Mở danh mục" data-action="toggle-nav">☰</button>
+  <div class="brand">
+    <span class="brand-title">Móng cẩu tháp</span>
+    <span class="brand-sub" id="brand-sub"></span>
+  </div>
+  <div class="topbar-actions">
+    <span class="status" id="status" role="status"></span>
+    <button type="button" class="btn" disabled title="Có ở giai đoạn 3">Xuất thuyết minh</button>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidenav" id="sidenav" aria-label="Các mục tính toán"></nav>
+  <main class="content" id="content" tabindex="-1"></main>
+</div>
+
+<noscript><p class="noscript">App cần bật JavaScript để chạy.</p></noscript>
+
+<script src="js/data/cau-thap.js"></script>
+<script src="js/data/vat-lieu.js"></script>
+<script src="js/calc/phan-a-tai-trong.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
