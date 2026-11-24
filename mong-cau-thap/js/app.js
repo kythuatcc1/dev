@@ -24,6 +24,10 @@
     thep: {
       duoiX: { d: 20, s: 150 }, duoiY: { d: 20, s: 150 },
       trenX: { d: 20, s: 150 }, trenY: { d: 20, s: 150 }
+    },
+    bulong: {
+      d: 42, loai: 'Bulong thô/Normal quality', capBen: 8.8, fcb: 395, n: 8,
+      L1L2: 1700, L2: 300, L3: 250, eta1: 1.5, eta2: 0.9, alpha1: 1, k0: 1.35, nv: 1
     }
   };
 
@@ -45,7 +49,7 @@
     { id: 'coc', ma: 'B', ten: 'Tải trọng lên cọc' },
     { id: 'xuyen', ma: 'C', ten: 'Xuyên thủng đài' },
     { id: 'thep', ma: 'D', ten: 'Cốt thép đài' },
-    { id: 'bulong', ma: 'E', ten: 'Bulong neo', sapCo: 'GĐ2' },
+    { id: 'bulong', ma: 'E', ten: 'Bulong neo' },
     { id: 'ket-luan', ma: 'F', ten: 'Kết luận', sapCo: 'GĐ2' },
     { nhom: 'Cọc & địa chất' },
     { id: 'dia-chat', ma: '', ten: 'Số liệu địa chất', sapCo: 'GĐ4' },
@@ -78,6 +82,7 @@
   var kqB = null;      // phần B
   var kqC = null;      // phần C
   var kqD = null;      // phần D
+  var kqE = null;      // phần E
 
   function luu() {
     try {
@@ -99,6 +104,7 @@
     });
     kqC = MCT.calc.tinhPhanC(ketQua, kqB, { D: state.coc.D });
     kqD = MCT.calc.tinhPhanD(ketQua, kqB, state.thep);
+    kqE = MCT.calc.tinhPhanE(ketQua, state.bulong);
   }
 
   // ---------------- Tiện ích hiển thị ----------------
@@ -142,7 +148,7 @@
       '<span class="unit">' + (donVi || '') + '</span></div>';
   }
 
-  function oChon(path, luaChon, nhan, ky, donVi) {
+  function oChon(path, luaChon, nhan, ky, donVi, laSo) {
     var v = String(layGiaTri(path));
     var opts = luaChon.map(function (o) {
       var val = typeof o === 'object' ? o.v : o;
@@ -151,7 +157,8 @@
     }).join('');
     return '<div class="lbl"><label for="in-' + path + '">' + nhan + '</label></div>' +
       '<div class="val"><span class="sym">' + (ky || '') + '</span>' +
-      '<select class="in" id="in-' + path + '" data-bind="' + path + '">' + opts + '</select>' +
+      '<select class="in" id="in-' + path + '" data-bind="' + path + '"' + (laSo ? ' data-kieu="so-chon"' : '') + '>' +
+      opts + '</select>' +
       '<span class="unit">' + (donVi || '') + '</span></div>';
   }
 
@@ -635,6 +642,138 @@
     }
   };
 
+  // ---------------- E. Bulong neo ----------------
+  function dongKiemTra(trai, dau, phai, ok) {
+    return '<div class="table-wrap"><table class="tbl kiem-tra"><tbody><tr><td>' + trai + '</td><td class="c">' + dau +
+      '</td><td>' + phai + '</td><td class="c">' + nhanKetLuan(ok) + '</td></tr></tbody></table></div>';
+  }
+
+  function ghiChuLech(tieuDe, noiDung) {
+    return '<aside class="ghi-chu-lech" aria-label="Ghi chú sai khác"><h3>⚠ ' + tieuDe + '</h3>' + noiDung + '</aside>';
+  }
+
+  TRANG.bulong = {
+    tieuDe: 'E. Kiểm tra bulong neo',
+    moTa: 'Bulong neo chân cẩu tháp theo TCVN 5575:2024 và TCVN 5574:2018. Lực lấy từ catalogue cẩu (mục A).',
+    nhap: function () {
+      var VL = MCT.data.vatLieu;
+      var dsD = VL.bulongDuongKinh.map(function (b) { return { v: b.d, t: 'M' + b.d }; });
+      var dsCap = VL.bulongCapBen.filter(function (b) { return typeof b.fvb === 'number' && typeof b.fyb === 'number'; })
+        .map(function (b) { return { v: b.cap, t: so(b.cap, 1) }; });
+      return '<section class="card"><h2>Số liệu nhập: bulong</h2><div class="params">' +
+        oChon('bulong.d', dsD, 'Đường kính bulong', '<i>d</i><sub>bl</sub> =', 'mm', true) +
+        oChon('bulong.loai', MCT.calc.LOAI_BULONG, 'Chất lượng, độ chính xác bulong') +
+        oChon('bulong.capBen', dsCap, 'Cấp độ bền bulong', 'Grade =', '', true) +
+        oNhapSo('bulong.fcb', 'Cường độ chịu ép mặt của bulong', '<i>f</i><sub>cb</sub> =', 'MPa') +
+        oNhapSo('bulong.n', 'Số lượng bulong (1 chân cẩu)', '<i>n</i> =', 'con') +
+        '</div></section>' +
+        '<section class="card"><h2>Số liệu nhập: chiều dài và hệ số</h2><div class="params">' +
+        oNhapSo('bulong.L1L2', 'Tổng chiều dài của bulong (bao gồm cả đoạn bẻ móc)', '<i>L</i><sub>1</sub>+<i>L</i><sub>2</sub> =', 'mm') +
+        oNhapSo('bulong.L2', 'Chiều dài đoạn bulong bẻ móc', '<i>L</i><sub>2</sub> =', 'mm') +
+        oNhapSo('bulong.L3', 'Chiều dài đoạn bulong trên mặt móng', '<i>L</i><sub>3</sub> =', 'mm') +
+        oNhapSo('bulong.eta1', 'Hệ số η<sub>1</sub> (bulong trơn)', 'η<sub>1</sub> =', '') +
+        oNhapSo('bulong.eta2', 'Hệ số η<sub>2</sub> (d<sub>bl</sub> ≥ 36 mm)', 'η<sub>2</sub> =', '') +
+        oNhapSo('bulong.alpha1', 'Hệ số α<sub>1</sub> (bulong trơn có móc, chịu kéo)', 'α<sub>1</sub> =', '') +
+        oNhapSo('bulong.k0', 'Hệ số tải trọng (tải trọng động)', '<i>k</i><sub>0</sub> =', '') +
+        oNhapSo('bulong.nv', 'Số lượng mặt cắt tính toán', '<i>n</i><sub>v</sub> =', '') +
+        '</div><p class="hint">α<sub>1</sub> chỉ để hiển thị như trong Excel, không tham gia công thức nào.</p></section>';
+    },
+    ketQua: function () {
+      var r = kqE;
+      if (!r || !r.hopLe) return loiHtml(ketQua) + loiHtml(r);
+      var g = r.ghiChu;
+      var e1 = '<section class="card"><h2>E.1. Đặc trưng bulong</h2><div class="params">' +
+        dong('Diện tích danh định bulong', '<i>A</i> =', so(r.A), 'cm²') +
+        dong('Diện tích giảm yếu bulong', '<i>A</i><sub>bn</sub> =', so(r.Abn), 'cm²') +
+        dong('Cường độ chịu cắt của bulong', '<i>f</i><sub>vb</sub> =', so(r.fvb, 0), 'MPa') +
+        dong('Cường độ chịu kéo của bulong (0,8·f<sub>yb</sub>)', '<i>f</i><sub>ba</sub> =', so(r.fba, 0), 'MPa') +
+        dong('Hệ số điều kiện làm việc của bulong', 'γ<sub>b</sub> =', so(r.gammaB, 1), '') +
+        '</div></section>';
+
+      var e2 = '<section class="card"><h2>E.2. Kiểm tra chiều dài bulong</h2><div class="ke-ben"><div>' +
+        '<div class="params">' +
+        dong('Chiều dài của bulong nằm trong bê tông', '<i>L</i><sub>1</sub> =', so(r.L1, 0), 'mm') +
+        dong('Chiều dài đoạn bulong bẻ móc', '<i>L</i><sub>2</sub> =', so(r.L2, 0), 'mm') +
+        '</div><p>Chiều dài neo yêu cầu của bulong (Bảng L.1, CT L.10 TCVN 5575:2024):</p>' +
+        '<div class="formula"><i>H</i><sub>0</sub> = 25<i>d</i><sub>bl</sub>·<i>m</i><sub>1</sub>·<i>m</i><sub>2</sub>;  ' +
+        '<i>m</i><sub>1</sub> = <i>R</i><sub>bt</sub>(B12,5)/<i>R</i><sub>bt</sub> = 0,66/' + so(r.Rbt) + ';  ' +
+        '<i>m</i><sub>2</sub> = <i>f</i><sub>yb</sub>/235</div><div class="params">' +
+        dong('Chiều dài neo yêu cầu', '<i>H</i><sub>0</sub> =', so(r.H0), 'mm') + '</div>' +
+        dongKiemTra('<i>H</i><sub>0</sub> = ' + so(r.H0) + ' mm', r.kiemTra.neo ? '≤' : '>',
+          '<i>L</i><sub>1</sub> + <i>L</i><sub>2</sub> = ' + so(r.L1L2, 0) + ' mm', r.kiemTra.neo) + '</div>' +
+        ghiChuLech('Ô phụ trong Excel', '<p>Ô P102 (ngoài vùng in) có tính chiều dài neo theo cách khác: ' +
+          '<i>l</i> = f<sub>ba</sub>·A<sub>bn</sub> / (π·d·η<sub>1</sub>·η<sub>2</sub>·R<sub>bt</sub>) = <strong>' + so(g.neoP102.l0an, 1) +
+          ' mm</strong>, nhưng Excel không dùng giá trị này.</p><p>So với L<sub>1</sub> + L<sub>2</sub> = ' + so(r.L1L2, 0) + ' mm: ' +
+          (g.neoP102.ok ? 'vẫn đạt.' : '<strong>không đạt</strong> nếu kiểm tra theo cách này.') + '</p>') +
+        '</div></section>';
+
+      var e3 = '<section class="card"><h2>E.3. Kiểm tra bulong chịu kéo</h2><div class="params">' +
+        dong('Lực nhổ lớn nhất theo catalogue tại 1 chân cẩu tháp', '<i>P</i><sub>ct</sub> =', so(r.Pct), 'kN') +
+        dong('Lực nhổ tính toán lớn nhất tại 1 chân cẩu tháp (×n = ' + so(r.nHs, 1) + ')', '<i>P</i><sub>t</sub> =', so(r.Pt), 'kN') +
+        dong('Lực nhổ tính toán lớn nhất tại 1 bulong', '<i>P</i><sub>t</sub>/1bl =', so(r.Pt1), 'kN') +
+        '</div><p>Khả năng chịu kéo của 1 bulong neo (mục L.4.2, Phụ lục L TCVN 5575:2024), hệ số tải trọng k<sub>0</sub> = ' +
+        so(r.k0) + ':</p><div class="formula">[<i>N</i>]<sub>tb</sub> = <i>f</i><sub>ba</sub>·<i>A</i><sub>bn</sub> / <i>k</i><sub>0</sub> = ' +
+        so(r.Ntb) + ' kN</div>' +
+        dongKiemTra('<i>P</i><sub>t</sub>/1bl = ' + so(r.Pt1) + ' kN', r.kiemTra.keo ? '<' : '≥', '[<i>N</i>]<sub>tb</sub> = ' + so(r.Ntb) + ' kN', r.kiemTra.keo) +
+        '</section>';
+
+      var e4 = '<section class="card"><h2>E.4. Kiểm tra bulong chịu tuột</h2><div class="params">' +
+        dong('Cường độ bám dính tính toán (CT 256, mục 10.3.5.4 TCVN 5574:2018)', '<i>R</i><sub>bond</sub> = η<sub>1</sub>η<sub>2</sub><i>R</i><sub>bt</sub> =', so(r.Rbond, 3), 'MPa') +
+        '</div><p>Khả năng chịu tuột của 1 bulong (mục 10.3.5.6 TCVN 5574:2018):</p>' +
+        '<div class="formula">[<i>N</i>] = π·<i>d</i><sub>bl</sub>·(<i>L</i><sub>1</sub> + <i>L</i><sub>2</sub>)·<i>R</i><sub>bond</sub> = ' + so(r.Ntuot) + ' kN</div>' +
+        dongKiemTra('<i>P</i><sub>t</sub>/1bl = ' + so(r.Pt1) + ' kN', r.kiemTra.tuot ? '<' : '≥', '[<i>N</i>] = ' + so(r.Ntuot) + ' kN', r.kiemTra.tuot) +
+        '</section>';
+
+      var mx = g.momenXoan;
+      var e5 = '<section class="card"><h2>E.5. Kiểm tra bulong chịu cắt</h2><div class="ke-ben"><div>' +
+        '<p>Lực cắt lớn nhất tại 1 chân cẩu tháp theo catalogue:</p>' +
+        '<div class="formula">Khi cẩu làm việc: <i>P</i><sub>stc1</sub> = ' + esc(r.nhanFh) + '/2 + ' + esc(r.nhanT) + '/H<sub>t</sub> = ' +
+        so(r.FhLv) + '/2 + ' + so(r.T) + '/' + so(r.Ht) + ' = ' + so(r.Pstc1, 3) + ' kN<br>' +
+        'Khi cẩu không làm việc: <i>P</i><sub>stc2</sub> = ' + esc(r.nhanFh) + '/2 = ' + so(r.FhKlv) + '/2 = ' + so(r.Pstc2, 3) + ' kN</div>' +
+        '<div class="params">' +
+        dong('Lực cắt tiêu chuẩn lớn nhất tại 1 chân cẩu tháp', '<i>P</i><sub>stc</sub> =', so(r.Pstc, 3), 'kN') +
+        dong('Lực cắt tính toán lớn nhất tại 1 chân cẩu tháp', '<i>P</i><sub>s</sub> =', so(r.Ps), 'kN') +
+        dong('Lực cắt tính toán lớn nhất tại 1 bulong', '<i>P</i><sub>s</sub>/1bl =', so(r.Ps1), 'kN') +
+        '</div><p>Khả năng chịu cắt của 1 bulong (CT 186, mục 14.2.9 TCVN 5575:2024):</p>' +
+        '<div class="formula">[<i>N</i>]<sub>vb</sub> = <i>f</i><sub>vb</sub>·γ<sub>b</sub>·<i>A</i>·<i>n</i><sub>v</sub> = ' + so(r.Nvb) + ' kN</div>' +
+        dongKiemTra('<i>P</i><sub>s</sub>/1bl = ' + so(r.Ps1) + ' kN', r.kiemTra.cat ? '<' : '≥', '[<i>N</i>]<sub>vb</sub> = ' + so(r.Nvb) + ' kN', r.kiemTra.cat) +
+        '</div>' +
+        ghiChuLech('Mômen xoắn T trong Excel', '<p>Excel lấy T từ ô cố định <strong>Solieu!E111</strong> (= ' + so(mx.TExcel) +
+          ' kNm, của cẩu LLT5020-10) cho <em>mọi</em> loại cẩu. App lấy T của đúng cẩu đang chọn.</p>' +
+          (mx.lech
+            ? '<p><strong>Cẩu đang chọn có T = ' + so(mx.TApp) + ' kNm</strong>, khác Excel. Nếu dùng T của Excel: P<sub>stc1</sub> = ' +
+              so(mx.Pstc1Excel, 3) + ' kN, P<sub>s</sub>/1bl = ' + so(mx.PsExcel) + ' kN.</p>'
+            : '<p>Cẩu đang chọn là LLT5020-10 nên kết quả <strong>giống hệt Excel</strong>.</p>')) +
+        '</div></section>';
+
+      var e6 = '<section class="card"><h2>E.6. Kiểm tra bulong chịu ép mặt</h2><div class="params">' +
+        dong('Lực ép mặt tính toán lớn nhất tại 1 bulong', '<i>P</i><sub>s</sub>/1bl =', so(r.Ps1), 'kN') +
+        dong('Tổng chiều dày các bản thép cùng trượt về một phía', 'Σ<i>t</i> =', so(r.tongT, 0), 'mm') +
+        '</div><p>Khả năng chịu ép mặt của 1 bulong (CT 187, mục 14.2.9 TCVN 5575:2024):</p>' +
+        '<div class="formula">[<i>N</i>]<sub>cb</sub> = <i>f</i><sub>cb</sub>·γ<sub>b</sub>·<i>d</i>·Σ<i>t</i> = ' + so(r.Ncb) + ' kN</div>' +
+        dongKiemTra('<i>P</i><sub>s</sub>/1bl = ' + so(r.Ps1) + ' kN', r.kiemTra.epMat ? '<' : '≥', '[<i>N</i>]<sub>cb</sub> = ' + so(r.Ncb) + ' kN', r.kiemTra.epMat) +
+        '</section>';
+
+      var e7 = '<section class="card"><h2>E.7. Kiểm tra chọc thủng của 1 cụm bulong</h2><div class="ke-ben"><div><div class="params">' +
+        dong('Đường kính đáy bé tháp chọc thủng', '<i>D</i><sub>1</sub> =', so(r.D1), 'm') +
+        dong('Đường kính đáy lớn tháp chọc thủng', '<i>D</i><sub>2</sub> = <i>D</i><sub>1</sub> + 2<i>L</i><sub>1</sub> =', so(r.D2), 'm') +
+        dong('Lực gây chọc thủng của 1 cụm bulong', '<i>P</i><sub>xt</sub> = <i>P</i><sub>t</sub> =', so(r.Pxt), 'kN') +
+        '</div><p>Khả năng chống chọc thủng của 1 cụm bulong (mục 8.1.6.2.1 TCVN 5574:2018):</p>' +
+        '<div class="formula">[<i>P</i>]<sub>xt</sub> = <span class="o-lech-inline">0,4 ×</span> <i>R</i><sub>bt</sub>·<i>L</i><sub>1</sub>·π(<i>D</i><sub>1</sub> + <i>D</i><sub>2</sub>)/2 = ' +
+        so(r.PxtGh) + ' kN <span class="canh-bao" title="Sai khác so với Excel – xem ghi chú">⚠</span></div>' +
+        dongKiemTra('<i>P</i><sub>xt</sub> = ' + so(r.Pxt) + ' kN', r.kiemTra.chocThung ? '<' : '≥', '[<i>P</i>]<sub>xt</sub> = ' + so(r.PxtGh) + ' kN', r.kiemTra.chocThung) +
+        '</div>' +
+        ghiChuLech('Hệ số 0,4 không ghi trong công thức', '<p>Ô L141 nhân thêm <strong>0,4</strong>, nhưng dòng công thức in ra thuyết minh trong Excel chỉ ghi ' +
+          '"[P]xt = Rbt·u·h0 = Rbt·L1·π(D1+D2)/2". App tính giống Excel (có 0,4) và hiện rõ hệ số này trong công thức.</p>' +
+          '<p>Nếu bỏ hệ số 0,4: [P]<sub>xt</sub> = ' + so(g.chocThung.PxtKhong04) + ' kN.</p>') +
+        '</div></section>';
+
+      return loiHtml(ketQua) + e1 + e2 + e3 + e4 + e5 + e6 + e7 +
+        '<p class="ket-luan ' + (r.tatCaOk ? 'ok' : 'fail') + '">' +
+        (r.tatCaOk ? 'Bulong neo đạt cả 6 kiểm tra (theo cách tính của Excel).' : 'Bulong neo KHÔNG đạt – xem các dòng FAIL.') + '</p>';
+    }
+  };
+
   // ---------------- Khung điều hướng ----------------
   function veDanhMuc() {
     $('#sidenav').innerHTML = MUC.map(function (m) {
@@ -685,7 +824,7 @@
       el.classList.toggle('loi', !hopLe);
       if (!hopLe) return;
       v = Number(chuoi);
-    } else if (path === 'cau.chieuCao') {
+    } else if (path === 'cau.chieuCao' || el.getAttribute('data-kieu') === 'so-chon') {
       v = Number(v);
     }
     datGiaTri(path, v);

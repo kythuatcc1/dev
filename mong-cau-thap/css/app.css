@@ -173,6 +173,7 @@ table.tbl.tbl-nhap { width: auto; }
 .ghi-chu-lech p { margin: 6px 0; }
 .ghi-chu-lech table.tbl { background: #fff; }
 .canh-bao { color: #b7791f; font-weight: 700; cursor: help; }
+.o-lech-inline { background: #fff3d6; border-bottom: 2px solid #d69e2e; padding: 0 2px; }
 .tbl td.o-lech { background: #fff3d6; white-space: nowrap; }
 .ket-luan { margin: 14px 0 0; font-weight: 600; padding: 8px 12px; border-radius: 6px; }
 .ket-luan.ok { background: var(--ok-soft); color: var(--ok); }

@@ -277,6 +277,27 @@ def doc_tham_chieu_phan_d(wsv):
     }
 
 
+def doc_tham_chieu_phan_e(wsv):
+    """Mục E sheet Cau thap: bulong neo (L86:N141) và kết luận (D143)."""
+    o = lambda a: wsv[a].value
+    return {
+        'dauVao': {'d': o('L86'), 'loai': o('J87'), 'capBen': o('L90'), 'fcb': o('L93'), 'n': o('L94'),
+                   'L1L2': o('L96'), 'L2': o('L98'), 'L3': o('L99'), 'eta1': o('L106'), 'eta2': o('L107'),
+                   'alpha1': o('L108'), 'k0': o('L113'), 'nv': o('L128')},
+        'ketQua': {
+            'A': o('L88'), 'Abn': o('L89'), 'fvb': o('L91'), 'fba': o('L92'), 'L1': o('L97'), 'gammaB': o('L100'),
+            'l0anP102': o('P102'), 'H0': o('L105'), 'kiemTraNeo': o('N105'),
+            'Pct': o('L110'), 'Pt': o('L111'), 'Pt1': o('L112'), 'Ntb': o('L114'), 'kiemTraKeo': o('N114'),
+            'Rbond': o('L116'), 'Ntuot': o('L118'), 'kiemTraTuot': o('N118'),
+            'Pstc1': o('L121'), 'Pstc2': o('L123'), 'Pstc': o('L125'), 'Ps': o('L126'), 'Ps1': o('L127'),
+            'Nvb': o('L130'), 'kiemTraCat': o('N130'),
+            'tongT': o('L133'), 'Ncb': o('L135'), 'kiemTraEpMat': o('N135'),
+            'D1': o('L137'), 'D2': o('L138'), 'Pxt': o('L139'), 'PxtGh': o('L141'), 'kiemTraChocThung': o('N141'),
+            'ketLuan': o('D143'),
+        },
+    }
+
+
 def js_file(path, var, data, header):
     body = json.dumps(data, ensure_ascii=False, indent=1)
     with open(path, 'w', encoding='utf-8') as f:
@@ -308,6 +329,7 @@ def main():
         'sheetCauThap_phanA': doc_tham_chieu_cau_thap(wbv['Cau thap']),
         'sheetCauThap_phanB': doc_tham_chieu_phan_b(wbv['Cau thap']),
         'sheetCauThap_phanD': doc_tham_chieu_phan_d(wbv['Cau thap']),
+        'sheetCauThap_phanE': doc_tham_chieu_phan_e(wbv['Cau thap']),
     }
     with open(os.path.join(ROOT, 'tests', 'excel-tham-chieu.json'), 'w', encoding='utf-8') as f:
         json.dump(tham_chieu, f, ensure_ascii=False, indent=1)

@@ -143,7 +143,7 @@ File gồm 15 sheet, khoảng 2.000 dòng macro VBA, 11 biểu đồ và nhiều
 
 1. **h0 thép lớp trên**: ô I82/I83 (sheet `Cau thap`) dùng h0 = H − **50 mm**, trong khi αm ở G82/G83 dùng h0 = H − **150 mm**. Lớp dưới dùng 150 mm ở cả hai chỗ. **App tính giống Excel** và hiển thị ghi chú ⚠ cạnh bảng thép lớp trên, kèm As khi tính thống nhất h0 = H − a (193,15 / 246,58 mm²/m) và h0 = H − 50 (180,66 / 230,61 mm²/m). Kết luận không đổi.
 2. **Xuyên thủng đài**: chỉ ghi câu khẳng định, không có phép tính. **Đã chọn: app tính đầy đủ** theo TCVN 5574:2018 mục 8.1.6.2.1 (xem `js/calc/phan-c-xuyen-thung.js`). F là tổng Pimax của các cọc không nằm trọn trong đáy tháp xuyên 45° (cạnh Ht + 2h0); Fb,ult = Rbt·u·h0 với u = 4(Ht + h0). Với số liệu Excel, F = 0, kết luận giống Excel.
-3. **Chọc thủng cụm bulong**: công thức trong ô có thêm hệ số **0,4**, nhưng dòng công thức in ra thuyết minh không ghi hệ số này.
+3. **Chọc thủng cụm bulong**: công thức trong ô có thêm hệ số **0,4**, nhưng dòng công thức in ra thuyết minh không ghi hệ số này. **App tính giống Excel (có 0,4)**, hiện rõ hệ số trong công thức và ghi chú cạnh mục E.7 (nếu bỏ 0,4: [P]xt = 10406,21 kN).
 4. **Loại cọc**: tiêu đề ghi "cọc khoan nhồi", nhưng phương pháp thi công chọn "**Cọc Khoan Thả**", nên fs = min(2,5N; 125). Với cọc khoan nhồi thì fs = min(3,3N; 165) và fc = min(1,0cu; 100).
 5. **η2** trong kiểm tra ổn định đất (sheet `Kiem tra tai ngang`, G128) lấy từ sheet mô hình (= 0,529), không lấy giá trị vừa tính ngay trong sheet (J124 = 0,459).
 6. **l0**: SCT cọc dùng l0 = 10,4 m (từ đáy đài −2,6 đến đáy hố đào −13), nhưng `Kiem tra tai ngang` lại dùng l0 = 0.
@@ -151,6 +151,8 @@ File gồm 15 sheet, khoảng 2.000 dòng macro VBA, 11 biểu đồ và nhiều
 8. **Cẩu MCT.205** (sheet `Solieu`, ô G78:G82 – chiều cao từ hàng 78 trở đi): Mqđ khi làm việc = √(MV² + MR²) và **không nhân hệ số n**. Các hàng phía trên lại dùng (MV + MR)·n.
 9. **Cọc số 4** (sheet `Cau thap`, cột H dòng 59–61): Excel **không có công thức** αi, Pimax, Pimin cho cọc số 4. Nếu móng có từ 4 cọc trở lên, cọc này bị bỏ qua khi tìm Pmax/Pmin, nhưng tọa độ của nó vẫn được cộng vào Σx², Σy². Móng 3 cọc hiện tại không bị ảnh hưởng. **App tính đủ mọi cọc.**
 10. **Số cọc n** (ô L47) nhập riêng, không gắn với số tọa độ đã nhập. Nếu hai số này lệch nhau, Ntt/n sẽ sai. **App lấy n bằng số dòng tọa độ cọc.**
+11. **Mômen xoắn T** (sheet `Cau thap`, ô L20) trỏ cứng vào `Solieu!E111` (T = 165,53 kNm của cẩu LLT5020-10), nên với **mọi loại cẩu** Excel đều dùng T của LLT5020-10 khi tính lực cắt bulong (E.5). **App lấy T của đúng cẩu đang chọn**; với LLT5020-10 kết quả giống hệt Excel. Ghi chú cạnh mục E.5 hiện giá trị Excel khi khác.
+12. **Chiều dài neo bulong**: ô P102 (ngoài vùng in) tính l = fba·Abn/(π·d·η1·η2·Rbt) = 2553,7 mm, lớn hơn L1 + L2 = 1700 mm, nhưng Excel không dùng ô này; kiểm tra chính dùng H0 = 1497 mm theo TCVN 5575:2024. App ghi chú cạnh mục E.2.
 
 ## 7. Đề xuất phạm vi và thứ tự làm app
 
