@@ -21,7 +21,7 @@
     { id: 'ket-luan', ma: 'F', ten: 'Kết luận' },
     { nhom: 'Cọc & địa chất' },
     { id: 'dia-chat', ma: '', ten: 'Số liệu địa chất' },
-    { id: 'sct', ma: '', ten: 'Sức chịu tải cọc', sapCo: 'GĐ4' },
+    { id: 'sct', ma: '', ten: 'Sức chịu tải cọc' },
     { id: 'tai-ngang', ma: '', ten: 'Cọc chịu tải ngang', sapCo: 'GĐ5' },
     { id: 'lun', ma: '', ten: 'Ổn định – lún', sapCo: 'GĐ6' },
     { id: 'tuong-tac', ma: '', ten: 'Biểu đồ tương tác', sapCo: 'GĐ7' }
@@ -112,7 +112,7 @@
       '<span class="unit">' + (donVi || '') + '</span></div>';
   }
 
-  function oChon(path, luaChon, nhan, ky, donVi, laSo) {
+  function oChon(path, luaChon, nhan, ky, donVi, laSo, veLai) {
     var v = String(layGiaTri(path));
     var opts = luaChon.map(function (o) {
       var val = typeof o === 'object' ? o.v : o;
@@ -121,7 +121,7 @@
     }).join('');
     return '<div class="lbl"><label for="in-' + path + '">' + nhan + '</label></div>' +
       '<div class="val"><span class="sym">' + (ky || '') + '</span>' +
-      '<select class="in" id="in-' + path + '" data-bind="' + path + '"' + (laSo ? ' data-kieu="so-chon"' : '') + '>' +
+      '<select class="in" id="in-' + path + '" data-bind="' + path + '"' + (laSo ? ' data-kieu="so-chon"' : '') + (veLai ? ' data-ve-lai="1"' : '') + '>' +
       opts + '</select>' +
       '<span class="unit">' + (donVi || '') + '</span></div>';
   }
@@ -346,7 +346,7 @@
   function soDoCoc(xt) {
     var X = Number(state.dai.X) || 0, Y = Number(state.dai.Y) || 0;
     var Ht = ketQua && ketQua.Ht ? ketQua.Ht : 0;
-    var D = Number(state.coc.D) || 0.8;
+    var D = Number(state.sct.D) || 0.8;
     var dsCoc = kqB && kqB.hopLe ? kqB.coc : [];
     var pad = 0.7;
     var maxX = X / 2, maxY = Y / 2;
@@ -414,12 +414,21 @@
           '<td class="c"><button type="button" class="btn-x" data-action="xoa-coc" data-i="' + i +
           '" aria-label="Xóa cọc ' + (i + 1) + '"' + (toaDo.length <= 1 ? ' disabled' : '') + '>✕</button></td></tr>';
       }).join('');
+      var tuDong = state.coc.nguonQa !== 'nhap';
+      var S = tatCa && tatCa.SCT;
+      var khoiQa = tuDong
+        ? dong('Sức chịu tải của cọc khi chịu nén (N<sub>c,d</sub>)', '<i>Q</i><sub>a</sub> =', S && S.hopLe ? so(S.Ncd) : '–', 'kN') +
+          dong('Sức chịu tải của cọc khi chịu kéo (N<sub>t,d</sub>)', "<i>Q</i><sub>a</sub>' =", S && S.hopLe ? so(-S.Ntd) : '–', 'kN')
+        : oNhapSo('coc.Qa', 'Sức chịu tải của cọc khi chịu nén', '<i>Q</i><sub>a</sub> =', 'kN') +
+          oNhapSo('coc.QaKeo', 'Sức chịu tải của cọc khi chịu kéo (nhập độ lớn)', "<i>Q</i><sub>a</sub>' =", 'kN');
       return '<section class="card"><h2>Sức chịu tải của cọc</h2><div class="params">' +
-        oNhapSo('coc.Qa', 'Sức chịu tải của cọc khi chịu nén', '<i>Q</i><sub>a</sub> =', 'kN') +
-        oNhapSo('coc.QaKeo', 'Sức chịu tải của cọc khi chịu kéo (nhập độ lớn)', "<i>Q</i><sub>a</sub>' =", 'kN') +
-        oNhapSo('coc.D', 'Đường kính cọc', '<i>D</i> =', 'm') +
-        '</div><p class="hint">Tạm nhập tay. Ở giai đoạn 4, Q<sub>a</sub> và Q<sub>a</sub>\' sẽ tự lấy từ phần tính sức chịu tải cọc ' +
-        '(Excel: \'SCT Coc nhoi FULL\'!N268 và N277).</p></section>' +
+        oChon('coc.nguonQa', [{ v: 'tu-dong', t: 'Tự động – lấy từ phần sức chịu tải cọc' }, { v: 'nhap', t: 'Nhập tay' }],
+          'Nguồn số liệu Q<sub>a</sub>, Q<sub>a</sub>\'', '', '', false, true) +
+        khoiQa +
+        dong('Đường kính cọc (nhập ở trang Sức chịu tải cọc)', '<i>D</i> =', so(Number(state.sct.D), 2), 'm') +
+        '</div><p class="hint">' + (tuDong
+          ? 'Giống Excel: Q<sub>a</sub> = \'SCT Coc nhoi FULL\'!N268, Q<sub>a</sub>\' = −N277. Nếu phần sức chịu tải cọc còn lỗi, app dùng giá trị nhập tay.'
+          : 'Đang dùng giá trị nhập tay thay cho kết quả tính sức chịu tải cọc.') + '</p></section>' +
         '<section class="card"><h2>Tọa độ từng cọc</h2>' +
         '<div class="table-wrap"><table class="tbl tbl-nhap"><thead><tr><th>Cọc</th><th>x<sub>i</sub> (m)</th><th>y<sub>i</sub> (m)</th><th></th></tr></thead>' +
         '<tbody>' + dong1 + '</tbody></table></div>' +
@@ -913,6 +922,133 @@
         '<p class="hint">SPT TB: trung bình các giá trị SPT có độ sâu thuộc lớp (giống AVERAGEIF trong Excel). ' +
         'k: hệ số tỷ lệ theo bảng A.1 TCVN 10304:2025 (nội suy theo I<sub>L</sub> với đất dính, theo e với đất cát).</p></section>' +
         '<section class="card"><h2>Biểu đồ SPT</h2><div class="coc-layout">' + bieuDoSPT(r) + '<div>' + bangSpt + '</div></div></section>';
+    }
+  };
+
+  // ---------------- Sức chịu tải cọc ----------------
+  TRANG.sct = {
+    tieuDe: 'Sức chịu tải cọc khoan nhồi',
+    moTa: 'Theo vật liệu và theo chỉ số SPT (TCVN 10304:2025) – sheet SCT Coc nhoi / SCT Coc nhoi FULL. ' +
+      'Kết quả N c,d, N t,d được dùng làm Qa, Qa\' ở mục B.',
+    nhap: function () {
+      var VL = MCT.data.vatLieu;
+      var thepRows = state.sct.thep.map(function (t, i) {
+        return '<tr><td>Thép ' + (i + 1) + '</td><td>' + oSoBang('sct.thep.' + i + '.n', 'Số thanh thép ' + (i + 1)) + '</td>' +
+          '<td>' + oSoBang('sct.thep.' + i + '.d', 'Đường kính thép ' + (i + 1)) + '</td></tr>';
+      }).join('');
+      var ppKhacExcel = state.sct.phuongPhapThiCong !== 'Cọc Khoan Thả';
+      return '<section class="card"><h2>B.2.1–B.2.2. Tiết diện và cốt thép cọc</h2><div class="params">' +
+        oNhapSo('sct.D', 'Đường kính cọc', '<i>D</i> =', 'm') +
+        oChon('sct.beTong', VL.beTong.map(function (b) { return b.cap; }), 'Bê tông cọc') +
+        oChon('sct.cotThep', VL.cotThep.map(function (b) { return b.nhom; }), 'Cốt thép cọc') +
+        '</div><div class="table-wrap" style="margin-top:10px"><table class="tbl tbl-nhap"><thead><tr><th></th><th>n (thanh)</th><th>d (mm)</th></tr></thead><tbody>' +
+        thepRows + '</tbody></table></div></section>' +
+        '<section class="card"><h2>B.2.3. Cao độ cọc</h2><div class="params">' +
+        oNhapSo('sct.L', 'Tổng chiều dài cọc', '', 'm') +
+        oNhapSo('sct.dayDai', 'Cao độ mặt đáy đài cọc', '', 'm') +
+        oNhapSo('sct.dayHo', 'Cao độ mặt đáy hố đào (cao độ san nền)', '', 'm') +
+        oNhapSo('sct.dauCocTinhToan', 'Cao độ đầu cọc tính toán (bắt đầu tính ma sát)', '', 'm') +
+        oNhapSo('sct.doanNgam', 'Đoạn cọc ngàm vào đài', '', 'm') +
+        '</div><p class="hint">Đoạn đập đầu cọc để ngàm vào đài tự tính = 40d làm tròn lên bội số 50 mm (bảng NEO CỌC).</p></section>' +
+        '<section class="card"><h2>Hệ số và phương pháp</h2><div class="ke-ben"><div class="params">' +
+        oChon('sct.phuongPhapThiCong', MCT.calc.PHUONG_PHAP_THI_CONG.map(function (p) { return p.ten; }), 'Phương pháp thi công (fs, fc theo Phụ lục D)', '', '', false, true) +
+        oNhapSo('sct.gammaCb', 'Hệ số điều kiện làm việc bê tông (7.1.5.3)', 'γ<sub>cb</sub> =', '') +
+        oNhapSo('sct.gammaCb2', 'Hệ số do phương pháp thi công (7.1.5.3)', "γ'<sub>cb</sub> =", '') +
+        oNhapSo('sct.eta', 'Hệ số η mũi cọc (kín mũi = 1)', 'η =', '') +
+        oNhapSo('sct.gamma0', 'Hệ số kể đến nhóm cọc', 'γ<sub>0</sub> =', '') +
+        oChon('sct.capCongTrinh', ['I', 'II', 'III'], 'Cấp quan trọng công trình (→ γ<sub>n</sub>)') +
+        oChon('sct.phuongPhapGk', MCT.data.bangTra.gammaK.map(function (g) { return g.ten; }), 'Hệ số độ tin cậy theo đất γ<sub>k</sub> – theo') +
+        oChon('sct.xetVatLieu', [{ v: 'Yes', t: 'Có' }, { v: 'No', t: 'Không' }], 'Xét sức chịu tải theo vật liệu') +
+        oChon('sct.xetSPT', [{ v: 'Yes', t: 'Có' }, { v: 'No', t: 'Không' }], 'Xét sức chịu tải theo SPT') +
+        '</div>' + ghiChuLech('Cần xác nhận',
+          '<p><strong>Phương pháp thi công:</strong> Excel chọn "Cọc Khoan Thả" (ô H36 sheet SCT Coc nhoi FULL) dù tiêu đề là cọc khoan nhồi. ' +
+          'Bạn đã xác nhận cọc thực tế là <strong>khoan nhồi</strong>; app đang để giống Excel' +
+          (ppKhacExcel ? ' – <strong>hiện bạn đã đổi sang ' + esc(state.sct.phuongPhapThiCong) + '</strong>.' : '. Chọn "Cọc Khoan Nhồi" ở ô bên trái để tính đúng loại cọc.') + '</p>' +
+          '<p><strong>γ<sub>n</sub>:</strong> Excel lấy 1,2 cho cấp III, 1,15 cho cấp II, 1 cho cấp khác (ô N259). ' +
+          'Theo mình nhớ TCVN 10304 lấy 1,2 / 1,15 / 1,1 cho cấp I / II / III – bạn kiểm tra lại giúp.</p>') +
+        '</div></section>';
+    },
+    ketQua: function () {
+      var r = tatCa && tatCa.SCT;
+      if (!r || !r.hopLe) return loiHtml(tatCa && tatCa.DC) + loiHtml(r);
+      var c = r.coc, vl = r.vatLieu, sp = r.spt;
+      var bThongSo = '<section class="card"><h2>Đặc trưng cọc và cao độ</h2><div class="grid-2"><div class="params">' +
+        dong('Diện tích mặt cắt ngang cọc', '<i>A</i><sub>b</sub> =', so(c.Ab, 4), 'm²') +
+        dong('Chu vi ngoài của cọc', '<i>u</i> =', so(c.u, 4), 'm') +
+        dong('Mômen quán tính tiết diện', '<i>I</i> =', so(c.I, 5), 'm⁴') +
+        dong('Diện tích cốt thép', '<i>A</i><sub>s</sub> =', so(c.As, 1), 'mm²') +
+        dong('Hàm lượng thép', 'μ =', so(c.mu, 2), '%') +
+        '</div><div class="params">' +
+        dong('Đoạn đập đầu cọc để ngàm vào đài', '', so(c.doanDap, 2), 'm') +
+        dong('Cao độ đầu cọc thực tế', '', so(c.dauCocThucTe, 2), 'm') +
+        dong('Cao độ mũi cọc', '', so(c.muiCoc, 2), 'm') +
+        dong('Chiều dài tự do l<sub>0</sub> (đáy đài → đáy hố đào)', '<i>l</i><sub>0</sub> =', so(c.l0, 2), 'm') +
+        '</div></div></section>';
+
+      var bangK = '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Lớp</th><th>Loại đất</th><th>Đỉnh tính toán (m)</th>' +
+        '<th>Đáy tính toán (m)</th><th>l<sub>i</sub> (m)</th><th>I<sub>L</sub></th><th>e</th><th>k<sub>i</sub> (kN/m⁴)</th><th>k<sub>i</sub>·l<sub>i</sub></th></tr></thead><tbody>' +
+        vl.doan.map(function (d) {
+          return '<tr><td class="c">' + esc(d.lop.ten) + '</td><td>' + esc(d.lop.loai) + '</td><td class="r">' + so(d.dinh) + '</td><td class="r">' + so(d.day) +
+            '</td><td class="r">' + so(d.l) + '</td><td class="r">' + so(d.lop.IL) + '</td><td class="r">' + so(d.lop.e) + '</td><td class="r">' + so(d.k, 0) +
+            '</td><td class="r">' + so(d.kl, 0) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      var c1 = '<section class="card"><h2>C.1. Sức chịu tải cọc theo vật liệu</h2>' +
+        '<div class="formula"><i>R</i><sub>c,u/vl</sub> = φ(γ<sub>cb</sub>γ\'<sub>cb</sub><i>R</i><sub>b</sub><i>A</i><sub>b</sub> + <i>R</i><sub>sc</sub><i>A</i><sub>s</sub>);   ' +
+        'φ = 1 khi λ ≤ 28; φ = 1,028 − 0,0000288λ² − 0,0016λ khi λ > 28</div>' +
+        '<h3>Hệ số tỷ lệ k theo bảng A.1 (đoạn cọc từ đầu cọc tính toán đến mũi cọc)</h3>' + bangK +
+        '<div class="grid-2" style="margin-top:12px"><div class="params">' +
+        dong('Hệ số tỷ lệ', '<i>k</i> = Σk<sub>i</sub>l<sub>i</sub>/Σl<sub>i</sub> =', so(vl.k, 1), 'kN/m⁴') +
+        dong('Chiều rộng quy ước', '<i>b</i><sub>p</sub> =', so(vl.bp, 2), 'm') +
+        dong('Mô đun đàn hồi bê tông', '<i>E</i> =', so(vl.E, 0), 'MPa') +
+        dong('Hệ số biến dạng', 'α<sub>ε</sub> = (k·b<sub>p</sub>/EI)<sup>1/5</sup> =', so(vl.alphaE, 4), '1/m') +
+        '</div><div class="params">' +
+        dong('Chiều dài tính toán', '<i>l</i><sub>1</sub> = <i>l</i><sub>0</sub> + 2/α<sub>ε</sub> =', so(vl.l1, 3), 'm') +
+        dong('Bán kính quán tính', '<i>r</i> =', so(vl.r, 3), 'm') +
+        dong('Độ mảnh', 'λ = <i>l</i><sub>1</sub>/<i>r</i> =', so(vl.lambda, 2), '') +
+        dong('Hệ số uốn dọc', 'φ =', so(vl.phi, 4), '') +
+        '</div></div><div class="params" style="margin-top:8px">' +
+        dong('Sức chịu tải trọng nén theo vật liệu', '<i>R</i><sub>c,u/vl</sub> =', so(vl.Rcu), 'kN') +
+        dong('Sức chịu tải trọng kéo theo vật liệu (R<sub>s</sub>A<sub>s</sub>)', '<i>R</i><sub>t,u/vl</sub> =', so(vl.Rtu), 'kN') +
+        '</div></section>';
+
+      var bangSpt = '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Lớp</th><th>Loại đất</th><th>Cao độ đỉnh đoạn</th>' +
+        '<th>l<sub>i</sub> (m)</th><th>SPT TB</th><th>f<sub>s,i</sub> (kPa)</th><th>c<sub>u,i</sub> (kPa)</th><th>f<sub>c,i</sub> (kPa)</th></tr></thead><tbody>' +
+        sp.doan.map(function (d) {
+          return '<tr><td class="c">' + esc(d.lop.ten) + '</td><td>' + esc(d.lop.loai) + '</td><td class="r">' + so(d.dinh) + '</td><td class="r">' + so(d.l) +
+            '</td><td class="r">' + so(d.spt) + '</td><td class="r">' + so(d.fs) + '</td><td class="r">' + so(d.cu) + '</td><td class="r">' + so(d.fc) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      var pp = sp.phuongPhap;
+      var c2 = '<section class="card"><h2>C.2. Sức chịu tải cọc theo chỉ số SPT (Phụ lục D TCVN 10304:2025)</h2>' +
+        '<div class="formula"><i>R</i><sub>c,u</sub> = <i>q</i><sub>b</sub><i>A</i><sub>b</sub> + <i>u</i>Σ(<i>f</i><sub>c,i</sub><i>l</i><sub>c,i</sub> + <i>f</i><sub>s,i</sub><i>l</i><sub>s,i</sub>);   ' +
+        esc(pp.ten) + ': f<sub>c,i</sub> = min(' + so(pp.heSoFc, 1) + 'c<sub>u</sub>; ' + pp.chanFc + '), c<sub>u</sub> = 6,25N; ' +
+        'f<sub>s,i</sub> = min(' + so(pp.heSoFs, 1) + 'N; ' + pp.chanFs + ')</div>' +
+        '<p class="hint">Mỗi đoạn chia thành các lớp phân tố dày ≤ 1 m; SPT mỗi lớp phân tố nội suy theo cao độ (hàm TinhSPTfi).</p>' + bangSpt +
+        '<div class="grid-2" style="margin-top:12px"><div class="params">' +
+        dong('Loại đất tại mũi cọc', '', esc(sp.loaiMui || '–'), '') +
+        dong('SPT tại mũi + 1D / − 1D', '', so(sp.NpTren, 1) + ' / ' + so(sp.NpDuoi, 1), '') +
+        dong('SPT trung bình quanh mũi (lấy phần nguyên)', '<i>N</i><sub>p</sub> =', so(sp.Np, 0), '') +
+        '</div><div class="params">' +
+        dong('Đất dính: q<sub>b</sub> = min(6c<sub>u</sub>η; 9000)', '', so(sp.qbSet, 0), 'kPa') +
+        dong('Đất rời: q<sub>b</sub> = min(120N<sub>p</sub>η; 9000)', '', so(sp.qbCat, 0), 'kPa') +
+        dong('Cường độ sức kháng mũi', '<i>q</i><sub>b</sub> =', so(sp.qb, 0), 'kPa') +
+        '</div></div><div class="params" style="margin-top:8px">' +
+        dong('Sức chịu tải trọng nén theo SPT', '<i>R</i><sub>c,u/SPT</sub> =', so(sp.Rcu), 'kN') +
+        dong('Sức chịu tải trọng kéo theo SPT (không kể mũi)', '<i>R</i><sub>t,u/SPT</sub> =', so(sp.Rtu), 'kN') +
+        '</div></section>';
+
+      var d = '<section class="card"><h2>D. Sức chịu tải thiết kế của cọc</h2>' +
+        '<div class="formula"><i>N</i><sub>c,d</sub> = min(γ<sub>0</sub>/γ<sub>n</sub> × <i>R</i><sub>c,k</sub>/γ<sub>k</sub> ; <i>R</i><sub>c,u/vl</sub>);   ' +
+        '<i>N</i><sub>t,d</sub> = min(γ<sub>0</sub>/γ<sub>n</sub> × <i>R</i><sub>t,k</sub>/γ<sub>k</sub> ; <i>R</i><sub>t,u/vl</sub>)</div><div class="params">' +
+        dong('Hệ số kể đến nhóm cọc', 'γ<sub>0</sub> =', so(r.gamma0, 2), '') +
+        dong('Hệ số tầm quan trọng (cấp ' + esc(r.capCongTrinh) + ')', 'γ<sub>n</sub> =', so(r.gammaN, 2), '') +
+        dong('Hệ số độ tin cậy theo đất (' + esc(r.phuongPhapGk) + ')', 'γ<sub>k</sub> =', so(r.gammaK, 2), '') +
+        '</div><div class="table-wrap" style="margin-top:12px"><table class="tbl"><thead><tr><th></th><th>Nén (kN)</th><th>Kéo (kN)</th></tr></thead><tbody>' +
+        '<tr><td>Theo vật liệu (1)' + (r.xetVatLieu ? '' : ' – không xét') + '</td><td class="r">' + so(vl.Rcu) + '</td><td class="r">' + so(vl.Rtu) + '</td></tr>' +
+        '<tr><td>Theo chỉ số SPT (2)' + (r.xetSPT ? '' : ' – không xét') + '</td><td class="r">' + so(sp.Rcu) + '</td><td class="r">' + so(sp.Rtu) + '</td></tr>' +
+        '<tr><td>Trị tiêu chuẩn R<sub>k</sub></td><td class="r">' + so(r.Rck) + '</td><td class="r">' + so(r.Rtk) + '</td></tr>' +
+        '<tr class="hi"><td>Sức chịu tải thiết kế N<sub>c,d</sub> / N<sub>t,d</sub></td><td class="r">' + so(r.Ncd) + '</td><td class="r">' + so(r.Ntd) + '</td></tr>' +
+        '</tbody></table></div><p class="hint">Hai giá trị dòng tô vàng là Q<sub>a</sub>, Q<sub>a</sub>\' dùng ở mục B (khi chọn nguồn "Tự động").</p></section>';
+      return bThongSo + c1 + c2 + d;
     }
   };
 

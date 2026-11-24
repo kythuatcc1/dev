@@ -357,6 +357,44 @@ def doc_dia_chat(wbv):
     return mac_dinh, tham_chieu
 
 
+def doc_sct(wbv):
+    """Sheet SCT Coc nhoi (nhập) + SCT Coc nhoi FULL (tính) – giá trị nhập và tham chiếu."""
+    n = wbv['SCT Coc nhoi']
+    f = wbv['SCT Coc nhoi FULL']
+    o = lambda ws, a: ws[a].value
+    dau_vao = {
+        'D': o(n, 'H36'),
+        'thep': [{'n': o(n, 'D43') or 0, 'd': o(n, 'E43') or 0}, {'n': o(n, 'F43') or 0, 'd': o(n, 'G43') or 0},
+                 {'n': o(n, 'H43') or 0, 'd': o(n, 'I43') or 0}],
+        'L': o(n, 'H47'), 'dayDai': o(n, 'H48'), 'dayHo': o(n, 'H49'), 'dauCocTinhToan': o(n, 'H50'), 'doanNgam': o(n, 'H51'),
+        'beTong': o(n, 'E57'), 'cotThep': o(n, 'E60'), 'gammaCb': o(f, 'N95'), 'gammaCb2': o(f, 'N96'),
+        'gamma0': o(n, 'E141'), 'capCongTrinh': o(n, 'K143'), 'phuongPhapGk': o(f, 'F262'),
+        'xetVatLieu': o(n, 'M147'), 'xetSPT': o(n, 'M148'), 'phuongPhapThiCong': o(f, 'H36'),
+    }
+    ket_qua = {
+        'Ab': o(f, 'I38'), 'u': o(f, 'I39'), 'I': o(f, 'I40'), 'As': o(f, 'I48'), 'mu': o(f, 'I49'),
+        'L': o(f, 'I51'), 'dayDai': o(f, 'I52'), 'dauCocTinhToan': o(f, 'I53'), 'doanNgam': o(f, 'I54'), 'doanDap': o(f, 'I55'),
+        'dauCocThucTe': o(f, 'I56'), 'muiCoc': o(f, 'I57'),
+        'Rb': o(f, 'I81'), 'Rbt': o(f, 'I82'), 'E': o(f, 'I83'), 'Rs': o(f, 'I86'), 'Rsc': o(f, 'I87'),
+        'RcuVl': o(f, 'N92'), 'phi': o(f, 'N120'), 'r': o(f, 'N107'), 'lambda': o(f, 'N108'), 'l1': o(f, 'N110'),
+        'l0': o(f, 'N111'), 'alphaE': o(f, 'N113'), 'k': o(f, 'N114'), 'bp': o(f, 'N115'),
+        'doanK': [{'dinh': o(f, 'I%d' % r), 'day': o(f, 'J%d' % r), 'l': o(f, 'K%d' % r), 'k': o(f, 'N%d' % r)}
+                  for r in range(125, 140) if o(f, 'K%d' % r) not in (None, '')],
+        'tongKL': o(f, 'N141'), 'tongL': o(f, 'N142'),
+        'RtuVl': o(f, 'N149'),
+        # SPT
+        'RcuSPT': o(f, 'N192'), 'qb': o(f, 'N194'), 'loaiDatMui': o(f, 'F208'),
+        'Np': o(f, 'H215'), 'NpTren': o(f, 'H213'), 'NpDuoi': o(f, 'H214'), 'cuMui': o(f, 'N218'),
+        'qbSet': o(f, 'N221'), 'qbCat': o(f, 'N224'), 'RtuSPT': o(f, 'N229'),
+        'doanSPT': [{'ten': o(f, 'D%d' % r), 'l': o(f, 'G%d' % r), 'spt': o(f, 'H%d' % r), 'fs': o(f, 'I%d' % r),
+                     'cu': o(f, 'J%d' % r), 'fc': o(f, 'K%d' % r)} for r in range(236, 251) if o(f, 'G%d' % r) not in (None, '')],
+        'gamma0': o(f, 'N258'), 'gammaN': o(f, 'N259'), 'gammaK': o(f, 'N261'),
+        'RcuVlXet': o(f, 'N265'), 'RcuSPTXet': o(f, 'N266'), 'Rck': o(f, 'N267'), 'Ncd': o(f, 'N268'),
+        'RtuVlXet': o(f, 'N274'), 'RtuSPTXet': o(f, 'N275'), 'Rtk': o(f, 'N276'), 'Ntd': o(f, 'N277'),
+    }
+    return {'dauVao': dau_vao, 'ketQua': ket_qua}
+
+
 def js_file(path, var, data, header):
     body = json.dumps(data, ensure_ascii=False, indent=1)
     with open(path, 'w', encoding='utf-8') as f:
@@ -396,6 +434,7 @@ def main():
         'sheetCauThap_phanD': doc_tham_chieu_phan_d(wbv['Cau thap']),
         'sheetCauThap_phanE': doc_tham_chieu_phan_e(wbv['Cau thap']),
         'diaChat': dia_chat_tc,
+        'sct': doc_sct(wbv),
     }
     with open(os.path.join(ROOT, 'tests', 'excel-tham-chieu.json'), 'w', encoding='utf-8') as f:
         json.dump(tham_chieu, f, ensure_ascii=False, indent=1)

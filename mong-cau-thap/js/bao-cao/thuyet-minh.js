@@ -357,7 +357,7 @@
     out.push(oHinh('Chèn hình mặt bằng bố trí cẩu tháp'));
     out.push(chuThich('Hình 1.1 Mặt bằng bố trí cẩu tháp'));
     out.push(doan('Móng cẩu tháp được đỡ ' + (nCoc < 10 ? '0' : '') + nCoc + ' cọc khoan nhồi có đường kính D' +
-      g(Number(s.coc.D) * 1000) + 'mm. ' + (s.baoCao.moTaThem || ''), { indent: undefined }));
+      g(Number(s.sct.D) * 1000) + 'mm. ' + (s.baoCao.moTaThem || ''), { indent: undefined }));
 
     out.push(phan('PHẦN 1. CƠ SỞ TÍNH TOÁN'));
     out.push(doan('Thuyết minh tính toán này dựa trên các tài liệu và yêu cầu như sau:'));
@@ -411,7 +411,7 @@
   // ---------------- Chương II – Phần 1 (tạm) ----------------
   function phan1SCT(s) {
     var out = [phan('PHẦN 1. TÍNH TOÁN SỨC CHỊU TẢI CỌC', true)];
-    out.push(doan('Sức chịu tải thiết kế của cọc khoan nhồi D' + g(Number(s.coc.D) * 1000) +
+    out.push(doan('Sức chịu tải thiết kế của cọc khoan nhồi D' + g(Number(s.sct.D) * 1000) +
       'mm lấy theo kết quả tính toán sức chịu tải cọc (TCVN 10304:2025):'));
     out.push(bangThongSo([
       { nhan: 'Sức chịu tải trọng nén thiết kế', ky: 'N_{c,d}=', gt: f(Number(s.coc.Qa), 0), dv: 'kN', nhap: true },

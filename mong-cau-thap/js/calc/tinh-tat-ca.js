@@ -10,11 +10,17 @@
       beTong: s.dai.beTong, cotThep: s.dai.cotThep, a_cm: s.dai.a_cm,
       X: s.dai.X, Y: s.dai.Y, H: s.dai.H
     });
-    var B = MCT.calc.tinhPhanB(A, { toaDo: s.coc.toaDo, Qa: s.coc.Qa, QaKeo: s.coc.QaKeo });
-    var C = MCT.calc.tinhPhanC(A, B, { D: s.coc.D });
+    var SCT = MCT.calc.tinhSCT(s.sct, DC);
+    // Qa, Qa' của mục B: tự lấy từ sức chịu tải cọc (giống ô L48, L49 sheet Cau thap) hoặc nhập tay
+    var tuDong = s.coc.nguonQa !== 'nhap' && SCT.hopLe;
+    var Qa = tuDong ? SCT.Ncd : s.coc.Qa;
+    var QaKeo = tuDong ? SCT.Ntd : s.coc.QaKeo;
+    var B = MCT.calc.tinhPhanB(A, { toaDo: s.coc.toaDo, Qa: Qa, QaKeo: QaKeo });
+    B.nguonQa = tuDong ? 'tu-dong' : 'nhap';
+    var C = MCT.calc.tinhPhanC(A, B, { D: s.sct.D });
     var D = MCT.calc.tinhPhanD(A, B, s.thep);
     var E = MCT.calc.tinhPhanE(A, s.bulong);
     var F = MCT.calc.tinhKetLuan(B, C, D, E);
-    return { DC: DC, A: A, B: B, C: C, D: D, E: E, F: F };
+    return { DC: DC, SCT: SCT, A: A, B: B, C: C, D: D, E: E, F: F };
   };
 })(globalThis.MCT = globalThis.MCT || {});

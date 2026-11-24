@@ -20,10 +20,21 @@
     diaChat: MCT.data && MCT.data.mauDiaChat ? JSON.parse(JSON.stringify(MCT.data.mauDiaChat)) : null,
     cau: { ten: 'LLT5020-10', chieuCao: 37.5 },
     dai: { beTong: 'B35', cotThep: 'CB500-V', a_cm: 15, X: 4, Y: 3.678, H: 1.6 },
-    coc: {
+    // Sức chịu tải cọc (sheet SCT Coc nhoi)
+    sct: {
       D: 0.8,
-      Qa: 4243.15,      // tạm nhập tay – GĐ4 tự tính từ sheet SCT cọc
-      QaKeo: 2534.12,   // độ lớn sức chịu kéo Qa' (app tự mang dấu âm khi kiểm tra)
+      thep: [{ n: 18, d: 22 }, { n: 0, d: 0 }, { n: 0, d: 0 }],
+      L: 33, dayDai: -2.6, dayHo: -13, dauCocTinhToan: -13, doanNgam: 0.1,
+      beTong: 'B35', cotThep: 'CB500-V', gammaCb: 0.85, gammaCb2: 0.7,
+      // Excel đang chọn "Cọc Khoan Thả" (ô H36 sheet SCT Coc nhoi FULL); cọc thực tế là khoan nhồi
+      phuongPhapThiCong: 'Cọc Khoan Thả',
+      eta: 1, gamma0: 1, capCongTrinh: 'III', phuongPhapGk: 'Kết quả theo chỉ số SPT',
+      xetVatLieu: 'Yes', xetSPT: 'Yes'
+    },
+    coc: {
+      nguonQa: 'tu-dong',   // 'tu-dong': lấy Nc,d, Nt,d từ phần sức chịu tải cọc; 'nhap': nhập tay
+      Qa: 4243.15,
+      QaKeo: 2534.12,       // độ lớn sức chịu kéo Qa' (app tự mang dấu âm khi kiểm tra)
       toaDo: [{ x: -1.2, y: -0.77 }, { x: 1.2, y: -0.77 }, { x: 0, y: 1.31 }]
     },
     // Thép chọn cho đài (mm): đường kính d, khoảng cách a

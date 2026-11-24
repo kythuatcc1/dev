@@ -6,7 +6,7 @@ const zlib = require('node:zlib');
 globalThis.docx = require('../vendor/docx-9.15.3.umd.js');
 ['cau-thap', 'vat-lieu', 'bang-tra', 'mau-dia-chat'].forEach((f) => require(`../js/data/${f}.js`));
 require('../js/mac-dinh.js');
-['dia-chat', 'phan-a-tai-trong', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong', 'phan-f-ket-luan', 'tinh-tat-ca']
+['dia-chat', 'sct-coc', 'phan-a-tai-trong', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong', 'phan-f-ket-luan', 'tinh-tat-ca']
   .forEach((f) => require(`../js/calc/${f}.js`));
 require('../js/bao-cao/thuyet-minh.js');
 const MCT = globalThis.MCT;
