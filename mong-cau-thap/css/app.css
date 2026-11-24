@@ -111,6 +111,8 @@ input.in.wide, select.in.wide { width: 100%; }
 input.in:focus, select.in:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .field { display: flex; flex-direction: column; gap: 4px; }
 .field label { font-size: 13px; color: var(--muted); }
+.field-wide { grid-column: 1 / -1; }
+textarea.in { font: inherit; resize: vertical; line-height: 1.45; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
 
 /* Bảng kết quả */

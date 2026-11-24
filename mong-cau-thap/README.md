@@ -14,7 +14,7 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 |---|---|---|
 | GĐ1 | Catalogue cẩu, tải quy đổi, vật liệu & kích thước đài (mục A sheet `Cau thap`) | ✔ |
 | GĐ2 | Phản lực cọc, xuyên thủng, thép đài, bulong, kết luận (mục B → F sheet `Cau thap`) | ✔ |
-| GĐ3 | Xuất thuyết minh Word | |
+| GĐ3 | Xuất thuyết minh Word theo mẫu MD3-1: khung, chương I, mục A ✔; mục B → F | đang làm |
 | GĐ4 | Địa chất + sức chịu tải cọc | |
 | GĐ5 | Cọc chịu tải ngang | |
 | GĐ6 | Ổn định – lún | |
@@ -28,8 +28,15 @@ js/data/                 dữ liệu trích từ Excel (tự sinh, không sửa 
 js/calc/                 phần tính toán, mỗi file ứng với một mục trong Excel
 js/app.js                điều khiển giao diện
 tests/                   test đối chiếu với giá trị Excel (excel-tham-chieu.json)
+js/bao-cao/              tạo thuyết minh Word (.docx)
+vendor/                  thư viện docx 9.15.3 (MIT) – tạo file Word ngay trong trình duyệt, không cần mạng
 tools/                   script trích dữ liệu từ file Excel
 ```
+
+## Xuất thuyết minh
+Bấm **Xuất thuyết minh** ở góc trên. File .docx trình bày theo thuyết minh mẫu
+`260917_MD3-1_THUYET_MINH_MCT_VN.pdf`. Khi mở trong Word, chọn **Yes** khi được hỏi
+cập nhật trường dữ liệu để điền mục lục. Hình mặt bằng và catalogue cẩu để ô trống để dán hình.
 
 ## Kiểm tra
 ```

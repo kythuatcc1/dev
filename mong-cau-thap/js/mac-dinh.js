@@ -1,0 +1,61 @@
+// Số liệu mặc định của app = số liệu trong file Excel gốc (CT1, LLT5020-10)
+// + các thông tin trình bày thuyết minh lấy theo thuyết minh mẫu MD3-1.
+(function (MCT) {
+  'use strict';
+
+  MCT.macDinh = {
+    duAn: {
+      ten: 'MD3-1',
+      goiThau: 'Gói thầu chính Dự án MD3-1',
+      diaDiem: 'Phường Tân Mỹ, Thành Phố Hồ Chí Minh',
+      nhaThau: 'Tổng Công Ty Xây Dựng Số 1 - CTCP',
+      hangMuc: 'Móng Cọc Cẩu Tháp CT1',
+      tenMong: 'CT1',
+      trangThai: 'HỒ SƠ THẨM TRA',
+      chuDauTu: 'CÔNG TY TNHH PHÁT TRIỂN PHÚ MỸ HƯNG',
+      tuVanGiamSat: 'CÔNG TY CỔ PHẦN TƯ VẤN QUẢN LÝ CHẤT LƯỢNG ĐẦU TIÊN',
+      donViThamTra: 'CÔNG TY TNHH TƯ VẤN THIẾT KẾ VÀ ĐẦU TƯ XÂY DỰNG NAM PHÁT'
+    },
+    cau: { ten: 'LLT5020-10', chieuCao: 37.5 },
+    dai: { beTong: 'B35', cotThep: 'CB500-V', a_cm: 15, X: 4, Y: 3.678, H: 1.6 },
+    coc: {
+      D: 0.8,
+      Qa: 4243.15,      // tạm nhập tay – GĐ4 tự tính từ sheet SCT cọc
+      QaKeo: 2534.12,   // độ lớn sức chịu kéo Qa' (app tự mang dấu âm khi kiểm tra)
+      toaDo: [{ x: -1.2, y: -0.77 }, { x: 1.2, y: -0.77 }, { x: 0, y: 1.31 }]
+    },
+    // Thép chọn cho đài (mm): đường kính d, khoảng cách a
+    thep: {
+      duoiX: { d: 20, s: 150 }, duoiY: { d: 20, s: 150 },
+      trenX: { d: 20, s: 150 }, trenY: { d: 20, s: 150 }
+    },
+    bulong: {
+      d: 42, loai: 'Bulong thô/Normal quality', capBen: 8.8, fcb: 395, n: 8,
+      L1L2: 1700, L2: 300, L3: 250, eta1: 1.5, eta2: 0.9, alpha1: 1, k0: 1.35, nv: 1
+    },
+    // Nội dung chữ của thuyết minh (mỗi dòng là một gạch đầu dòng)
+    baoCao: {
+      moTaThem: 'Cao độ đáy bê tông lót móng -2.600m so với cote MĐTN. ' +
+        'Cọc khoan nhồi có cao độ mũi cọc là -34.600m so với cote MĐTN.',
+      coSo: [
+        'Báo cáo Kết quả khảo sát địa chất công trình do Chủ đầu tư cung cấp.',
+        'Bản vẽ thiết kế do Chủ đầu tư cung cấp.',
+        'Catalogue/Manual của cẩu tháp.',
+        'Yêu cầu từ phía Chủ đầu tư.'
+      ].join('\n'),
+      tieuChuan: [
+        'TCVN 2737:2023 Tải trọng và tác động – Tiêu chuẩn thiết kế.',
+        'TCVN 5574:2018 Thiết kế kết cấu bê tông và bê tông cốt thép.',
+        'TCVN 5575:2024 Kết cấu thép – Tiêu chuẩn thiết kế.',
+        'TCVN 10304:2025 Móng cọc – Tiêu chuẩn thiết kế.'
+      ].join('\n'),
+      phanMem: 'MS Office (Excel).',
+      ghiChuGio: 'Các số liệu phản lực của cẩu tháp theo catalogue đã bao gồm tác động của tải trọng gió. ' +
+        'Theo đó, cẩu tháp chỉ hoạt động (làm việc) khi tốc độ gió quy định ≤ 72 km/h, khi tốc độ gió > 72 km/h ' +
+        'thì cẩu tháp không hoạt động và tay cần được thả tự do. Phản lực của cẩu tháp theo catalogue được tính ' +
+        'đến vận tốc gió tối đa là 151 km/h.',
+      taiToiDa: 10,     // T
+      taiDauCan: 2      // T
+    }
+  };
+})(globalThis.MCT = globalThis.MCT || {});

@@ -4,40 +4,8 @@
 
   var KHOA_LUU = 'mong-cau-thap.du-lieu.v1';
 
-  // Giá trị mặc định = số liệu trong file Excel gốc
-  var MAC_DINH = {
-    duAn: {
-      ten: 'MD3-1',
-      diaDiem: 'Phường Tân Mỹ, Thành Phố Hồ Chí Minh',
-      nhaThau: 'Tổng Công Ty Xây Dựng Số 1 - CTCP',
-      hangMuc: 'Móng Cọc Cẩu Tháp CT1'
-    },
-    cau: { ten: 'LLT5020-10', chieuCao: 37.5 },
-    dai: { beTong: 'B35', cotThep: 'CB500-V', a_cm: 15, X: 4, Y: 3.678, H: 1.6 },
-    coc: {
-      D: 0.8,
-      Qa: 4243.15,      // tạm nhập tay – GĐ4 tự tính từ sheet SCT cọc
-      QaKeo: 2534.12,   // độ lớn sức chịu kéo Qa' (app tự mang dấu âm khi kiểm tra)
-      toaDo: [{ x: -1.2, y: -0.77 }, { x: 1.2, y: -0.77 }, { x: 0, y: 1.31 }]
-    },
-    // Thép chọn cho đài (mm): đường kính d, khoảng cách a
-    thep: {
-      duoiX: { d: 20, s: 150 }, duoiY: { d: 20, s: 150 },
-      trenX: { d: 20, s: 150 }, trenY: { d: 20, s: 150 }
-    },
-    bulong: {
-      d: 42, loai: 'Bulong thô/Normal quality', capBen: 8.8, fcb: 395, n: 8,
-      L1L2: 1700, L2: 300, L3: 250, eta1: 1.5, eta2: 0.9, alpha1: 1, k0: 1.35, nv: 1
-    }
-  };
-
-  var CO_SO = [
-    ['TCVN 5574:2018', 'Thiết kế kết cấu bê tông và bê tông cốt thép'],
-    ['TCVN 5575:2024', 'Kết cấu thép – Tiêu chuẩn thiết kế'],
-    ['TCVN 10304:2025', 'Móng cọc – Tiêu chuẩn thiết kế'],
-    ['', 'Báo cáo khảo sát địa chất do chủ đầu tư cung cấp.'],
-    ['', 'Catalogue cẩu tháp do nhà sản xuất cung cấp.']
-  ];
+  // Giá trị mặc định: js/mac-dinh.js
+  var MAC_DINH = MCT.macDinh;
 
   // Danh mục theo đúng thứ tự trong file Excel
   var MUC = [
@@ -94,19 +62,11 @@
     }
   }
 
+  var tatCa = null;     // { A, B, C, D, E, F }
+
   function tinh() {
-    ketQua = MCT.calc.tinhPhanA({
-      cau: state.cau.ten, chieuCao: state.cau.chieuCao,
-      beTong: state.dai.beTong, cotThep: state.dai.cotThep, a_cm: state.dai.a_cm,
-      X: state.dai.X, Y: state.dai.Y, H: state.dai.H
-    });
-    kqB = MCT.calc.tinhPhanB(ketQua, {
-      toaDo: state.coc.toaDo, Qa: state.coc.Qa, QaKeo: state.coc.QaKeo
-    });
-    kqC = MCT.calc.tinhPhanC(ketQua, kqB, { D: state.coc.D });
-    kqD = MCT.calc.tinhPhanD(ketQua, kqB, state.thep);
-    kqE = MCT.calc.tinhPhanE(ketQua, state.bulong);
-    kqF = MCT.calc.tinhKetLuan(kqB, kqC, kqD, kqE);
+    tatCa = MCT.calc.tinhTatCa(state);
+    ketQua = tatCa.A; kqB = tatCa.B; kqC = tatCa.C; kqD = tatCa.D; kqE = tatCa.E; kqF = tatCa.F;
   }
 
   // ---------------- Tiện ích hiển thị ----------------
@@ -194,22 +154,42 @@
   var TRANG = {};
 
   TRANG['du-an'] = {
-    tieuDe: 'Thông tin dự án',
-    moTa: 'Thông tin in ở đầu thuyết minh.',
+    tieuDe: 'Thông tin dự án và thuyết minh',
+    moTa: 'Thông tin in ở trang bìa, khung tiêu đề, trang ký và chương I của thuyết minh.',
     nhap: function () {
       function oChu(path, nhan) {
         return '<div class="field"><label for="in-' + path + '">' + nhan + '</label>' +
           '<input class="in wide" type="text" id="in-' + path + '" data-bind="' + path + '" value="' +
           esc(layGiaTri(path)) + '"></div>';
       }
+      function oDoan(path, nhan, dong, goiY) {
+        return '<div class="field field-wide"><label for="in-' + path + '">' + nhan + '</label>' +
+          '<textarea class="in wide" rows="' + (dong || 3) + '" id="in-' + path + '" data-bind="' + path + '">' +
+          esc(layGiaTri(path)) + '</textarea>' + (goiY ? '<span class="hint">' + goiY + '</span>' : '') + '</div>';
+      }
       return '<section class="card"><h2>Thông tin chung</h2><div class="grid-2">' +
-        oChu('duAn.ten', 'Dự án') + oChu('duAn.diaDiem', 'Địa điểm') +
-        oChu('duAn.nhaThau', 'Nhà thầu') + oChu('duAn.hangMuc', 'Hạng mục kiểm tra') +
+        oChu('duAn.ten', 'Dự án') + oChu('duAn.goiThau', 'Gói thầu') +
+        oChu('duAn.diaDiem', 'Địa điểm') + oChu('duAn.hangMuc', 'Hạng mục kiểm tra') +
+        oChu('duAn.tenMong', 'Tên móng cẩu (ví dụ CT1)') + oChu('duAn.trangThai', 'Trạng thái hồ sơ (ô phải khung tiêu đề)') +
         '</div></section>' +
-        '<section class="card"><h2>Cơ sở tính toán</h2><ul class="basis">' +
-        CO_SO.map(function (c) {
-          return '<li>' + (c[0] ? '<strong>' + esc(c[0]) + '</strong>: ' : '') + esc(c[1]) + '</li>';
-        }).join('') + '</ul></section>';
+        '<section class="card"><h2>Các đơn vị (trang ký)</h2><div class="grid-2">' +
+        oChu('duAn.chuDauTu', 'Chủ đầu tư') + oChu('duAn.tuVanGiamSat', 'Tư vấn giám sát') +
+        oChu('duAn.nhaThau', 'Nhà thầu') + oChu('duAn.donViThamTra', 'Đơn vị thẩm tra') +
+        '</div></section>' +
+        '<section class="card"><h2>Nội dung chương I</h2><div class="grid-2">' +
+        oDoan('baoCao.moTaThem', 'Mô tả móng (sau câu "Móng cẩu tháp được đỡ … cọc khoan nhồi có đường kính D…mm.")', 3) +
+        oDoan('baoCao.coSo', 'Phần 1 – Cơ sở tính toán', 4, 'Mỗi dòng là một gạch đầu dòng.') +
+        oDoan('baoCao.tieuChuan', 'Phần 2 – Tiêu chuẩn tham khảo', 4, 'Mỗi dòng là một gạch đầu dòng.') +
+        oDoan('baoCao.phanMem', 'Phần 2 – Phần mềm áp dụng', 2, 'Mỗi dòng là một gạch đầu dòng.') +
+        oDoan('baoCao.ghiChuGio', 'Phần 3 – Ghi chú tải trọng gió (in nghiêng)', 4) +
+        '</div><div class="params" style="margin-top:12px">' +
+        oNhapSo('baoCao.taiToiDa', 'Tải tối đa của cẩu (Bảng 3.2)', '', 'T') +
+        oNhapSo('baoCao.taiDauCan', 'Tải đầu cần (Bảng 3.2)', '', 'T') +
+        '</div></section>' +
+        '<section class="card"><h2>Xuất thuyết minh</h2><p>File Word (.docx) trình bày theo thuyết minh mẫu MD3-1: trang bìa, ' +
+        'khung tiêu đề, trang ký, mục lục, chương I và chương II. Hình mặt bằng và catalogue cẩu để ô trống, bạn dán hình vào trong Word.</p>' +
+        '<p><button type="button" class="btn" data-action="xuat-tm">Xuất thuyết minh (.docx)</button></p>' +
+        '<p class="hint">Khi mở file, Word hỏi cập nhật trường dữ liệu: chọn <strong>Yes</strong> để điền mục lục.</p></section>';
     },
     ketQua: function () { return ''; }
   };
@@ -923,6 +903,7 @@
       var nut = e.target.closest('[data-trang]');
       if (nut && !nut.disabled) chuyenTrang(nut.getAttribute('data-trang'));
       if (e.target.closest('[data-action="toggle-nav"]')) document.body.classList.toggle('nav-open');
+      if (e.target.closest('[data-action="xuat-tm"]')) xuatThuyetMinh();
       var them = e.target.closest('[data-action="them-coc"]');
       var xoa = e.target.closest('[data-action="xoa-coc"]');
       if ((them && !them.disabled) || (xoa && !xoa.disabled)) {
@@ -938,6 +919,42 @@
           if (oMoi) oMoi.focus();
         }
       }
+    });
+  }
+
+  // ---------------- Xuất thuyết minh ----------------
+  function napThuVienDocx() {
+    return new Promise(function (ok, loi) {
+      if (globalThis.docx) return ok();
+      var sc = document.createElement('script');
+      sc.src = 'vendor/docx-9.15.3.umd.js';
+      sc.onload = function () { ok(); };
+      sc.onerror = function () { loi(new Error('Không nạp được thư viện docx (vendor/docx-9.15.3.umd.js).')); };
+      document.head.appendChild(sc);
+    });
+  }
+
+  function xuatThuyetMinh() {
+    if (!ketQua || !ketQua.hopLe) {
+      datTrangThai('Chưa xuất được: mục A còn lỗi.');
+      return;
+    }
+    datTrangThai('Đang tạo thuyết minh…');
+    napThuVienDocx().then(function () {
+      var doc = MCT.baoCao.taoThuyetMinh(state, tatCa);
+      return globalThis.docx.Packer.toBlob(doc);
+    }).then(function (blob) {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = MCT.baoCao.tenFile(state, tatCa);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      datTrangThai('Đã xuất ' + a.download);
+    }).catch(function (e) {
+      datTrangThai('Lỗi xuất thuyết minh: ' + e.message);
     });
   }
 
