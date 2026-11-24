@@ -19,6 +19,7 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | GĐ5 | Cọc chịu tải ngang (chuyển vị, M, Q, σz, chịu cắt, ổn định đất) | ✔ |
 | GĐ6 | Ổn định – lún (móng khối quy ước, R theo TCVN 9362, lún cộng lớp) | ✔ |
 | GĐ7 | Biểu đồ tương tác, biểu đồ SPT | ✔ |
+| GĐ8 | Thuyết minh toàn bộ: Phần 1 SCT cọc, Phần 2 A → F, Phần 3 tải ngang, Phần 4 tương tác, Phần 5 ổn định – lún (kèm biểu đồ) | ✔ |
 
 ## Cấu trúc
 ```
@@ -38,6 +39,13 @@ tools/                   script trích dữ liệu từ file Excel
 Bấm **Xuất thuyết minh** ở góc trên. File .docx trình bày theo thuyết minh mẫu
 `260917_MD3-1_THUYET_MINH_MCT_VN.pdf`. Khi mở trong Word, chọn **Yes** khi được hỏi
 cập nhật trường dữ liệu để điền mục lục. Hình mặt bằng và catalogue cẩu để ô trống để dán hình.
+
+Nội dung thuyết minh: chương I (giới thiệu, cơ sở, tiêu chuẩn), Phần 1 sức chịu tải cọc
+(địa chất + biểu đồ SPT, vật liệu, SPT, Qa/Qa' thiết kế), Phần 2 móng cẩu tháp mục A → F,
+Phần 3 cọc chịu tải ngang (bảng và biểu đồ M, Q, σz), Phần 4 biểu đồ tương tác,
+Phần 5 ổn định nền và lún. Biểu đồ được chèn dạng ảnh PNG tạo ngay trong trình duyệt.
+Các ghi chú sai khác so với Excel chỉ hiện trên app, không in vào thuyết minh.
+Phần gông cẩu và kingpost của mẫu MD3-1 dùng kết quả mô hình ETABS, không có trong Excel nên chưa đưa vào.
 
 ## Kiểm tra
 ```

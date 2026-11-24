@@ -76,6 +76,8 @@
         'Theo đó, cẩu tháp chỉ hoạt động (làm việc) khi tốc độ gió quy định ≤ 72 km/h, khi tốc độ gió > 72 km/h ' +
         'thì cẩu tháp không hoạt động và tay cần được thả tự do. Phản lực của cẩu tháp theo catalogue được tính ' +
         'đến vận tốc gió tối đa là 151 km/h.',
+      gioiThieuTaiNgang: 'Việc kiểm tra cọc chịu tải trọng ngang thực hiện cho trường hợp móng đài thấp, ' +
+        'với tải trọng ngang lớn nhất của cẩu tháp chia đều cho các cọc trong đài.',
       taiToiDa: 10,     // T
       taiDauCan: 2      // T
     }

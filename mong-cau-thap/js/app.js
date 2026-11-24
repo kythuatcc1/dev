@@ -184,6 +184,7 @@
         oDoan('baoCao.tieuChuan', 'Phần 2 – Tiêu chuẩn tham khảo', 4, 'Mỗi dòng là một gạch đầu dòng.') +
         oDoan('baoCao.phanMem', 'Phần 2 – Phần mềm áp dụng', 2, 'Mỗi dòng là một gạch đầu dòng.') +
         oDoan('baoCao.ghiChuGio', 'Phần 3 – Ghi chú tải trọng gió (in nghiêng)', 4) +
+        oDoan('baoCao.gioiThieuTaiNgang', 'Chương II, Phần 3 – Đoạn giới thiệu kiểm tra cọc chịu tải ngang', 3) +
         '</div><div class="params" style="margin-top:12px">' +
         oNhapSo('baoCao.taiToiDa', 'Tải tối đa của cẩu (Bảng 3.2)', '', 'T') +
         oNhapSo('baoCao.taiDauCan', 'Tải đầu cần (Bảng 3.2)', '', 'T') +
@@ -1429,6 +1430,45 @@
     });
   }
 
+  // Chuyển biểu đồ SVG thành ảnh PNG (tỉ lệ 2× cho rõ nét) để chèn vào file Word
+  function svgSangPng(svg, w, h) {
+    return new Promise(function (ok) {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var tiLe = 2, cv = document.createElement('canvas');
+          cv.width = w * tiLe; cv.height = h * tiLe;
+          var ctx = cv.getContext('2d');
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, cv.width, cv.height);
+          ctx.drawImage(img, 0, 0, cv.width, cv.height);
+          cv.toBlob(function (b) {
+            if (!b) return ok(null);
+            b.arrayBuffer().then(function (ab) { ok({ data: new Uint8Array(ab), w: w, h: h }); }, function () { ok(null); });
+          }, 'image/png');
+        } catch (e) { ok(null); }   // trình duyệt chặn vẽ SVG lên canvas → thuyết minh để ô chèn hình
+      };
+      img.onerror = function () { ok(null); };
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    });
+  }
+
+  function taoHinhThuyetMinh() {
+    var ds = [];
+    var BD = MCT.bieuDo;
+    if (tatCa.DC && tatCa.DC.hopLe) ds.push(['spt', BD.spt(tatCa.DC, { w: 360, h: 520 }), 360, 520]);
+    if (tatCa.TN && tatCa.TN.bang) {
+      ds.push(['M', BD.noiLuc(tatCa.TN.bang, 'M', 'BENDING MOMENT ALONG PILE SHAFT', 'Mz (kNm)', '#2f6db5', { w: 340, h: 400 }), 340, 400]);
+      ds.push(['Q', BD.noiLuc(tatCa.TN.bang, 'Q', 'SHEAR FORCE ALONG PILE SHAFT', 'Qz (kN)', '#2f6db5', { w: 340, h: 400 }), 340, 400]);
+      ds.push(['sigma', BD.noiLuc(tatCa.TN.bang, 'sigma', 'HORIZONTAL PRESSURE ALONG PILE SHAFT', 'σz (kN/m2)', '#2f6db5', { w: 340, h: 400 }), 340, 400]);
+    }
+    if (tatCa.TT && tatCa.TT.hopLe) ds.push(['tuongTac', BD.tuongTac(tatCa.TT, { w: 480, h: 440 }), 480, 440]);
+    return Promise.all(ds.map(function (d) { return svgSangPng(d[1], d[2], d[3]); })).then(function (anh) {
+      var hinh = {};
+      ds.forEach(function (d, i) { if (anh[i]) hinh[d[0]] = anh[i]; });
+      return hinh;
+    });
+  }
+
   function xuatThuyetMinh() {
     if (!ketQua || !ketQua.hopLe) {
       datTrangThai('Chưa xuất được: mục A còn lỗi.');
@@ -1436,7 +1476,9 @@
     }
     datTrangThai('Đang tạo thuyết minh…');
     napThuVienDocx().then(function () {
-      var doc = MCT.baoCao.taoThuyetMinh(state, tatCa);
+      return taoHinhThuyetMinh();
+    }).then(function (hinh) {
+      var doc = MCT.baoCao.taoThuyetMinh(state, tatCa, hinh);
       return globalThis.docx.Packer.toBlob(doc);
     }).then(function (blob) {
       var url = URL.createObjectURL(blob);

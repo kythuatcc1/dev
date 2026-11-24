@@ -45,7 +45,11 @@ test('Xuất thuyết minh từ số liệu mặc định: file docx hợp lệ,
     '956.80', '5238.83', '647.33', '3668.59', '5501.91', '1442.12', 'CB500-V', 'TCVN 10304:2025',
     'B. KIỂM TRA TẢI TRỌNG TÁC DỤNG LÊN CỌC', '3199', '-2237', 'C. KIỂM TRA XUYÊN THỦNG CHO ĐÀI MÓNG', '26013',
     'D. TÍNH CỐT THÉP CHO ĐÀI MÓNG', '173.9', '-155.2', 'E. KIỂM TRA BULONG', '1497', '438.0', '393.7', '414.0', '746.5',
-    '4162.5', 'F. KẾT LUẬN', 'Móng cẩu tháp đủ khả năng chịu lực'
+    '4162.5', 'F. KẾT LUẬN', 'Móng cẩu tháp đủ khả năng chịu lực',
+    'PHẦN 1. TÍNH TOÁN SỨC CHỊU TẢI CỌC', 'HK7', '6572', '2976', '7638', '4561', '6120', '4243', '2534',
+    'PHẦN 3. KIỂM TRA CỌC CHỊU TẢI NGANG', '45.67', '80.57', '355.83', '31.36', 'Thoả mãn điều kiện kiểm tra ổn định đất nền quanh cọc',
+    'PHẦN 4. TÍNH TOÁN BIỂU ĐỒ TƯƠNG TÁC CỌC', '3198.53', '-2237.12',
+    'PHẦN 5. KIỂM TRA ỔN ĐỊNH ĐẤT NỀN VÀ KIỂM TRA LÚN', '20356.50', '1733.85', '4.50'
   ].forEach((t) => assert.ok(chu.includes(t), 'thiếu: ' + t));
   const header = docTrongZip(buf, 'word/header1.xml') || docTrongZip(buf, 'word/header2.xml');
   assert.match(header.replace(/<[^>]+>/g, ''), /HỒ SƠ THẨM TRA/);

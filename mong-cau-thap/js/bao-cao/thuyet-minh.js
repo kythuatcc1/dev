@@ -134,7 +134,7 @@
   // ---------------- Dòng thông số kiểu Excel: nhãn | ký hiệu | giá trị | đơn vị | OK ----------------
   // Bảng không viền. r = { nhan, ky, gt, dv, nhap (tô đỏ), kl ('OK'|'FAIL'), dam (nhãn đậm), thut (thụt lề nhãn) }
   // Không dùng thụt lề cấp bảng (LibreOffice co hẹp bảng có tblInd) – thụt lề nằm trong ô nhãn.
-  var COT_TS = [0, 1150, 1500, 750, 600];
+  var COT_TS = [0, 1100, 1300, 1000, 650];
   function bangThongSo(dsDong, opt) {
     opt = opt || {};
     var thut = opt.thut === undefined ? 360 : opt.thut;
@@ -156,7 +156,7 @@
         o(p(r.ky || '', lien), cot[1], { vien: false, vAlign: x.VerticalAlign.TOP }),
         o(p(r.gt == null ? '' : r.gt, Object.assign({ align: x.AlignmentType.CENTER, color: r.nhap ? MAU.nhap : undefined, bold: r.gtDam }, lien)), cot[2], { vien: false, vAlign: x.VerticalAlign.TOP })
       ];
-      if (r.dv && String(r.dv).replace(/[_^]\{|\}/g, '').length > 6 && !r.kl) {
+      if (r.dv && String(r.dv).replace(/[_^]\{|\}/g, '').length > 7 && !r.kl) {
         // ghi chú dài trong cột đơn vị: gộp với cột kết luận cho đỡ bẻ dòng
         cells.push(o(p(r.dv, Object.assign({}, lien, { size: 22 })), cot[3] + cot[4], { vien: false, span: 2, vAlign: x.VerticalAlign.TOP }));
       } else {
@@ -409,13 +409,389 @@
   }
 
   // ---------------- Chương II – Phần 1 (tạm) ----------------
-  function phan1SCT(s) {
+  // ---------------- Tiện ích chung cho các phần cọc ----------------
+  var CAM = 'F4B183';   // ô kết quả nổi bật như bản mẫu
+
+  // Ảnh biểu đồ (PNG do trình duyệt tạo); không có ảnh → ô chèn hình
+  function hinhAnh(h, rongPx, goiY, chuThichHinh) {
+    var x = D();
+    var out = [];
+    if (h && h.data) {
+      var cao = Math.round(rongPx * h.h / h.w);
+      out.push(new x.Paragraph({
+        alignment: x.AlignmentType.CENTER, keepNext: true, spacing: { before: 80, after: 40 },
+        children: [new x.ImageRun({ type: 'png', data: h.data, transformation: { width: rongPx, height: cao } })]
+      }));
+    } else {
+      out.push(oHinh(goiY + ' (biểu đồ được chèn khi xuất từ app trong trình duyệt)', 2600));
+    }
+    if (chuThichHinh) out.push(chuThich(chuThichHinh));
+    return out;
+  }
+
+  // Dòng kết quả nổi bật: "Rc,u/vl = [6572] kN"
+  function ketQuaNoiBat(ky, gt, dv) {
+    var x = D();
+    var giua = { spacing: { after: 0, line: 260 } };
+    return bang([hangBang([
+      o(p(ky, Object.assign({ bold: true, align: x.AlignmentType.RIGHT }, giua)), 2200, { vien: false }),
+      o(p(gt, Object.assign({ bold: true, align: x.AlignmentType.CENTER }, giua)), 1100, { fill: CAM }),
+      o(p(dv, Object.assign({ bold: true }, giua)), 700, { vien: false })
+    ])], [2200, 1100, 700], { align: x.AlignmentType.CENTER,
+      borders: { top: KHONG_VIEN, bottom: KHONG_VIEN, left: KHONG_VIEN, right: KHONG_VIEN, insideHorizontal: KHONG_VIEN, insideVertical: KHONG_VIEN } });
+  }
+
+  function congThucDong(text) {
+    return p(text, { bold: true, align: D().AlignmentType.CENTER, keepNext: true, spacing: { after: 40 } });
+  }
+  function nhanNghieng(text) { return p(text, { italics: true, keepNext: true, spacing: { after: 40 } }); }
+
+  // Bảng "Trong đó": ký hiệu | giá trị | đơn vị | : mô tả
+  function bangTrongDo(ds) {
+    var x = D();
+    var cot = [1300, 1200, 1000, RONG - 3500];
+    var c = { spacing: { after: 0, line: 276 } };
+    return bang(ds.map(function (r) {
+      return hangBang([
+        o(p(r[0], Object.assign({ indent: { left: 360 } }, c)), cot[0], { vien: false, vAlign: x.VerticalAlign.TOP }),
+        o(p(r[1] == null ? '' : r[1], Object.assign({ align: x.AlignmentType.CENTER, color: r[4] ? MAU.nhap : undefined }, c)), cot[1], { vien: false, vAlign: x.VerticalAlign.TOP }),
+        o(p(r[2] || '', c), cot[2], { vien: false, vAlign: x.VerticalAlign.TOP }),
+        o(p(r[3] ? ': ' + r[3] : '', c), cot[3], { vien: false, vAlign: x.VerticalAlign.TOP })
+      ]);
+    }), cot, { borders: { top: KHONG_VIEN, bottom: KHONG_VIEN, left: KHONG_VIEN, right: KHONG_VIEN, insideHorizontal: KHONG_VIEN, insideVertical: KHONG_VIEN } });
+  }
+
+  function chuaDu(kq, ten) {
+    return [doan('Chưa đủ số liệu để trình bày ' + ten + ': ' + ((kq && kq.loi) || []).join('; '))];
+  }
+
+  // ---------------- Chương II – Phần 1: sức chịu tải cọc ----------------
+  function phan1SCT(s, kq, hinh) {
+    var x = D();
+    var DC = kq.DC, S = kq.SCT;
     var out = [phan('PHẦN 1. TÍNH TOÁN SỨC CHỊU TẢI CỌC', true)];
-    out.push(doan('Sức chịu tải thiết kế của cọc khoan nhồi D' + g(Number(s.sct.D) * 1000) +
-      'mm lấy theo kết quả tính toán sức chịu tải cọc (TCVN 10304:2025):'));
+    if (!DC || !DC.hopLe || !S || !S.hopLe) return out.concat(chuaDu(S && S.hopLe ? DC : S, 'sức chịu tải cọc'));
+    var c = S.coc, vl = S.vatLieu, sp = S.spt;
+    out.push(muc('A. THÔNG SỐ ĐẦU VÀO'));
+    out.push(tieuMuc('A.1. Thông số địa chất'));
     out.push(bangThongSo([
-      { nhan: 'Sức chịu tải trọng nén thiết kế', ky: 'N_{c,d}=', gt: f(Number(s.coc.Qa), 0), dv: 'kN', nhap: true },
-      { nhan: 'Sức chịu tải trọng kéo thiết kế', ky: 'N_{t,d}=', gt: f(Number(s.coc.QaKeo), 0), dv: 'kN', nhap: true }
+      { nhan: 'Địa chất được chọn:', gt: DC.hoKhoan, nhap: true, gtDam: true },
+      { nhan: 'Cao độ mực nước ngầm:', gt: g(DC.MNN), dv: 'm' }
+    ], { thut: 0 }));
+    var hangDC = DC.lop.map(function (l) {
+      var loai = l.loai + (l.tinhChat ? '-' + l.tinhChat : '') + (l.kichThuoc ? '-' + l.kichThuoc : '');
+      return [String(l.stt), l.ten, loai, g(l.dinh), f(l.gamma, 2), f(l.phi, 2), f(l.c, 2), f(l.IL, 2), f(l.e, 2)];
+    });
+    hangDC.push([String(DC.lop.length + 1), '', '', g(DC.caoDoDay), '', '', '', '', '']);
+    out.push(bangDayDu(['STT', 'Tên lớp', 'Loại đất', 'Cao độ đỉnh lớp (m)', 'γ (kN/m3)', 'φ (độ)', 'c (kN/m2)', 'I_{L}', 'e'],
+      hangDC, [600, 800, 2038, 1300, 1100, 1000, 1100, 850, 850], { canhTrai: [2] }));
+    out = out.concat(hinhAnh(hinh.spt, 330, 'Biểu đồ SPT', 'Hình 2.1 Biểu đồ chỉ số SPT theo độ sâu – hố khoan ' + DC.hoKhoan));
+
+    out.push(tieuMuc('A.2. Thông số cọc'));
+    out.push(p('A.2.1 Đặc trưng về tiết diện cọc', { bold: true, italics: true, keepNext: true }));
+    out.push(bangDayDu(['Thông số', 'Ký hiệu', 'Giá trị', 'Đơn vị'], [
+      ['Kích thước cọc:', 'D=', g(c.D), 'm'], ['Diện tích cọc:', 'A_{b}=', f(c.Ab, 3), 'm2'],
+      ['Chu vi cọc:', 'u=', f(c.u, 3), 'm'], ['Moment quán tính:', 'I=', f(c.I, 3), 'm4']
+    ], [3600, 1500, 1500, 1200], { canhTrai: [0] }));
+    out.push(p('A.2.2 Thép cọc', { bold: true, italics: true, keepNext: true, spacing: { before: 120 } }));
+    out.push(bangDayDu(['', 'Thép 1', 'Thép 2', 'Thép 3'], [
+      ['n (thanh)'].concat(c.thep.map(function (t) { return t.n ? String(t.n) : ''; })),
+      ['d (mm)'].concat(c.thep.map(function (t) { return t.d ? String(t.d) : ''; }))
+    ], [2400, 1800, 1800, 1800]));
+    out.push(bangThongSo([
+      { nhan: 'Diện tích cốt thép trong cọc:', ky: 'A_{s}=', gt: f(c.As, 0), dv: 'mm2' },
+      { nhan: 'Hàm lượng thép trong cọc:', ky: 'μ=', gt: f(c.mu, 2), dv: '%' }
+    ]));
+    out.push(p('A.2.3 Cao độ cọc', { bold: true, italics: true, keepNext: true, spacing: { before: 120 } }));
+    out.push(bangDayDu(['Thông số', 'Giá trị', 'Đơn vị'], [
+      ['Tổng chiều dài cọc:', f(c.L, 2), 'm'], ['Cao độ mặt đáy đài cọc:', f(c.dayDai, 2), 'm so với MĐTN'],
+      ['Cao độ mặt đáy hố đào:', f(c.dayHo, 2), 'm so với MĐTN'], ['Cao độ đầu cọc tính toán:', f(c.dauCocTinhToan, 2), 'm so với MĐTN'],
+      ['Đoạn cọc ngàm vào đài:', f(c.doanNgam, 2), 'm'], ['Đoạn đập đầu cọc để ngàm vào đài:', f(c.doanDap, 2), 'm'],
+      ['Cao độ đầu cọc thực tế:', f(c.dauCocThucTe, 2), 'm so với MĐTN'], ['Cao độ mũi cọc tính toán dự kiến:', f(c.muiCoc, 2), 'm so với MĐTN']
+    ], [4200, 2000, 3438], { canhTrai: [0, 2] }));
+
+    out.push(muc('B. TÍNH TOÁN SỨC CHỊU TẢI CỌC'));
+    out.push(tieuMuc('B.1. Sức chịu tải cọc theo vật liệu'));
+    out.push(bangDayDu(['Vật liệu', 'Cấp', 'Cường độ', 'Giá trị (MPa)'], [
+      ['Bê tông', vl.beTong, 'R_{b} / R_{bt} / E', g(vl.Rb) + ' / ' + g(vl.Rbt) + ' / ' + g(vl.E)],
+      ['Cốt thép', vl.cotThep, 'R_{s} / R_{sc}', g(vl.Rs) + ' / ' + g(vl.Rsc)]
+    ], [1800, 1800, 2800, 3238]));
+    out.push(p('B.1.1 Sức chịu tải trọng nén của cọc theo vật liệu', { bold: true, italics: true, keepNext: true, spacing: { before: 120 } }));
+    out.push(nhanNghieng('Công thức xác định:'));
+    out.push(congThucDong("R_{c,u/vl} = φ(γ_{cb}γ'_{cb}R_{b}A_{b} + R_{sc}A_{s});   φ = 1,028 − 0,0000288λ^{2} − 0,0016λ (λ > 28)"));
+    out.push(ketQuaNoiBat('R_{c,u/vl}=', f(vl.Rcu, 0), 'kN'));
+    out.push(nhanNghieng('Trong đó:'));
+    out.push(bangTrongDo([
+      ['k=', f(vl.k, 0), 'kN/m4', 'Hệ số tỷ lệ trung bình theo bảng A.1 TCVN 10304:2025 (Σk_{i}l_{i}/Σl_{i})'],
+      ['b_{p}=', f(vl.bp, 2), 'm', 'Chiều rộng quy ước của cọc'],
+      ['α_{ε}=', f(vl.alphaE, 3), '1/m', 'Hệ số biến dạng (k·b_{p}/EI)^{1/5}'],
+      ['l_{0}=', f(vl.l0, 2), 'm', 'Đoạn cọc từ đáy đài/điểm giằng tới cao độ san nền'],
+      ['l_{1}=', f(vl.l1, 2), 'm', 'Đoạn cọc từ đáy đài/điểm giằng tới điểm ngàm trong đất (l_{0} + 2/α_{ε})'],
+      ['λ=', f(vl.lambda, 2), '', 'Độ mảnh của cọc (l_{1}/r, r = ' + f(vl.r, 3) + ' m)'],
+      ['φ=', f(vl.phi, 3), '', 'Hệ số uốn dọc'],
+      ['γ_{cb}=', f(vl.gammaCb, 2), '', 'Hệ số điều kiện làm việc bê tông (7.1.5.3 TCVN 10304)'],
+      ["γ'_{cb}=", f(vl.gammaCb2, 2), '', 'Hệ số do phương pháp thi công (7.1.5.3 TCVN 10304)'],
+      ['R_{b}=', g(vl.Rb), 'MPa', 'Cường độ chịu nén tính toán của bê tông'],
+      ['A_{b}=', f(c.Ab, 3), 'm2', 'Diện tích mặt cắt ngang cọc'],
+      ['R_{sc}=', g(vl.Rsc), 'MPa', 'Cường độ chịu nén tính toán của cốt thép'],
+      ['A_{s}=', f(c.As, 0), 'mm2', 'Diện tích cốt thép trong cọc']
+    ]));
+    out.push(p('B.1.2 Sức chịu tải trọng kéo của cọc theo vật liệu', { bold: true, italics: true, keepNext: true, spacing: { before: 120 } }));
+    out.push(nhanNghieng('Công thức xác định:'));
+    out.push(congThucDong('R_{t,u/vl} = R_{s}A_{s}'));
+    out.push(ketQuaNoiBat('R_{t,u/vl}=', f(vl.Rtu, 0), 'kN'));
+
+    var pp = sp.phuongPhap;
+    out.push(tieuMuc('B.2. Sức chịu tải cọc theo chỉ số SPT'));
+    out.push(p('B.2.1 Sức chịu tải cực hạn của đất nền', { bold: true, italics: true, keepNext: true }));
+    out.push(nhanNghieng('Công thức xác định (Phụ lục D TCVN 10304:2025):'));
+    out.push(congThucDong('R_{c,u} = R_{ub} + R_{uf} = q_{b}A_{b} + uΣ(f_{c,i}l_{c,i} + f_{s,i}l_{s,i})'));
+    out.push(ketQuaNoiBat('R_{c,u}=', f(sp.Rcu, 0), 'kN'));
+    out.push(nhanNghieng('Trong đó (' + pp.ten + '):'));
+    out.push(bangTrongDo([
+      ['q_{b}=', f(sp.qb, 0), 'kN/m2', 'Cường độ sức kháng của đất dưới mũi cọc'],
+      ['A_{b}=', f(c.Ab, 3), 'm2', 'Diện tích tiết diện ngang mũi cọc'],
+      ['u=', f(c.u, 3), 'm', 'Chu vi tiết diện ngang thân cọc'],
+      ['f_{c,i}', '', '', 'min(' + g(pp.heSoFc) + 'c_{u}; ' + pp.chanFc + ') – sức kháng đơn vị của lớp đất dính, c_{u,i} = 6,25N_{c,i}'],
+      ['f_{s,i}', '', '', 'min(' + g(pp.heSoFs) + 'N_{s}; ' + pp.chanFs + ') – sức kháng đơn vị của lớp đất rời'],
+      ['l_{i}', '', '', 'Chiều dài đoạn cọc nằm trong lớp đất thứ i (chia lớp phân tố ≤ 1 m)']
+    ]));
+    out.push(p('B.2.1.1 Xác định cường độ sức kháng của đất dưới mũi cọc (đất tại mũi cọc: ' + sp.loaiMui + ')',
+      { italics: true, keepNext: true, spacing: { before: 120 } }));
+    out.push(p('- Trường hợp mũi cọc cắm vào lớp đất dính: q_{b} = min(6c_{u}; 9000)', { bold: true, keepNext: true }));
+    out.push(bangDayDu(['z (m)', 'N_{c}', 'c_{u} (kN/m2)', 'q_{b} (kN/m2)'], [[f(c.muiCoc, 1), f(sp.Np, 2), f(sp.cuMui, 2), f(sp.qbSet, 0)]],
+      [1600, 1600, 1800, 1800], { align: x.AlignmentType.LEFT }));
+    out.push(p('- Trường hợp mũi cọc cắm vào lớp đất rời: q_{b} = min(120N_{p}; 9000)', { bold: true, keepNext: true, spacing: { before: 120 } }));
+    out.push(bangDayDu(['z (m)', '1d (m)', 'z+1d (m)', 'N_{p,1d}', 'z−1d (m)', 'N_{p,1d}', 'N_{p}', 'q_{b} (kN/m2)'], [[
+      f(c.muiCoc, 1), f(c.D, 2), f(c.muiCoc + c.D, 1), f(sp.NpTren, 2), f(c.muiCoc - c.D, 1), f(sp.NpDuoi, 2), f(sp.Np, 2), f(sp.qbCat, 0)]],
+      [1100, 1000, 1200, 1200, 1200, 1200, 1100, 1638]));
+    out.push(p('B.2.1.2 Xác định cường độ sức kháng của đất trên thân cọc', { italics: true, keepNext: true, spacing: { before: 120 } }));
+    out.push(bangDayDu(['Tên lớp', 'Loại đất', 'l_{i} (m)', 'SPT TB', 'c_{u,i} (kN/m2)', 'f_{c,i} (kN/m2)', 'f_{s,i} (kN/m2)'],
+      sp.doan.map(function (d) {
+        return [d.lop.ten, d.lop.loai, g(d.l), f(d.spt, 2), d.cu === null ? '' : f(d.cu, 2), d.fc === null ? '' : f(d.fc, 2), d.fs === null ? '' : f(d.fs, 2)];
+      }), [1100, 1500, 1200, 1300, 1500, 1500, 1538]));
+    out.push(p('B.2.2 Sức chịu tải trọng kéo của cọc theo chỉ số SPT', { bold: true, italics: true, keepNext: true, spacing: { before: 120 } }));
+    out.push(nhanNghieng('Công thức xác định:'));
+    out.push(congThucDong('R_{t,u} = uΣ(f_{c,i}l_{c,i} + f_{s,i}l_{s,i})'));
+    out.push(ketQuaNoiBat('R_{t,u}=', f(sp.Rtu, 0), 'kN'));
+
+    out.push(muc('C. TỔNG HỢP VÀ LỰA CHỌN SỨC CHỊU TẢI THIẾT KẾ CỦA CỌC'));
+    out.push(nhanNghieng('Công thức xác định (TCVN 10304:2025):'));
+    out.push(congThucDong('N_{c,d} ≤ γ_{0}/γ_{n} × R_{c,k}/γ_{k} ;   N_{t,d} ≤ γ_{0}/γ_{n} × R_{t,k}/γ_{k}'));
+    out.push(nhanNghieng('Trong đó:'));
+    out.push(bangTrongDo([
+      ['γ_{0}=', g(S.gamma0), '', 'Hệ số kể đến nhóm cọc', true],
+      ['γ_{n}=', g(S.gammaN), '', 'Hệ số tin cậy về tầm quan trọng công trình – cấp ' + S.capCongTrinh],
+      ['γ_{k}=', g(S.gammaK), '', 'Hệ số độ tin cậy theo đất: ' + S.phuongPhapGk]
+    ]));
+    function bangTk(ten, kyVl, Rvl, kySpt, Rspt, kyK, Rk, kyD, Rd) {
+      var cot = [5000, 1600, 1600, 1438];
+      var c2 = { spacing: { after: 0, line: 260 }, keepNext: true };
+      var giua = Object.assign({ align: x.AlignmentType.CENTER }, c2);
+      function h(nhan, ky, gt, dam) {
+        return hangBang([o(p(nhan, Object.assign({ bold: dam, color: dam ? MAU.ok : undefined }, c2)), cot[0]), o(p(ky, Object.assign({ bold: dam, color: dam ? MAU.ok : undefined }, c2)), cot[1]),
+          o(p(gt, Object.assign({ bold: dam }, giua)), cot[2], { fill: dam ? CAM : undefined }), o(p('kN', Object.assign({ bold: dam }, c2)), cot[3])]);
+      }
+      return [p(ten, { bold: true, keepNext: true, spacing: { before: 120 } }), bang([
+        h('Sức chịu tải ' + (kyVl.indexOf('c') >= 0 ? 'nén' : 'kéo') + ' của cọc theo vật liệu (1)' + (S.xetVatLieu ? '' : ' (không xét)'), kyVl, f(Rvl, 0)),
+        h('Sức chịu tải ' + (kyVl.indexOf('c') >= 0 ? 'nén' : 'kéo') + ' của cọc theo chỉ số SPT (2)' + (S.xetSPT ? '' : ' (không xét)'), kySpt, f(Rspt, 0)),
+        h('Trị tiêu chuẩn sức chịu tải (theo SPT)', kyK, f(Rk, 0)),
+        h(ten.replace(/^C\.\d\. /, ''), kyD, f(Rd, 0), true)
+      ], cot)];
+    }
+    out = out.concat(bangTk('C.1. Sức chịu tải trọng nén thiết kế', 'R_{c,u/vl}=', vl.Rcu, 'R_{c,u/SPT}=', sp.Rcu, 'R_{c,k}=', S.Rck, 'N_{c,d}=', S.Ncd));
+    out = out.concat(bangTk('C.2. Sức chịu tải trọng kéo thiết kế', 'R_{t,u/vl}=', vl.Rtu, 'R_{t,u/SPT}=', sp.Rtu, 'R_{t,k}=', S.Rtk, 'N_{t,d}=', S.Ntd));
+    return out;
+  }
+
+  // ---------------- Chương II – Phần 3: cọc chịu tải ngang ----------------
+  function phan3TaiNgang(s, kq, hinh) {
+    var x = D();
+    var r = kq.TN;
+    var out = [phan('PHẦN 3. KIỂM TRA CỌC CHỊU TẢI NGANG', true)];
+    if (!r || !r.bang) return out.concat(chuaDu(r, 'tải ngang'));
+    if (s.baoCao.gioiThieuTaiNgang) out.push(doan(s.baoCao.gioiThieuTaiNgang));
+    out.push(muc('A. THÔNG SỐ ĐẦU VÀO'));
+    out.push(bangThongSo([
+      { nhan: 'Lực cắt tác dụng vào đầu cọc:', ky: 'H=', gt: f(r.H, 2), dv: 'kN' },
+      { nhan: 'Moment tác dụng vào đầu cọc:', ky: 'M=', gt: f(r.M, 2), dv: 'kNm' },
+      { nhan: 'Chiều dài cọc từ đáy đài tới cao độ san nền:', ky: 'l_{0}=', gt: f(r.l0, 2), dv: 'm' },
+      { nhan: 'Moment quán tính tiết diện ngang cọc:', ky: 'I=', gt: f(r.I, 4), dv: 'm4' },
+      { nhan: 'Modulus đàn hồi của bê tông:', ky: 'E=', gt: g(r.E), dv: 'MPa' },
+      { nhan: 'Hệ số nền:', ky: 'K=', gt: f(r.K, 0), dv: 'kN/m4' },
+      { nhan: 'Hệ số biến dạng:', ky: 'α=', gt: f(r.alphaE, 3), dv: '1/m' },
+      { nhan: 'Các hệ số:', ky: 'A_{0}=', gt: g(r.A0) }, { nhan: '', ky: 'B_{0}=', gt: g(r.B0) }, { nhan: '', ky: 'C_{0}=', gt: g(r.C0) },
+      { nhan: 'Giới hạn chuyển vị đầu cọc:', ky: '[Δ]=', gt: g(r.gioiHanChuyenVi), dv: 'cm', nhap: true },
+      { nhan: 'Giới hạn góc xoay đầu cọc:', ky: '[ψ]=', gt: g(r.gioiHanGocXoay), dv: 'độ', nhap: true }
+    ]));
+    out.push(muc('B. XÁC ĐỊNH CHUYỂN VỊ NGANG VÀ GÓC XOAY ĐẦU CỌC'));
+    out.push(bangThongSo([
+      { nhan: 'Chuyển vị ngang của tiết diện cọc bởi lực đơn vị H_{0}=1 gây ra:', ky: 'δ_{HH}=', gt: f(r.dHH, 2), dv: '×10^{-5} m/kN' },
+      { nhan: 'Chuyển vị ngang của tiết diện cọc bởi lực đơn vị M_{0}=1 gây ra:', ky: 'δ_{HM}=', gt: f(r.dHM, 2), dv: '×10^{-5} 1/kN' },
+      { nhan: 'Góc xoay của tiết diện cọc bởi lực đơn vị H_{0}=1 gây ra:', ky: 'δ_{MH}=', gt: f(r.dMH, 2), dv: '×10^{-5} 1/kN' },
+      { nhan: 'Góc xoay của tiết diện cọc bởi lực đơn vị M_{0}=1 gây ra:', ky: 'δ_{MM}=', gt: f(r.dMM, 2), dv: '×10^{-5} 1/kNm' },
+      { nhan: 'Lực cắt tác dụng vào đầu cọc tại cao trình mặt đất:', ky: 'H_{0}=', gt: f(r.H0, 2), dv: 'kN' },
+      { nhan: 'Moment tác dụng vào đầu cọc tại cao trình mặt đất:', ky: 'M_{0}=', gt: f(r.M0, 2), dv: 'kNm' },
+      { nhan: 'Chuyển vị ngang và góc xoay của cọc tại cao trình mặt đất:', ky: 'y_{0}=', gt: f(r.y0, 2), dv: 'cm' },
+      { nhan: '', ky: 'ψ_{0}=', gt: f(r.psi0, 3), dv: 'độ' },
+      { nhan: 'Chuyển vị ngang và góc xoay của cọc tại cao trình đáy đài:', ky: 'Δ=', gt: f(r.Delta, 2), dv: 'cm', kl: okKl(r.okDelta), gtDam: true },
+      { nhan: '', ky: 'ψ=', gt: f(r.psi, 3), dv: 'độ', kl: okKl(r.okPsi), gtDam: true }
+    ]));
+    out.push(muc('C. MOMENT DỌC THEO THÂN CỌC'));
+    out = out.concat(hinhAnh(hinh.M, 300, 'Biểu đồ moment dọc thân cọc'));
+    out.push(bangThongSo([
+      { nhan: 'Moment lớn nhất dọc theo thân cọc:', ky: 'M_{z}=', gt: f(r.Mmax, 2), dv: 'kNm', gtDam: true },
+      { nhan: 'Tại độ sâu so với cao độ đáy đài:', ky: 'z_{1}=', gt: f(r.zM, 2), dv: 'm' }
+    ]));
+    out.push(muc('D. LỰC CẮT DỌC THEO THÂN CỌC'));
+    out = out.concat(hinhAnh(hinh.Q, 300, 'Biểu đồ lực cắt dọc thân cọc'));
+    out.push(bangThongSo([
+      { nhan: 'Lực cắt lớn nhất dọc theo thân cọc:', ky: 'Q_{z}=', gt: f(r.Qmax, 2), dv: 'kN', gtDam: true },
+      { nhan: 'Tại độ sâu so với cao độ đáy đài:', ky: 'z_{1}=', gt: f(r.zQ, 2), dv: 'm' },
+      { nhan: 'Khả năng chịu cắt của bê tông:' },
+      { nhan: 'Q_{min} = φ_{b3}R_{bt}A_{b0}', thut: 720, ky: 'Q_{min}=', gt: f(r.Qmin, 2), dv: 'kN' },
+      { nhan: '', ky: 'φ_{b3}=', gt: g(r.phiB3) }, { nhan: '', ky: 'R_{bt}=', gt: f(r.Rbt, 3), dv: 'MPa' }, { nhan: '', ky: 'A_{b0}=', gt: f(r.Ab0, 3), dv: 'm2' },
+      { nhan: 'Khả năng chịu cắt của thép đai:', ky: '', gt: r.thepDai, nhap: true, gtRong: true },
+      { nhan: '', ky: 'Q_{steel}=', gt: f(r.Qsteel, 2), dv: 'kN' }, { nhan: '', ky: 'd=', gt: g(r.dDai), dv: 'mm', nhap: true },
+      { nhan: '', ky: 'a=', gt: g(r.aDai), dv: 'mm', nhap: true }, { nhan: '', ky: 'R_{sw}=', gt: g(r.Rsw), dv: 'MPa' },
+      { nhan: 'Khả năng chịu cắt của bê tông và thép:', ky: '[Q]=', gt: f(r.Qgh, 2), dv: 'kN', kl: okKl(r.okQ) }
+    ]));
+    out.push(muc('E. ÁP LỰC NGANG DỌC THEO THÂN CỌC'));
+    out = out.concat(hinhAnh(hinh.sigma, 300, 'Biểu đồ áp lực ngang dọc thân cọc'));
+    out.push(bangThongSo([
+      { nhan: 'Áp lực ngang lớn nhất dọc theo thân cọc:', ky: 'σ_{z}=', gt: f(r.sigmaMax, 2), dv: 'kN/m2', gtDam: true },
+      { nhan: 'Tại độ sâu so với cao độ đáy đài:', ky: 'z_{1}=', gt: f(r.zSigma, 2), dv: 'm' }
+    ]));
+    out.push(muc('F. KIỂM TRA ỔN ĐỊNH ĐẤT NỀN QUANH CỌC'));
+    out.push(p('Điều kiện kiểm tra:', { keepNext: true, indent: { left: 360 } }));
+    out.push(congThuc(['σ_{z}  ≤  [σ_{z}]  =', { tu: '4η_{1}η_{2}(γ_{I}z·tgφ_{I} + ξc_{I})', mau: 'cosφ_{I}' }], { giua: true }));
+    out.push(p('Chiều sâu kiểm tra z (mục A.8): α_{ε}L ≤ 2,5 → z = L/3 và L ; α_{ε}L > 2,5 → z = 0,85/α_{ε}', { indent: { left: 360 }, keepNext: true }));
+    out.push(bangThongSo([
+      { nhan: 'α_{ε} / L / α_{ε}·L', gt: f(r.alphaE, 3) + ' / ' + f(r.L, 1) + ' / ' + f(r.alphaL, 1), gtRong: true },
+      { nhan: 'Chiều sâu kiểm tra:', ky: 'z=', gt: f(r.zKT, 2), dv: 'm' }
+    ]));
+    out.push(nhanNghieng('Trong đó:'));
+    out.push(bangDayDu(['z', 'Lớp đất', 'η_{1}', 'η_{2}', 'ξ', 'γ', 'c_{I}', 'φ'],
+      [[f(r.zCaoDo, 2), String(r.lopZ), g(r.eta1), f(r.eta2, 2), g(r.xi), f(r.gammaTB, 2), f(r.cI, 2), f(r.phiI, 2)]],
+      [1300, 1100, 900, 1000, 900, 1300, 1300, 1838]));
+    out.push(bangThongSo([
+      { nhan: 'Áp lực ngang lớn nhất dọc theo thân cọc:', ky: 'σ_{z}=', gt: f(r.sigmaMax, 2), dv: 'kN/m2' },
+      { nhan: 'Giới hạn áp lực ngang:', ky: '[σ_{z}]=', gt: f(r.sigmaGh, 2), dv: 'kN/m2', kl: okKl(r.okOnDinh) }
+    ]));
+    out.push(p(chay('Kết luận: ', { bold: true }).concat(chay(r.okOnDinh ? 'Thoả mãn điều kiện kiểm tra ổn định đất nền quanh cọc' :
+      'KHÔNG thoả mãn điều kiện kiểm tra ổn định đất nền quanh cọc', { bold: true, color: r.okOnDinh ? MAU.ok : MAU.fail })), { indent: { left: 360 } }));
+    return out;
+  }
+
+  // ---------------- Chương II – Phần 4: biểu đồ tương tác ----------------
+  function phan4TuongTac(s, kq, hinh) {
+    var x = D();
+    var r = kq.TT;
+    var out = [phan('PHẦN 4. TÍNH TOÁN BIỂU ĐỒ TƯƠNG TÁC CỌC', true)];
+    if (!r || !r.hopLe) return out.concat(chuaDu(r, 'biểu đồ tương tác'));
+    out.push(muc('A. THÔNG SỐ CỌC'));
+    out.push(bangThongSo([
+      { nhan: 'Đường kính tiết diện cọc:', ky: 'D =', gt: g(r.D), dv: 'm' },
+      { nhan: 'Bán kính tiết diện cọc:', ky: 'r =', gt: g(r.r), dv: 'm' },
+      { nhan: 'Lớp bê tông bảo vệ:', ky: 'a =', gt: g(r.a), dv: 'mm', nhap: true },
+      { nhan: 'Diện tích tiết diện ngang cọc:', ky: 'A_{b} =', gt: f(r.Ab, 3), dv: 'm2' },
+      { nhan: 'Số thanh thép đặt theo chu vi cọc:', ky: 'n =', gt: g(r.n) },
+      { nhan: 'Đường kính cốt thép dọc trong cọc:', ky: 'd =', gt: g(r.d), dv: 'mm' },
+      { nhan: 'Diện tích cốt thép trong cọc:', ky: 'A_{s} =', gt: f(r.As, 0), dv: 'mm2' }
+    ]));
+    out.push(muc('B. VẬT LIỆU LÀM CỌC'));
+    out.push(bangDayDu(['Vật liệu', 'Cấp', 'Thông số', 'Giá trị (MPa)'], [
+      ['Bê tông', r.beTong, "R_{b} / R'_{b}", g(r.Rb) + ' / ' + f(r.Rb2, 3)],
+      ['', '', "R_{bt} / R'_{bt}", g(r.Rbt) + ' / ' + f(r.Rbt2, 3)],
+      ['Cốt thép', r.cotThep, 'R_{s} / R_{sc}', g(r.Rs) + ' / ' + g(r.Rsc)]
+    ], [1800, 1800, 2800, 3238]));
+    out.push(bangThongSo([
+      { nhan: 'Hệ số điều kiện làm việc của bê tông:', ky: 'γ_{cb}=', gt: f(r.gammaCb, 2) },
+      { nhan: 'Hệ số kể đến phương pháp thi công:', ky: "γ'_{cb}=", gt: f(r.gammaCb2, 2) }
+    ]));
+    out.push(muc('C. NGOẠI LỰC TÁC DỤNG VÀO CỌC'));
+    out.push(bangDayDu(['', 'Đơn vị', 'Nén (P_{max})', 'Kéo (P_{min})'], [
+      ['Moment', 'M (kNm)', f(r.diemNoiLuc[0].M, 2), f(r.diemNoiLuc[1].M, 2)],
+      ['Lực dọc', 'N (kN)', f(r.diemNoiLuc[0].N, 2), f(r.diemNoiLuc[1].N, 2)]
+    ], [2000, 2000, 2000, 2000], { align: x.AlignmentType.LEFT }));
+    out = out.concat(hinhAnh(hinh.tuongTac, 430, 'Biểu đồ tương tác', 'Hình 4.1 Biểu đồ tương tác N–M của tiết diện cọc'));
+    out.push(p(r.tatCaOk ? 'Các cặp nội lực (M, N) đều nằm trong biểu đồ tương tác: cọc đủ khả năng chịu lực.' :
+      'Có cặp nội lực (M, N) nằm ngoài biểu đồ tương tác: cọc KHÔNG đủ khả năng chịu lực.',
+      { bold: true, color: r.tatCaOk ? MAU.ok : MAU.fail, indent: { left: 360 } }));
+    return out;
+  }
+
+  // ---------------- Chương II – Phần 5: ổn định – lún ----------------
+  function phan5Lun(s, kq) {
+    var x = D();
+    var r = kq.LUN;
+    var out = [phan('PHẦN 5. KIỂM TRA ỔN ĐỊNH ĐẤT NỀN VÀ KIỂM TRA LÚN', true)];
+    if (!r || !r.hopLe) return out.concat(chuaDu(r, 'ổn định – lún'));
+    out.push(muc('A. XÁC ĐỊNH KÍCH THƯỚC CỦA MÓNG KHỐI QUY ƯỚC'));
+    out.push(p('Tính toán dựa trên TCVN 10304:2025.', { indent: { left: 360 } }));
+    out.push(bangDayDu(['Tên lớp', 'l_{i} (m)', 'φ_{i} (độ)', 'φ_{i}l_{i}'], r.doan.map(function (d) {
+      return [d.lop.ten, f(d.l, 2), f(d.lop.phi, 2), f(d.l * d.lop.phi, 2)];
+    }), [2000, 2000, 2000, 2000], { align: x.AlignmentType.LEFT }));
+    out.push(bangThongSo([
+      { nhan: 'Góc ma sát trung bình của các lớp đất mà cọc xuyên qua (φ_{tb} = Σφ_{i}l_{i}/Σl_{i}):', ky: 'φ_{tb}=', gt: f(r.phiTb, 2), dv: 'độ' },
+      { nhan: 'Đường bao khối móng quy ước cách khối móng công trình (a = Σl_{i}·tg(φ_{tb}/4)):', ky: 'a=', gt: f(r.a, 2), dv: 'm' },
+      { nhan: 'Chiều dài khối móng quy ước:', ky: 'X_{qu}=', gt: f(r.Xqu, 2), dv: 'm' },
+      { nhan: 'Chiều rộng khối móng quy ước:', ky: 'Y_{qu}=', gt: f(r.Yqu, 2), dv: 'm' }
+    ]));
+    out.push(muc('B. XÁC ĐỊNH TRỌNG LƯỢNG CỦA MÓNG KHỐI QUY ƯỚC'));
+    out.push(bangThongSo([
+      { nhan: 'Trọng lượng đài móng nằm dưới mặt đất tự nhiên:', ky: 'Q_{đài}=', gt: f(r.Qdai, 2), dv: 'kN' },
+      { nhan: 'Trọng lượng cọc nằm dưới mặt đất tự nhiên:', ky: 'Q_{cọc}=', gt: f(r.Qcoc, 2), dv: 'kN' },
+      { nhan: 'Trọng lượng đất đài chiếm chỗ:', ky: 'Q*_{đài}=', gt: f(r.QdaiCho, 2), dv: 'kN' },
+      { nhan: 'Trọng lượng đất cọc chiếm chỗ:', ky: 'Q*_{cọc}=', gt: f(r.QcocCho, 2), dv: 'kN' },
+      { nhan: 'Trọng lượng đất trong khối móng quy ước:', ky: 'Q_{đất}=', gt: f(r.Qdat, 2), dv: 'kN' },
+      { nhan: 'Trọng lượng khối móng quy ước:', ky: 'Q_{qu}=', gt: f(r.Qqu, 2), dv: 'kN' }
+    ]));
+    out.push(muc('C. ÁP LỰC TIÊU CHUẨN TẠI ĐÁY MÓNG KHỐI QUY ƯỚC'));
+    out.push(bangSo({ tieuDe: ['N_{qu}', 'M_{x,qu}', 'M_{y,qu}'], donVi: ['kN', 'kNm', 'kNm'], hang: [
+      { nhan: 'Khi cẩu làm việc:', gt: [f(r.quLv.N, 2), f(r.quLv.Mx, 2), f(r.quLv.My, 2)] },
+      { nhan: 'Khi cẩu không làm việc:', gt: [f(r.quKlv.N, 2), f(r.quKlv.Mx, 2), f(r.quKlv.My, 2)] }] }));
+    out.push(bangThongSo([
+      { nhan: 'Moment chống uốn của móng khối quy ước:', ky: 'W_{x}=', gt: f(r.Wx, 2), dv: 'm3' },
+      { nhan: '', ky: 'W_{y}=', gt: f(r.Wy, 2), dv: 'm3' },
+      { nhan: 'Áp lực tiêu chuẩn trung bình (p_{tc,tb} = N_{qu}/A_{qu}):', ky: 'p_{tc,tb}=', gt: f(r.ptb, 2), dv: 'kPa' },
+      { nhan: 'Áp lực tiêu chuẩn lớn nhất:', ky: 'p_{tc,max}=', gt: f(r.pmax, 2), dv: 'kPa' },
+      { nhan: 'Áp lực tiêu chuẩn nhỏ nhất:', ky: 'p_{tc,min}=', gt: f(r.pmin, 2), dv: 'kPa' }
+    ]));
+    out.push(muc('D. SỨC CHỊU TẢI CỦA ĐẤT NỀN TẠI MẶT PHẲNG MŨI CỌC'));
+    out.push(p('Theo 4.6.9 TCVN 9362:2012, áp lực cho phép đáy móng được tính theo công thức:', { indent: { left: 360 }, keepNext: true }));
+    out.push(congThuc(['R =', { tu: 'm_{1}m_{2}', mau: 'k_{tc}' }, "(A·b·γ_{II} + B·h·γ'_{II} + D·c_{II} − γ_{II}·h_{0})"], { giua: true }));
+    out.push(bangThongSo([
+      { nhan: 'Hệ số điều kiện làm việc của nền / công trình / hệ số tin cậy:', gt: g(r.m1) + ' / ' + g(r.m2) + ' / ' + g(r.ktc), gtRong: true },
+      { nhan: 'Cạnh bé của đáy móng:', ky: 'b=', gt: f(r.b, 2), dv: 'm' },
+      { nhan: 'Góc ma sát trong của đất dưới đáy móng:', ky: 'φ_{II}=', gt: g(r.phiII), dv: 'độ' },
+      { nhan: 'Các hệ số A / B / D:', gt: f(r.A, 3) + ' / ' + f(r.B, 3) + ' / ' + f(r.Dr, 3), gtRong: true },
+      { nhan: 'Lực dính của đất dưới đáy móng:', ky: 'c_{II}=', gt: g(r.cII), dv: 'kN/m2' },
+      { nhan: 'Chiều sâu đặt móng:', ky: 'h=', gt: f(r.h, 2), dv: 'm' },
+      { nhan: 'Chiều sâu đặt móng tính đổi:', ky: 'h_{tđ}=', gt: f(r.htd, 2), dv: 'm' },
+      { nhan: 'Chiều sâu đến nền tầng hầm:', ky: 'h_{0}=', gt: f(r.h0, 2), dv: 'm' },
+      { nhan: "Dung trọng đất dưới / trên đáy móng (γ_{II} / γ'_{II}):", gt: f(r.gammaII, 2) + ' / ' + f(r.gammaII2, 2) + ' kN/m3', gtRong: true },
+      { nhan: 'Áp lực cho phép tác dụng lên nền ở đáy móng:', ky: 'R=', gt: f(r.R, 2), dv: 'kPa', gtDam: true }
+    ]));
+    out.push(dongKiemTra([
+      { ky: 'p_{tc,tb}', trai: f(r.ptb, 1), dv: 'kPa', dau: '≤', phai: 'R = ' + f(r.R, 1), ok: r.ok1 },
+      { ky: 'p_{tc,max}', trai: f(r.pmax, 1), dv: 'kPa', dau: '≤', phai: '1,2R = ' + f(1.2 * r.R, 1), ok: r.ok2 },
+      { ky: 'p_{tc,min}', trai: f(r.pmin, 1), dv: 'kPa', dau: '≥', phai: '0', ok: r.ok3 }
+    ]));
+    out.push(muc('E. KIỂM TRA ĐỘ LÚN CỦA MÓNG'));
+    out.push(p('Tính toán dựa trên phụ lục C, TCVN 9362:2012, phương pháp cộng lớp: S = β·Σ(p_{i}h_{i}/E_{i}) ≤ S_{max}, β = 0,8; ' +
+      'E_{i} = [a + c(N_{SPT} + 6)]/10 (Tassios, Anagnostopoulos).', { indent: { left: 360 }, align: x.AlignmentType.JUSTIFIED }));
+    out.push(bangThongSo([
+      { nhan: 'Áp lực do trọng lượng bản thân đất tại mặt phẳng mũi cọc:', ky: 'p_{dz(0)}=', gt: f(r.pdz0, 2), dv: 'kPa' },
+      { nhan: 'Áp lực phụ thêm tại mặt phẳng mũi cọc (p_{0} = p_{tc,tb} − p_{dz(0)}):', ky: 'p_{0}=', gt: f(r.p0, 2), dv: 'kPa' },
+      { nhan: 'Chiều dày lớp phân tố (h_{i} = 0,2Y_{qu}):', ky: 'h_{i}=', gt: f(r.hi, 2), dv: 'm' }
+    ]));
+    out.push(bangDayDu(['Điểm', 'z (m)', 'Cao độ (m)', 'Lớp', 'E (MPa)', 'α', 'p_{0zi} (kPa)', 'p_{dzi} (kPa)'], r.diem.map(function (d, i) {
+      return [String(i), f(d.z, 2), f(d.cao, 2), String(d.lop), f(d.E, 2), f(d.alpha, 3), f(d.p0z, 2), f(d.pdz, 2)];
+    }), [800, 1100, 1300, 900, 1200, 1100, 1600, 1638], { giuChung: false }));
+    out.push(bangThongSo([
+      { nhan: 'Độ lún cuối cùng (ổn định) của móng:', ky: 'S=', gt: f(r.S, 2), dv: 'cm', kl: okKl(r.okS), gtDam: true },
+      { nhan: 'Độ lún giới hạn:', ky: 'S_{max}=', gt: g(r.Smax), dv: 'cm' }
     ]));
     return out;
   }
@@ -791,7 +1167,8 @@
    * @param {object} s   trạng thái app (số liệu nhập)
    * @param {object} kq  kết quả MCT.calc.tinhTatCa(s)
    */
-  function taoThuyetMinh(s, kq) {
+  function taoThuyetMinh(s, kq, hinh) {
+    hinh = hinh || {};
     var x = D();
     if (!kq.A || !kq.A.hopLe) throw new Error('Mục A chưa hợp lệ: ' + ((kq.A && kq.A.loi) || []).join('; '));
     var tenTM = s.duAn.tenMong + ' ' + kq.A.cau.ten;
@@ -808,13 +1185,16 @@
       .concat(mucLuc())
       .concat(chuongI(s, kq, tenTM))
       .concat(chuong('CHƯƠNG II. TÍNH TOÁN MÓNG CẨU THÁP ' + tenTM))
-      .concat(phan1SCT(s))
+      .concat(phan1SCT(s, kq, hinh))
       .concat(phan2MucA(s, kq))
       .concat(phan2MucB(s, kq))
       .concat(phan2MucC(s, kq))
       .concat(phan2MucD(s, kq))
       .concat(phan2MucE(s, kq))
-      .concat(phan2MucF(s, kq));
+      .concat(phan2MucF(s, kq))
+      .concat(phan3TaiNgang(s, kq, hinh))
+      .concat(phan4TuongTac(s, kq, hinh))
+      .concat(phan5Lun(s, kq));
 
     // Hai bảng liền nhau (không có đoạn văn ở giữa) sẽ bị Word/LibreOffice gộp thành một bảng
     // và chia lại cột → chèn một đoạn trống rất mỏng giữa chúng.
