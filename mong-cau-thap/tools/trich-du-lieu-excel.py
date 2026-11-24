@@ -260,6 +260,23 @@ def doc_tham_chieu_phan_b(wsv):
     }
 
 
+def doc_tham_chieu_phan_d(wsv):
+    """Mục D sheet Cau thap: cánh tay đòn (P57:Y62) và thép đài (F75:M76, F82:M83)."""
+    o = lambda a: wsv[a].value
+    canh = []
+    for c in 'PQRSTUVWXY':
+        canh.append({'xDuong': o(c + '57'), 'xAm': o(c + '58'), 'yDuong': o(c + '59'),
+                     'yAm': o(c + '60'), 'Pimax': o(c + '61'), 'PiminAm': o(c + '62')})
+
+    def hang(r):
+        return {'M': o('F%d' % r), 'alpha': o('G%d' % r), 'xi': o('H%d' % r), 'As': o('I%d' % r),
+                'd': o('J%d' % r), 's': o('K%d' % r), 'AsChon': o('L%d' % r), 'kiemTra': o('M%d' % r)}
+    return {
+        'canhTayDon': canh,
+        'duoiX': hang(75), 'duoiY': hang(76), 'trenX': hang(82), 'trenY': hang(83),
+    }
+
+
 def js_file(path, var, data, header):
     body = json.dumps(data, ensure_ascii=False, indent=1)
     with open(path, 'w', encoding='utf-8') as f:
@@ -290,6 +307,7 @@ def main():
         'cauThapCatalogue': tc_cau,
         'sheetCauThap_phanA': doc_tham_chieu_cau_thap(wbv['Cau thap']),
         'sheetCauThap_phanB': doc_tham_chieu_phan_b(wbv['Cau thap']),
+        'sheetCauThap_phanD': doc_tham_chieu_phan_d(wbv['Cau thap']),
     }
     with open(os.path.join(ROOT, 'tests', 'excel-tham-chieu.json'), 'w', encoding='utf-8') as f:
         json.dump(tham_chieu, f, ensure_ascii=False, indent=1)

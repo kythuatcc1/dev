@@ -19,6 +19,11 @@
       Qa: 4243.15,      // tạm nhập tay – GĐ4 tự tính từ sheet SCT cọc
       QaKeo: 2534.12,   // độ lớn sức chịu kéo Qa' (app tự mang dấu âm khi kiểm tra)
       toaDo: [{ x: -1.2, y: -0.77 }, { x: 1.2, y: -0.77 }, { x: 0, y: 1.31 }]
+    },
+    // Thép chọn cho đài (mm): đường kính d, khoảng cách a
+    thep: {
+      duoiX: { d: 20, s: 150 }, duoiY: { d: 20, s: 150 },
+      trenX: { d: 20, s: 150 }, trenY: { d: 20, s: 150 }
     }
   };
 
@@ -39,7 +44,7 @@
     { id: 'dai', ma: 'A.3', ten: 'Vật liệu & kích thước đài' },
     { id: 'coc', ma: 'B', ten: 'Tải trọng lên cọc' },
     { id: 'xuyen', ma: 'C', ten: 'Xuyên thủng đài' },
-    { id: 'thep', ma: 'D', ten: 'Cốt thép đài', sapCo: 'GĐ2' },
+    { id: 'thep', ma: 'D', ten: 'Cốt thép đài' },
     { id: 'bulong', ma: 'E', ten: 'Bulong neo', sapCo: 'GĐ2' },
     { id: 'ket-luan', ma: 'F', ten: 'Kết luận', sapCo: 'GĐ2' },
     { nhom: 'Cọc & địa chất' },
@@ -72,6 +77,7 @@
   var ketQua = null;   // phần A
   var kqB = null;      // phần B
   var kqC = null;      // phần C
+  var kqD = null;      // phần D
 
   function luu() {
     try {
@@ -92,6 +98,7 @@
       toaDo: state.coc.toaDo, Qa: state.coc.Qa, QaKeo: state.coc.QaKeo
     });
     kqC = MCT.calc.tinhPhanC(ketQua, kqB, { D: state.coc.D });
+    kqD = MCT.calc.tinhPhanD(ketQua, kqB, state.thep);
   }
 
   // ---------------- Tiện ích hiển thị ----------------
@@ -531,6 +538,100 @@
         '<td><i>F</i><sub>b,ult</sub> = ' + so(r.Fbult) + ' kN</td><td class="c">' + nhanKetLuan(r.ok) + '</td>' +
         '</tr></tbody></table></div>' +
         '<p class="ket-luan ' + (r.ok ? 'ok' : 'fail') + '">' + esc(ketLuan) + '</p></section>';
+    }
+  };
+
+  // ---------------- D. Cốt thép đài ----------------
+  var LOP_THEP = [
+    { k: 'duoiX', lop: 'Lớp dưới', phuong: 'X' }, { k: 'duoiY', lop: 'Lớp dưới', phuong: 'Y' },
+    { k: 'trenX', lop: 'Lớp trên', phuong: 'X' }, { k: 'trenY', lop: 'Lớp trên', phuong: 'Y' }
+  ];
+
+  function bangThep(r, keys, coCanhBao) {
+    var dau = '<div class="table-wrap"><table class="tbl"><thead><tr><th>Phương</th><th>M<sub>tt</sub></th>' +
+      '<th>h<sub>0</sub> (α<sub>m</sub> / A<sub>s</sub>)</th><th>α<sub>m</sub></th><th>ξ</th><th>A<sub>s,cal</sub></th>' +
+      '<th>Thép chọn</th><th>A<sub>s,design</sub></th><th>Kiểm tra</th></tr>' +
+      '<tr class="units"><th></th><th>kNm/m</th><th>mm</th><th></th><th></th><th>mm²/m</th><th>Ø d a</th>' +
+      '<th>mm²/m</th><th></th></tr></thead><tbody>';
+    var than = keys.map(function (k) {
+      var t = r[k];
+      var lech = coCanhBao && t.h0Alpha !== t.h0As;
+      var canh = lech ? ' <span class="canh-bao" title="Sai khác so với Excel – xem ghi chú">⚠</span>' : '';
+      return '<tr><td class="c">' + k.slice(-1) + '</td><td class="r">' + so(t.M) + '</td>' +
+        '<td class="c' + (lech ? ' o-lech' : '') + '">' + so(t.h0Alpha, 0) + ' / ' + so(t.h0As, 0) + canh + '</td>' +
+        '<td class="r">' + so(t.alpha, 4) + '</td><td class="r">' + so(t.xi, 4) + '</td>' +
+        '<td class="r' + (lech ? ' o-lech' : '') + '">' + (t.duTietDien ? so(t.As) : 'α<sub>m</sub> > 0,5') + canh + '</td>' +
+        '<td class="c nowrap">Ø' + so(t.d, 0) + 'a' + so(t.s, 0) + '</td><td class="r">' + so(t.AsChon) + '</td>' +
+        '<td class="c">' + nhanKetLuan(t.ok) + '</td></tr>';
+    }).join('');
+    return dau + than + '</tbody></table></div>';
+  }
+
+  function ghiChuThepTren(r) {
+    var x = r.trenX.ghiChu, y = r.trenY.ghiChu;
+    function kl(As, chon) { return As <= chon ? 'OK' : 'FAIL'; }
+    var doiKetLuan = [['trenX', x], ['trenY', y]].some(function (p) {
+      var t = r[p[0]];
+      return kl(p[1].thongNhatH0a, t.AsChon) !== kl(t.As, t.AsChon) || kl(p[1].thongNhatH050, t.AsChon) !== kl(t.As, t.AsChon);
+    });
+    return '<aside class="ghi-chu-lech" aria-label="Ghi chú sai khác">' +
+      '<h3>⚠ Sai khác trong Excel</h3>' +
+      '<p>Ô G82, G83 tính α<sub>m</sub> với h<sub>0</sub> = H − a = <strong>' + so(x.h0Alpha, 0) + ' mm</strong>, ' +
+      'nhưng ô I82, I83 tính A<sub>s</sub> với h<sub>0</sub> = H − 50 = <strong>' + so(x.h0As, 0) + ' mm</strong>. ' +
+      'App đang tính <strong>giống Excel</strong>.</p>' +
+      '<p>Nếu tính thống nhất một giá trị h<sub>0</sub> (mm²/m):</p>' +
+      '<table class="tbl compact"><thead><tr><th>h<sub>0</sub></th><th>A<sub>s</sub> X</th><th>A<sub>s</sub> Y</th></tr></thead><tbody>' +
+      '<tr><td>Excel (lệch)</td><td class="r">' + so(r.trenX.As) + '</td><td class="r">' + so(r.trenY.As) + '</td></tr>' +
+      '<tr><td>' + so(x.h0Alpha, 0) + ' (H − a)</td><td class="r">' + so(x.thongNhatH0a) + '</td><td class="r">' + so(y.thongNhatH0a) + '</td></tr>' +
+      '<tr><td>' + so(x.h0As, 0) + ' (H − 50)</td><td class="r">' + so(x.thongNhatH050) + '</td><td class="r">' + so(y.thongNhatH050) + '</td></tr>' +
+      '</tbody></table>' +
+      '<p class="hint">' + (doiKetLuan ? '<strong>Kết luận kiểm tra THAY ĐỔI</strong> nếu tính thống nhất.' :
+        'Kết luận kiểm tra không thay đổi với cả hai cách tính thống nhất.') + '</p></aside>';
+  }
+
+  TRANG.thep = {
+    tieuDe: 'D. Tính cốt thép cho đài móng',
+    moTa: 'Thiên về an toàn, mômen trong đài móng được tính với hàng cọc có phản lực P = Pimax/imin.',
+    nhap: function () {
+      var rows = LOP_THEP.map(function (l) {
+        return '<tr><td>' + l.lop + '</td><td class="c">' + l.phuong + '</td>' +
+          '<td>' + oSoBang('thep.' + l.k + '.d', 'Đường kính ' + l.lop + ' ' + l.phuong) + '</td>' +
+          '<td>' + oSoBang('thep.' + l.k + '.s', 'Khoảng cách ' + l.lop + ' ' + l.phuong) + '</td></tr>';
+      }).join('');
+      return '<section class="card"><h2>Thép chọn</h2><div class="table-wrap"><table class="tbl tbl-nhap"><thead><tr>' +
+        '<th>Lớp</th><th>Phương</th><th>d (mm)</th><th>a (mm)</th></tr></thead><tbody>' + rows +
+        '</tbody></table></div><p class="hint">a là khoảng cách giữa các thanh thép (không phải lớp bảo vệ).</p></section>';
+    },
+    ketQua: function () {
+      var r = kqD;
+      if (!r || !r.hopLe) return loiHtml(ketQua) + loiHtml(kqB) + loiHtml(r);
+      var canh = '<div class="table-wrap"><table class="tbl"><thead><tr><th rowspan="2">Cọc</th>' +
+        '<th colspan="4">Cánh tay đòn l<sub>0</sub> tính từ mép chân cẩu (m)</th><th rowspan="2">P<sub>imax</sub> (kN)</th>' +
+        '<th rowspan="2">P<sub>imin</sub> ≤ 0 (kN)</th></tr><tr><th>x dương</th><th>x âm</th><th>y dương</th><th>y âm</th></tr></thead><tbody>' +
+        r.canh.map(function (c) {
+          return '<tr><td class="c">' + c.stt + '</td><td class="r">' + so(c.xDuong) + '</td><td class="r">' + so(c.xAm) +
+            '</td><td class="r">' + so(c.yDuong) + '</td><td class="r">' + so(c.yAm) + '</td><td class="r">' + so(c.Pimax) +
+            '</td><td class="r">' + so(c.PiminAm) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+
+      var congThuc = '<div class="formula">α<sub>m</sub> = <i>M</i> / (<i>R</i><sub>b</sub>·<i>b</i>·<i>h</i><sub>0</sub>²);   ' +
+        'ξ = 1 − √(1 − 2α<sub>m</sub>);   <i>A</i><sub>s</sub> = ξ·<i>R</i><sub>b</sub>·<i>b</i>·<i>h</i><sub>0</sub> / <i>R</i><sub>s</sub>;   ' +
+        '<i>b</i> = 1000 mm</div>';
+
+      return '<section class="card"><h2>Cánh tay đòn và phản lực cọc</h2>' +
+        '<p class="hint">l<sub>0</sub> = max(0; |x<sub>i</sub>| − H<sub>t</sub>/2) theo từng phía, H<sub>t</sub> = ' + so(r.Ht) +
+        ' m. Lớp trên chỉ lấy phần P<sub>imin</sub> âm (cọc chịu kéo).</p>' + canh + '</section>' +
+        '<section class="card"><h2>Với thép lớp dưới</h2>' +
+        '<div class="formula"><i>M</i> = Σ<i>Q</i><sub>tt,i</sub>·<i>l</i><sub>i</sub> = Σ<i>P</i><sub>imax</sub>·<i>l</i><sub>0</sub> / bề rộng đài</div>' +
+        congThuc + '<div class="params">' +
+        dong('Bê tông / cốt thép', '', '<i>R</i><sub>b</sub> = ' + so(r.Rb) + ' MPa; <i>R</i><sub>s</sub> = ' + so(r.Rs, 0) + ' MPa', '') +
+        '</div>' + bangThep(r, ['duoiX', 'duoiY'], false) +
+        '<p class="hint">Phương X: mômen chia cho bề rộng Y của đài; phương Y: chia cho chiều dài X.</p></section>' +
+        '<section class="card"><h2>Với thép lớp trên</h2>' +
+        '<div class="formula"><i>M</i> = Σ<i>Q</i><sub>tt,i</sub>·<i>l</i><sub>i</sub> = Σ<i>P</i><sub>imin</sub>·<i>l</i><sub>0</sub> / bề rộng đài</div>' +
+        '<div class="ke-ben"><div>' + bangThep(r, ['trenX', 'trenY'], true) + '</div>' + ghiChuThepTren(r) + '</div></section>' +
+        '<p class="ket-luan ' + (r.tatCaOk ? 'ok' : 'fail') + '">' +
+        (r.tatCaOk ? 'Cốt thép đài đủ khả năng chịu lực (theo cách tính của Excel).' : 'Cốt thép đài KHÔNG đủ – xem các dòng FAIL.') + '</p>';
     }
   };
 
