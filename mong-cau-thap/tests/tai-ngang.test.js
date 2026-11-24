@@ -1,0 +1,46 @@
+// Đối chiếu sheet Kiem tra tai ngang với Excel.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+['cau-thap', 'vat-lieu', 'bang-tra', 'mau-dia-chat', 'he-so-tai-ngang'].forEach((f) => require(`../js/data/${f}.js`));
+require('../js/mac-dinh.js');
+['dia-chat', 'sct-coc', 'phan-a-tai-trong', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong',
+  'phan-f-ket-luan', 'tinh-tat-ca', 'tai-ngang'].forEach((f) => require(`../js/calc/${f}.js`));
+const MCT = globalThis.MCT;
+const REF = require('./excel-tham-chieu.json').taiNgang;
+
+function gan(a, e, msg) {
+  assert.ok(Math.abs(a - e) <= 1e-9 * Math.max(1, Math.abs(e)), `${msg}: app=${a} excel=${e}`);
+}
+
+const s = JSON.parse(JSON.stringify(MCT.macDinh));
+const kq = MCT.calc.tinhTatCa(s);
+const r = MCT.calc.tinhTaiNgang(REF.dauVao, kq);
+const k = REF.ketQua;
+
+test('Chuyển vị, góc xoay đầu cọc khớp Excel', () => {
+  assert.equal(r.hopLe, true, r.loi.join('; '));
+  ['H', 'I', 'E', 'K', 'alphaE', 'dHH', 'dHM', 'dMH', 'dMM', 'H0', 'M0', 'y0', 'psi0', 'Delta', 'psi'].forEach((f) => gan(r[f], k[f], f));
+  assert.equal(r.okDelta ? '(OK)' : 'FAIL', k.kiemTraDelta);
+  assert.equal(r.okPsi ? '(OK)' : 'FAIL', k.kiemTraPsi);
+});
+
+test('Bảng M, Q, σz dọc thân cọc (41 dòng) và giá trị lớn nhất khớp Excel', () => {
+  assert.equal(r.bang.length, REF.bang.length);
+  REF.bang.forEach((e, i) => {
+    gan(r.bang[i].z, e.z, 'z ' + i); gan(r.bang[i].M, e.M, 'M ' + i); gan(r.bang[i].Q, e.Q, 'Q ' + i); gan(r.bang[i].sigma, e.sigma, 'σ ' + i);
+  });
+  ['Mmax', 'zM', 'Qmax', 'zQ', 'sigmaMax', 'zSigma'].forEach((f) => gan(r[f], k[f], f));
+});
+
+test('Khả năng chịu cắt và ổn định đất quanh cọc khớp Excel', () => {
+  ['Qmin', 'Rbt', 'Ab0', 'Qsteel', 'Rsw', 'Qgh'].forEach((f) => gan(r[f], k[f], f));
+  assert.equal(r.okQ ? '(OK)' : 'FAIL', k.kiemTraQ);
+  ['L', 'alphaL', 'zKT', 'MG', 'MQ', 'eta2TaiCho', 'zCaoDo', 'eta2', 'gammaTB', 'cI', 'phiI', 'sigmaGh'].forEach((f) => gan(r[f], k[f], f));
+  assert.equal(r.lopZ, String(k.lopZ));
+  assert.equal(r.okOnDinh, /^Tho/.test(k.ketLuan));
+});
+
+test('Hàm ApLucDat: cao độ trên mực nước ngầm chỉ dùng γ tự nhiên', () => {
+  gan(MCT.calc.apLucDat(-0.5, -1, [0, -2.3, -60], [20, 14.5, 0]), 10, 'P');
+});

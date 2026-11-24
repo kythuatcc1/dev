@@ -156,6 +156,8 @@ File gồm 15 sheet, khoảng 2.000 dòng macro VBA, 11 biểu đồ và nhiều
 13. **Kết luận** (ô D143) chỉ gồm 12 kiểm tra của mục B, D, E (không có xuyên thủng vì Excel không tính). **App bổ sung mục C vào kết luận chung** (đã thống nhất với người dùng) và vẫn hiển thị kết luận theo đúng Excel để so sánh.
 14. **γn theo cấp công trình** ('SCT Coc nhoi FULL'!N259): Excel lấy 1,2 cho cấp III, 1,15 cho cấp II, 1 cho cấp khác. Theo TCVN 10304 (cần kiểm tra lại) γn = 1,2 / 1,15 / 1,1 cho cấp I / II / III. App tính giống Excel, ghi chú ở trang Sức chịu tải cọc.
 15. **Phương pháp thi công cọc**: Excel chọn "Cọc Khoan Thả" (fs = min(2,5N; 125), fc = min(1,0cu; 125)) dù cọc là khoan nhồi (fs = min(3,3N; 165), fc = min(1,0cu; 100)). App mặc định giống Excel, có ô chọn; với khoan nhồi Nc,d = 4313,12 kN, Nt,d = 2604,10 kN.
+16. **σz dọc thân cọc chia thêm 3** (sheet `Kiem tra tai ngang`, cột AC6:AC46): =K/3/αε·ze·(…), trong khi công thức phụ lục A không có hệ số 1/3. σz,max = 3,62 kN/m² (không chia 3: 10,86 kN/m²; vẫn ≤ [σz] = 31,36). App tính giống Excel, ghi chú cạnh mục F.
+17. **Khả năng chịu cắt thép đai** (J88): Qsteel = 2·π·d²/4·Rsw/a (mm²·MPa/mm) được cộng thẳng với Qmin (kN) – cần xem lại đơn vị. App tính giống Excel.
 
 ## 7. Đề xuất phạm vi và thứ tự làm app
 

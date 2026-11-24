@@ -77,6 +77,7 @@
     var Rtu = ct.Rs * c.As / 1e3;
     return {
       hopLe: isFinite(Rcu), loi: isFinite(Rcu) ? [] : ['Không tính được hệ số uốn dọc (kiểm tra đoạn cọc trong đất).'],
+      beTong: v.beTong, cotThep: v.cotThep,
       Rb: bt.Rb, Rbt: bt.Rbt, E: bt.Eb, Rs: ct.Rs, Rsc: ct.Rsc, gammaCb: gCb, gammaCb2: gCb2,
       doan: doan, tongKL: tongKL, tongL: tongL, k: k, bp: bp, Ekpa: E,
       alphaE: alphaE, l0: c.l0, l1: l1, r: r, lambda: lambda, phi: phi, Rcu: Rcu, Rtu: Rtu

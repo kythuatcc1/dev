@@ -22,7 +22,7 @@
     { nhom: 'Cọc & địa chất' },
     { id: 'dia-chat', ma: '', ten: 'Số liệu địa chất' },
     { id: 'sct', ma: '', ten: 'Sức chịu tải cọc' },
-    { id: 'tai-ngang', ma: '', ten: 'Cọc chịu tải ngang', sapCo: 'GĐ5' },
+    { id: 'tai-ngang', ma: '', ten: 'Cọc chịu tải ngang' },
     { id: 'lun', ma: '', ten: 'Ổn định – lún', sapCo: 'GĐ6' },
     { id: 'tuong-tac', ma: '', ten: 'Biểu đồ tương tác', sapCo: 'GĐ7' }
   ];
@@ -1052,6 +1052,117 @@
     }
   };
 
+  // ---------------- Cọc chịu tải ngang ----------------
+  // Biểu đồ nội lực dọc thân cọc: trục đứng z (m), trục ngang giá trị (0 ở giữa)
+  function bieuDoNoiLuc(bang, k, ten, donVi, mau) {
+    var W = 220, H = 300, l = 34, r = 10, t = 24, b = 12;
+    var zMin = Math.min.apply(null, bang.map(function (x) { return x.z; }));
+    var vMax = Math.max.apply(null, bang.map(function (x) { return Math.abs(x[k]); })) || 1;
+    var X = function (v) { return (l + W - r) / 2 + v / vMax * (W - l - r) / 2; };
+    var Y = function (z) { return t + z / zMin * (H - t - b); };
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="bieu-do-nl" role="img" aria-label="Biểu đồ ' + esc(ten) + '">' +
+      '<line x1="' + X(0) + '" y1="' + t + '" x2="' + X(0) + '" y2="' + (H - b) + '" class="bd-lop"/>';
+    for (var z = 0; z >= zMin; z -= 2) {
+      svg += '<line x1="' + l + '" y1="' + Y(z) + '" x2="' + (W - r) + '" y2="' + Y(z) + '" class="bd-luoi"/>' +
+        '<text x="' + (l - 4) + '" y="' + (Y(z) + 4) + '" class="bd-chu" text-anchor="end">' + z + '</text>';
+    }
+    var pts = bang.map(function (x) { return X(x[k]) + ',' + Y(x.z); });
+    svg += '<polygon points="' + X(0) + ',' + Y(bang[0].z) + ' ' + pts.join(' ') + ' ' + X(0) + ',' + Y(bang[bang.length - 1].z) +
+      '" fill="' + mau + '" fill-opacity="0.18" stroke="none"/>' +
+      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + mau + '" stroke-width="1.6"/>' +
+      '<text x="' + ((l + W - r) / 2) + '" y="13" class="bd-chu" text-anchor="middle">' + esc(ten) + ' (' + esc(donVi) + ') – max ' +
+      so(vMax, 2) + '</text></svg>';
+    return svg;
+  }
+
+  TRANG['tai-ngang'] = {
+    tieuDe: 'Kiểm tra cọc chịu tải ngang',
+    moTa: 'TCVN 10304 phụ lục A – sheet Kiem tra tai ngang. Tải trọng ngang lấy từ mục A, đặc trưng cọc và hệ số k, αε lấy từ phần sức chịu tải cọc.',
+    nhap: function () {
+      return '<section class="card"><h2>A. Thông số đầu vào</h2><div class="grid-2"><div class="params">' +
+        oNhapSo('taiNgang.M', 'Mômen tác dụng vào đầu cọc', '<i>M</i> =', 'kNm') +
+        oNhapSo('taiNgang.l0', 'Chiều dài cọc từ đáy đài tới cao độ san nền', '<i>l</i><sub>0</sub> =', 'm') +
+        oNhapSo('taiNgang.A0', 'Hệ số A<sub>0</sub>', '<i>A</i><sub>0</sub> =', '') +
+        oNhapSo('taiNgang.B0', 'Hệ số B<sub>0</sub>', '<i>B</i><sub>0</sub> =', '') +
+        oNhapSo('taiNgang.C0', 'Hệ số C<sub>0</sub>', '<i>C</i><sub>0</sub> =', '') +
+        oNhapSo('taiNgang.gioiHanChuyenVi', 'Giới hạn chuyển vị đầu cọc', '[Δ] =', 'cm') +
+        oNhapSo('taiNgang.gioiHanGocXoay', 'Giới hạn góc xoay đầu cọc', '[ψ] =', 'độ') +
+        '</div><div class="params">' +
+        oNhapSo('taiNgang.phiB3', 'Hệ số φ<sub>b3</sub> (khả năng chịu cắt bê tông)', 'φ<sub>b3</sub> =', '') +
+        oChon('taiNgang.thepDai', MCT.data.vatLieu.cotThep.map(function (c) { return c.nhom; }), 'Nhóm thép đai') +
+        oNhapSo('taiNgang.dDai', 'Đường kính thép đai', '<i>d</i> =', 'mm') +
+        oNhapSo('taiNgang.aDai', 'Khoảng cách thép đai', '<i>a</i> =', 'mm') +
+        oNhapSo('taiNgang.nBar', 'Hệ số n̄ (tính η<sub>2</sub>)', 'n̄ =', '') +
+        oNhapSo('taiNgang.eta1', 'Hệ số η<sub>1</sub>', 'η<sub>1</sub> =', '') +
+        oNhapSo('taiNgang.xi', 'Hệ số ξ', 'ξ =', '') +
+        '</div></div></section>';
+    },
+    ketQua: function () {
+      var r = tatCa && tatCa.TN;
+      if (!r || r.hopLe === false && !r.bang) return loiHtml(r);
+      var g = r.ghiChu || {};
+      var b = '<section class="card"><h2>B. Chuyển vị ngang và góc xoay đầu cọc</h2><div class="grid-2"><div class="params">' +
+        dong('Lực cắt tác dụng vào đầu cọc (max H<sub>tt</sub>/n/' + r.nCoc + ' cọc)', '<i>H</i> =', so(r.H, 2), 'kN') +
+        dong('Mômen quán tính tiết diện cọc', '<i>I</i> =', so(r.I, 5), 'm⁴') +
+        dong('Mô đun đàn hồi bê tông', '<i>E</i> =', so(r.E, 0), 'MPa') +
+        dong('Hệ số nền', '<i>K</i> =', so(r.K, 1), 'kN/m⁴') +
+        dong('Hệ số biến dạng', 'α<sub>ε</sub> =', so(r.alphaE, 4), '1/m') +
+        '</div><div class="params">' +
+        dong('δ<sub>HH</sub> = A<sub>0</sub>/(α<sub>ε</sub>³EI)', '', so(r.dHH, 4), '×10⁻⁵ m/kN') +
+        dong('δ<sub>HM</sub> = δ<sub>MH</sub> = B<sub>0</sub>/(α<sub>ε</sub>²EI)', '', so(r.dHM, 4), '×10⁻⁵ 1/kN') +
+        dong('δ<sub>MM</sub> = C<sub>0</sub>/(α<sub>ε</sub>EI)', '', so(r.dMM, 4), '×10⁻⁵ 1/kNm') +
+        dong('Tại cao trình mặt đất: H<sub>0</sub> / M<sub>0</sub>', '', so(r.H0, 2) + ' / ' + so(r.M0, 2), 'kN / kNm') +
+        dong('y<sub>0</sub> / ψ<sub>0</sub>', '', so(r.y0, 4) + ' / ' + so(r.psi0, 4), 'cm / độ') +
+        '</div></div>' +
+        '<div class="table-wrap" style="margin-top:12px"><table class="tbl kiem-tra"><tbody>' +
+        '<tr><td>Δ = ' + so(r.Delta, 4) + ' cm</td><td class="c">' + (r.okDelta ? '≤' : '>') + '</td><td>[Δ] = ' + so(r.gioiHanChuyenVi, 2) + ' cm</td><td class="c">' + nhanKetLuan(r.okDelta) + '</td></tr>' +
+        '<tr><td>ψ = ' + so(r.psi, 4) + '°</td><td class="c">' + (r.okPsi ? '≤' : '>') + '</td><td>[ψ] = ' + so(r.gioiHanGocXoay, 2) + '°</td><td class="c">' + nhanKetLuan(r.okPsi) + '</td></tr>' +
+        '</tbody></table></div></section>';
+
+      var bd = '<section class="card"><h2>C, D, E. Mômen, lực cắt và áp lực ngang dọc thân cọc</h2>' +
+        '<div class="ba-bieu-do">' + bieuDoNoiLuc(r.bang, 'M', 'M', 'kNm', '#0a58a8') + bieuDoNoiLuc(r.bang, 'Q', 'Q', 'kN', '#b45309') +
+        bieuDoNoiLuc(r.bang, 'sigma', 'σz', 'kN/m²', '#18794e') + '</div>' +
+        '<div class="params" style="margin-top:10px">' +
+        dong('Mômen lớn nhất dọc thân cọc (tại z = ' + so(r.zM, 2) + ' m so với cao độ đáy đài)', '<i>M</i><sub>z</sub> =', so(r.Mmax, 2), 'kNm') +
+        dong('Lực cắt lớn nhất (tại z = ' + so(r.zQ, 2) + ' m)', '<i>Q</i><sub>z</sub> =', so(r.Qmax, 2), 'kN') +
+        dong('Áp lực ngang lớn nhất (tại z = ' + so(r.zSigma, 2) + ' m)', 'σ<sub>z</sub> =', so(r.sigmaMax, 2), 'kN/m²') +
+        '</div><details class="more"><summary>Bảng 41 điểm dọc thân cọc (z̄<sub>e</sub> = 0 … 4)</summary><div class="table-wrap" style="margin-top:8px">' +
+        '<table class="tbl compact"><thead><tr><th>z̄<sub>e</sub></th><th>z (m)</th><th>M (kNm)</th><th>Q (kN)</th><th>σ<sub>z</sub> (kN/m²)</th></tr></thead><tbody>' +
+        r.bang.map(function (x) {
+          return '<tr><td class="r">' + so(x.ze, 1) + '</td><td class="r">' + so(x.z, 3) + '</td><td class="r">' + so(x.M, 2) +
+            '</td><td class="r">' + so(x.Q, 2) + '</td><td class="r">' + so(x.sigma, 3) + '</td></tr>';
+        }).join('') + '</tbody></table></div></details></section>';
+
+      var cat = '<section class="card"><h2>D. Khả năng chịu cắt của cọc</h2><div class="params">' +
+        dong('Bê tông: Q<sub>min</sub> = φ<sub>b3</sub>R<sub>bt</sub>A<sub>b0</sub> (R<sub>bt</sub> = R<sub>bt</sub>×0,85×0,7 = ' + so(r.Rbt, 4) +
+          ' MPa; A<sub>b0</sub> = π(D−0,05)²/4 = ' + so(r.Ab0, 4) + ' m²)', '<i>Q</i><sub>min</sub> =', so(r.Qmin, 2), 'kN') +
+        dong('Thép đai ' + esc(r.thepDai) + ' Ø' + so(r.dDai, 0) + 'a' + so(r.aDai, 0) + ': Q<sub>steel</sub> = 2·π·d²/4·R<sub>sw</sub>/a (R<sub>sw</sub> = ' + so(r.Rsw, 0) + ' MPa)',
+          '<i>Q</i><sub>steel</sub> =', so(r.Qsteel, 2), 'kN') +
+        '</div><div class="table-wrap" style="margin-top:8px"><table class="tbl kiem-tra"><tbody><tr><td>[Q] = ' + so(r.Qgh, 2) +
+        ' kN</td><td class="c">' + (r.okQ ? '≥' : '<') + '</td><td>Q<sub>z</sub> = ' + so(r.Qmax, 2) + ' kN</td><td class="c">' + nhanKetLuan(r.okQ) +
+        '</td></tr></tbody></table></div></section>';
+
+      var f = '<section class="card"><h2>F. Kiểm tra ổn định đất nền quanh cọc</h2><div class="ke-ben"><div>' +
+        '<div class="formula">σ<sub>z</sub> ≤ [σ<sub>z</sub>] = 4η<sub>1</sub>η<sub>2</sub>(γ<sub>I</sub>·z·tgφ<sub>I</sub> + ξc<sub>I</sub>)/cosφ<sub>I</sub></div><div class="params">' +
+        dong('α<sub>ε</sub>·L (L = ' + so(r.L, 2) + ' m)', '', so(r.alphaL, 3), '') +
+        dong('Chiều sâu kiểm tra (αεL ≤ 2,5 → z = L/3; αεL > 2,5 → z = 0,85/αε)', '<i>z</i> =', so(r.zKT, 3), 'm') +
+        dong('Cao độ kiểm tra (z + cao độ đáy đài) – lớp ' + esc(r.lopZ || '–'), '', so(r.zCaoDo, 3), 'm') +
+        dong('η<sub>1</sub> / η<sub>2</sub> / ξ', '', so(r.eta1, 2) + ' / ' + so(r.eta2, 4) + ' / ' + so(r.xi, 2), '') +
+        dong('γ<sub>I</sub> (trung bình, kể đẩy nổi) / c<sub>I</sub> / φ<sub>I</sub>', '', so(r.gammaTB, 3) + ' / ' + so(r.cI, 2) + ' / ' + so(r.phiI, 2), 'kN/m³ · kN/m² · độ') +
+        '</div><div class="table-wrap" style="margin-top:8px"><table class="tbl kiem-tra"><tbody><tr><td>σ<sub>z</sub> = ' + so(r.sigmaMax, 3) +
+        ' kN/m²</td><td class="c">' + (r.okOnDinh ? '≤' : '>') + '</td><td>[σ<sub>z</sub>] = ' + so(r.sigmaGh, 3) + ' kN/m²</td><td class="c">' +
+        nhanKetLuan(r.okOnDinh) + '</td></tr></tbody></table></div>' + loiHtml(r) + '</div>' +
+        ghiChuLech('Sai khác trong Excel',
+          '<p><strong>σ<sub>z</sub> chia thêm 3:</strong> cột AC dùng K/3/α<sub>ε</sub>·z̄<sub>e</sub>·(…). Không chia 3: σ<sub>z,max</sub> = ' +
+          so(g.sigmaKhongChia3, 3) + ' kN/m² (' + (g.okKhongChia3 ? 'vẫn đạt' : '<strong>không đạt</strong>') + ').</p>' +
+          '<p><strong>η<sub>2</sub>:</strong> Excel lấy ' + so(r.eta2, 4) + ' từ sheet mô hình (theo M<sub>qđ</sub> của cẩu); η<sub>2</sub> tính tại chỗ (J124) = ' +
+          so(g.eta2TaiCho, 4) + ' → [σ<sub>z</sub>] = ' + so(g.sigmaGhTaiCho, 3) + ' kN/m².</p>' +
+          '<p><strong>l<sub>0</sub>:</strong> ở đây l<sub>0</sub> = ' + so(r.l0, 2) + ' m, phần sức chịu tải cọc dùng l<sub>0</sub> = ' + so(g.l0SCT, 2) + ' m. A<sub>0</sub>, B<sub>0</sub>, C<sub>0</sub> nhập tay.</p>') +
+        '</div></section>';
+      return b + bd + cat + f;
+    }
+  };
+
   // ---------------- Khung điều hướng ----------------
   // Trạng thái đạt/không đạt của từng mục để hiện ở thanh danh mục
   function trangThaiMuc(id) {
@@ -1061,6 +1172,9 @@
       case 'thep': return kqD && kqD.hopLe ? kqD.tatCaOk : null;
       case 'bulong': return kqE && kqE.hopLe ? kqE.tatCaOk : null;
       case 'ket-luan': return kqF && kqF.hopLe ? kqF.ok : null;
+      case 'sct': return tatCa && tatCa.SCT && tatCa.SCT.hopLe ? true : null;
+      case 'dia-chat': return tatCa && tatCa.DC && tatCa.DC.hopLe ? true : null;
+      case 'tai-ngang': return tatCa && tatCa.TN && tatCa.TN.hopLe ? tatCa.TN.tatCaOk : null;
       default: return undefined;
     }
   }

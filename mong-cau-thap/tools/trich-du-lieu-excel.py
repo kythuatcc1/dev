@@ -395,6 +395,29 @@ def doc_sct(wbv):
     return {'dauVao': dau_vao, 'ketQua': ket_qua}
 
 
+def doc_tai_ngang(wbv):
+    """Sheet Kiem tra tai ngang: bảng hệ số A1…D4 (N6:Z46) + giá trị tham chiếu."""
+    ws = wbv['Kiem tra tai ngang']
+    o = lambda a: ws[a].value
+    he_so = [[ws.cell(r, c).value for c in range(14, 27)] for r in range(6, 47)]   # N..Z: ze, A1..D1, A3..D3, A4..D4
+    bang = [{'z': o('M%d' % r), 'M': o('AA%d' % r), 'Q': o('AB%d' % r), 'sigma': o('AC%d' % r)} for r in range(6, 47)]
+    dau_vao = {'M': o('J10'), 'l0': o('J11'), 'A0': o('J16'), 'B0': o('J17'), 'C0': o('J18'),
+               'gioiHanChuyenVi': o('J19'), 'gioiHanGocXoay': o('J20'),
+               'phiB3': o('J84'), 'thepDai': o('I87'), 'dDai': o('J89'), 'aDai': o('J90'),
+               'nBar': o('G124'), 'eta1': o('F128'), 'xi': o('H128')}
+    ket_qua = {k: o(c) for k, c in {
+        'H': 'J9', 'I': 'J12', 'E': 'J13', 'K': 'J14', 'alphaE': 'J15',
+        'dHH': 'J23', 'dHM': 'J25', 'dMH': 'J27', 'dMM': 'J29', 'H0': 'J31', 'M0': 'J33', 'y0': 'J35', 'psi0': 'J36',
+        'Delta': 'J38', 'psi': 'J39', 'kiemTraDelta': 'L38', 'kiemTraPsi': 'L39',
+        'Mmax': 'J58', 'zM': 'J59', 'Qmax': 'J79', 'zQ': 'J80',
+        'Qmin': 'J83', 'Rbt': 'J85', 'Ab0': 'J86', 'Qsteel': 'J88', 'Rsw': 'J91', 'Qgh': 'J92', 'kiemTraQ': 'L92',
+        'sigmaMax': 'J111', 'zSigma': 'J112',
+        'L': 'J119', 'alphaL': 'G120', 'zKT': 'J120', 'MG': 'G122', 'MQ': 'G123', 'eta2TaiCho': 'J124',
+        'zCaoDo': 'D128', 'lopZ': 'E128', 'eta2': 'G128', 'gammaTB': 'I128', 'cI': 'J128', 'phiI': 'K128',
+        'sigmaGh': 'J130', 'ketLuan': 'E131'}.items()}
+    return {'heSo': he_so, 'dauVao': dau_vao, 'ketQua': ket_qua, 'bang': bang}
+
+
 def js_file(path, var, data, header):
     body = json.dumps(data, ensure_ascii=False, indent=1)
     with open(path, 'w', encoding='utf-8') as f:
@@ -423,6 +446,10 @@ def main():
             'Bê tông, cốt thép, bulong (sheet Solieu)')
     js_file(os.path.join(ROOT, 'js', 'data', 'bang-tra.js'), 'bangTra', bang_tra,
             'Bảng tra hệ số (sheet Bang tra)')
+    tai_ngang = doc_tai_ngang(wbv)
+    js_file(os.path.join(ROOT, 'js', 'data', 'he-so-tai-ngang.js'), 'heSoTaiNgang',
+            {'cot': ['ze', 'A1', 'B1', 'C1', 'D1', 'A3', 'B3', 'C3', 'D3', 'A4', 'B4', 'C4', 'D4'], 'hang': tai_ngang['heSo']},
+            'Bảng hệ số A1…D4 theo độ sâu quy đổi ze (sheet Kiem tra tai ngang, N6:Z46 – TCVN 10304 phụ lục A)')
     js_file(os.path.join(ROOT, 'js', 'data', 'mau-dia-chat.js'), 'mauDiaChat', dia_chat_md,
             'Số liệu địa chất mặc định (sheet SL Dia chat, hố khoan đầu tiên)')
 
@@ -435,6 +462,7 @@ def main():
         'sheetCauThap_phanE': doc_tham_chieu_phan_e(wbv['Cau thap']),
         'diaChat': dia_chat_tc,
         'sct': doc_sct(wbv),
+        'taiNgang': {'dauVao': tai_ngang['dauVao'], 'ketQua': tai_ngang['ketQua'], 'bang': tai_ngang['bang']},
     }
     with open(os.path.join(ROOT, 'tests', 'excel-tham-chieu.json'), 'w', encoding='utf-8') as f:
         json.dump(tham_chieu, f, ensure_ascii=False, indent=1)
