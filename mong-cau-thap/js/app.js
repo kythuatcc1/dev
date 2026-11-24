@@ -50,7 +50,7 @@
     { id: 'xuyen', ma: 'C', ten: 'Xuyên thủng đài' },
     { id: 'thep', ma: 'D', ten: 'Cốt thép đài' },
     { id: 'bulong', ma: 'E', ten: 'Bulong neo' },
-    { id: 'ket-luan', ma: 'F', ten: 'Kết luận', sapCo: 'GĐ2' },
+    { id: 'ket-luan', ma: 'F', ten: 'Kết luận' },
     { nhom: 'Cọc & địa chất' },
     { id: 'dia-chat', ma: '', ten: 'Số liệu địa chất', sapCo: 'GĐ4' },
     { id: 'sct', ma: '', ten: 'Sức chịu tải cọc', sapCo: 'GĐ4' },
@@ -83,6 +83,7 @@
   var kqC = null;      // phần C
   var kqD = null;      // phần D
   var kqE = null;      // phần E
+  var kqF = null;      // kết luận
 
   function luu() {
     try {
@@ -105,6 +106,7 @@
     kqC = MCT.calc.tinhPhanC(ketQua, kqB, { D: state.coc.D });
     kqD = MCT.calc.tinhPhanD(ketQua, kqB, state.thep);
     kqE = MCT.calc.tinhPhanE(ketQua, state.bulong);
+    kqF = MCT.calc.tinhKetLuan(kqB, kqC, kqD, kqE);
   }
 
   // ---------------- Tiện ích hiển thị ----------------
@@ -774,14 +776,71 @@
     }
   };
 
+  // ---------------- F. Kết luận ----------------
+  function soCoDonVi(o) {
+    var d = o.dv === 'mm' ? 0 : 2;
+    return '<i>' + esc(o.k) + '</i> = ' + so(o.v, d) + ' ' + esc(o.dv);
+  }
+
+  TRANG['ket-luan'] = {
+    tieuDe: 'F. Kết luận',
+    moTa: 'Tổng hợp các kiểm tra của sheet Cau thap.',
+    nhap: function () { return ''; },
+    ketQua: function () {
+      var r = kqF;
+      if (!r || !r.hopLe) return loiHtml(r);
+      var nhomTruoc = '';
+      var rows = r.ds.map(function (m) {
+        var dauNhom = m.ma !== nhomTruoc ? '<td class="c o-nhom" rowspan="' +
+          r.ds.filter(function (x) { return x.ma === m.ma; }).length + '"><button type="button" class="link" data-trang="' +
+          m.trang + '">' + m.ma + '</button></td>' : '';
+        nhomTruoc = m.ma;
+        return '<tr' + (m.ok ? '' : ' class="dong-fail"') + '>' + dauNhom +
+          '<td>' + esc(m.ten) + (m.boSung ? ' <span class="nhan-bo-sung" title="Excel không có kiểm tra này">app bổ sung</span>' : '') + '</td>' +
+          '<td class="r nowrap">' + soCoDonVi(m.trai) + '</td><td class="c">' + m.dau + '</td>' +
+          '<td class="r nowrap">' + soCoDonVi(m.phai) + '</td><td class="c">' + nhanKetLuan(m.ok) + '</td>' +
+          '<td class="c muted">' + (m.oExcel || '–') + '</td></tr>';
+      }).join('');
+      var bang = '<div class="table-wrap"><table class="tbl"><thead><tr><th>Mục</th><th>Kiểm tra</th><th>Giá trị</th><th></th>' +
+        '<th>Giới hạn</th><th>Kết quả</th><th>Ô Excel</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+
+      var ghiChu = ghiChuLech('Khác với ô D143 của Excel',
+        '<p>Công thức kết luận của Excel (ô D143) chỉ gồm <strong>12 kiểm tra</strong> của mục B, D, E, vì Excel không tính xuyên thủng đài.</p>' +
+        '<p>App <strong>bổ sung mục C</strong> (xuyên thủng đài, TCVN 5574:2018 mục 8.1.6.2.1) vào kết luận chung.</p>' +
+        '<p>Kết luận theo đúng Excel (không có mục C): <strong>' + esc(r.ketLuanExcel) + '</strong>' +
+        (r.okExcel === r.ok ? ' – giống kết luận của app.' : ' – <strong>khác</strong> kết luận của app.') + '</p>');
+
+      return '<div class="ket-luan-lon ' + (r.ok ? 'ok' : 'fail') + '">' + esc(r.ketLuan) +
+        (r.ok ? '' : '<span>' + r.soFail + ' kiểm tra không đạt</span>') + '</div>' + ghiChu +
+        '<section class="card" style="margin-top:18px"><h2>Tổng hợp các kiểm tra</h2>' + bang +
+        '<p class="hint">Bấm chữ cái ở cột "Mục" để mở trang chi tiết. Ô Excel là ô chứa kết quả OK/FAIL tương ứng trong sheet Cau thap.</p></section>';
+    }
+  };
+
   // ---------------- Khung điều hướng ----------------
+  // Trạng thái đạt/không đạt của từng mục để hiện ở thanh danh mục
+  function trangThaiMuc(id) {
+    switch (id) {
+      case 'coc': return kqB && kqB.hopLe ? kqB.kiemTraNen.ok && kqB.kiemTraKeo.ok : null;
+      case 'xuyen': return kqC && kqC.hopLe ? kqC.ok : null;
+      case 'thep': return kqD && kqD.hopLe ? kqD.tatCaOk : null;
+      case 'bulong': return kqE && kqE.hopLe ? kqE.tatCaOk : null;
+      case 'ket-luan': return kqF && kqF.hopLe ? kqF.ok : null;
+      default: return undefined;
+    }
+  }
+
   function veDanhMuc() {
     $('#sidenav').innerHTML = MUC.map(function (m) {
       if (m.nhom) return '<div class="nav-group">' + esc(m.nhom) + '</div>';
       var cur = m.id === trangHienTai ? ' aria-current="page"' : '';
+      var tt = m.sapCo ? undefined : trangThaiMuc(m.id);
+      var dau = tt === true ? '<span class="nav-tt ok" title="Đạt">✓</span>'
+        : tt === false ? '<span class="nav-tt fail" title="Không đạt">✗</span>'
+        : tt === null ? '<span class="nav-tt" title="Chưa đủ dữ liệu">–</span>' : '';
       return '<button type="button" class="nav-item" data-trang="' + m.id + '"' + cur +
         (m.sapCo ? ' disabled' : '') + '><span class="nav-code">' + esc(m.ma) + '</span><span>' + esc(m.ten) +
-        '</span>' + (m.sapCo ? '<span class="nav-soon">' + esc(m.sapCo) + '</span>' : '') + '</button>';
+        '</span>' + (m.sapCo ? '<span class="nav-soon">' + esc(m.sapCo) + '</span>' : dau) + '</button>';
     }).join('');
   }
 
@@ -796,6 +855,7 @@
   function veKetQua() {
     var el = $('#vung-ket-qua');
     if (el) el.innerHTML = TRANG[trangHienTai].ketQua();
+    veDanhMuc();
     $('#brand-sub').textContent = [state.duAn.ten, state.duAn.hangMuc].filter(Boolean).join(' · ');
   }
 
