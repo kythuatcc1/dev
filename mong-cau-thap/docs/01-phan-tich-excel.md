@@ -158,6 +158,8 @@ File gồm 15 sheet, khoảng 2.000 dòng macro VBA, 11 biểu đồ và nhiều
 15. **Phương pháp thi công cọc**: Excel chọn "Cọc Khoan Thả" (fs = min(2,5N; 125), fc = min(1,0cu; 125)) dù cọc là khoan nhồi (fs = min(3,3N; 165), fc = min(1,0cu; 100)). App mặc định giống Excel, có ô chọn; với khoan nhồi Nc,d = 4313,12 kN, Nt,d = 2604,10 kN.
 16. **σz dọc thân cọc chia thêm 3** (sheet `Kiem tra tai ngang`, cột AC6:AC46): =K/3/αε·ze·(…), trong khi công thức phụ lục A không có hệ số 1/3. σz,max = 3,62 kN/m² (không chia 3: 10,86 kN/m²; vẫn ≤ [σz] = 31,36). App tính giống Excel, ghi chú cạnh mục F.
 17. **Khả năng chịu cắt thép đai** (J88): Qsteel = 2·π·d²/4·Rsw/a (mm²·MPa/mm) được cộng thẳng với Qmin (kN) – cần xem lại đơn vị. App tính giống Excel.
+18. **Mô đun biến dạng E tính lún** (sheet `On dinh - Lun`, cột K161:K175): hàm VBA `TinhE` cần mã kích thước hạt ("T") nhưng ô O161:O175 truyền chữ ("Thô" – 'SL Dia chat'!AA) nên với đất cát hệ số c = 0: lớp cát 5 có E = 4 MPa thay vì 34,7 MPa, lớp A có E = 0. Độ lún Excel S = 4,50 cm; dùng đúng mã S = 0,54 cm. App tính giống Excel, ghi chú cạnh mục F của trang Ổn định – lún.
+19. **Biểu đồ tương tác** chỉ có hình vẽ, không có ô kiểm tra; điểm đóng biểu đồ phía kéo (M = 0, N = −3848 kN) là ngoại suy TREND, vượt khả năng chịu kéo thật (−2976 kN). App bổ sung kiểm tra |M| ≤ M giới hạn tại cùng N.
 
 ## 7. Đề xuất phạm vi và thứ tự làm app
 

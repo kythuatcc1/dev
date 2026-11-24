@@ -36,6 +36,8 @@
       M: 0, l0: 0, A0: 2.441, B0: 1.621, C0: 1.751, gioiHanChuyenVi: 1, gioiHanGocXoay: 1,
       phiB3: 0.6, thepDai: 'CB500-V', dDai: 8, aDai: 200, nBar: 2.5, eta1: 1, xi: 0.3
     },
+    // Ổn định – lún móng khối quy ước (sheet On dinh - Lun)
+    lun: { viTri: 'Có hầm', m1: 1.1, m2: 1, ktc: 1, gammaKc: 25, Smax: 8, soDiem: 14 },
     // Biểu đồ tương tác (sheet Bieu do tuong tac): lớp bê tông bảo vệ tính tới tâm cốt thép (mm)
     tuongTac: { a: 100 },
     coc: {

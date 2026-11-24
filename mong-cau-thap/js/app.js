@@ -23,7 +23,7 @@
     { id: 'dia-chat', ma: '', ten: 'Số liệu địa chất' },
     { id: 'sct', ma: '', ten: 'Sức chịu tải cọc' },
     { id: 'tai-ngang', ma: '', ten: 'Cọc chịu tải ngang' },
-    { id: 'lun', ma: '', ten: 'Ổn định – lún', sapCo: 'GĐ6' },
+    { id: 'lun', ma: '', ten: 'Ổn định – lún' },
     { id: 'tuong-tac', ma: '', ten: 'Biểu đồ tương tác' }
   ];
 
@@ -1159,6 +1159,101 @@
     }
   };
 
+  // ---------------- Ổn định – lún ----------------
+  TRANG.lun = {
+    tieuDe: 'Kiểm tra ổn định đất nền và lún',
+    moTa: 'Móng khối quy ước (TCVN 10304:2025), sức chịu tải nền theo 4.6.9 TCVN 9362:2012, lún theo phụ lục C TCVN 9362:2012 – sheet On dinh - Lun.',
+    nhap: function () {
+      return '<section class="card"><h2>Số liệu nhập</h2><div class="grid-2"><div class="params">' +
+        oChon('lun.viTri', ['Có hầm', 'Không hầm'], 'Vị trí móng') +
+        oNhapSo('lun.m1', 'Hệ số điều kiện làm việc của nền', '<i>m</i><sub>1</sub> =', '') +
+        oNhapSo('lun.m2', 'Hệ số điều kiện làm việc của công trình', '<i>m</i><sub>2</sub> =', '') +
+        oNhapSo('lun.ktc', 'Hệ số tin cậy', '<i>k</i><sub>tc</sub> =', '') +
+        '</div><div class="params">' +
+        oNhapSo('lun.gammaKc', 'Trọng lượng thể tích kết cấu sàn hầm', 'γ<sub>kc</sub> =', 'kN/m³') +
+        oNhapSo('lun.Smax', 'Độ lún giới hạn', '<i>S</i><sub>max</sub> =', 'cm') +
+        oNhapSo('lun.soDiem', 'Số điểm tính lún (bước h<sub>i</sub> = 0,2Y<sub>qu</sub>)', '', 'điểm') +
+        '</div></div></section>';
+    },
+    ketQua: function () {
+      var r = tatCa && tatCa.LUN;
+      if (!r || !r.hopLe) return loiHtml(r);
+      function kt(trai, dau, phai, ok) {
+        return '<tr><td>' + trai + '</td><td class="c">' + dau + '</td><td>' + phai + '</td><td class="c">' + nhanKetLuan(ok) + '</td></tr>';
+      }
+      var b = '<section class="card"><h2>B. Kích thước móng khối quy ước</h2><div class="grid-2"><div class="params">' +
+        dong('Góc ma sát trung bình các lớp cọc xuyên qua', 'φ<sub>tb</sub> = Σφ<sub>i</sub>l<sub>i</sub>/Σl<sub>i</sub> =', so(r.phiTb, 2), 'độ') +
+        dong('Tổng chiều dài đoạn cọc', 'Σl<sub>i</sub> =', so(r.tongL, 2), 'm') +
+        dong('Loại đất / chỉ số sệt tại mũi cọc', '', esc(r.loaiMui || '–') + ' / ' + so(r.ILmui, 2), '') +
+        '</div><div class="params">' +
+        dong('Khoảng mở rộng', '<i>a</i> = Σl<sub>i</sub>·tg(φ<sub>tb</sub>/4) =', so(r.a, 3), 'm') +
+        dong('Chiều dài khối quy ước', '<i>X</i><sub>qu</sub> =', so(r.Xqu, 3), 'm') +
+        dong('Chiều rộng khối quy ước', '<i>Y</i><sub>qu</sub> =', so(r.Yqu, 3), 'm') +
+        '</div></div></section>';
+      var c = '<section class="card"><h2>C. Trọng lượng móng khối quy ước</h2><div class="params">' +
+        dong('Trọng lượng đài nằm dưới mặt đất tự nhiên', '<i>Q</i><sub>đài</sub> =', so(r.Qdai), 'kN') +
+        dong('Trọng lượng cọc nằm dưới mặt đất tự nhiên', '<i>Q</i><sub>cọc</sub> =', so(r.Qcoc), 'kN') +
+        dong('Trọng lượng đất đài chiếm chỗ', '<i>Q</i>*<sub>đài</sub> =', so(r.QdaiCho), 'kN') +
+        dong('Trọng lượng đất cọc chiếm chỗ', '<i>Q</i>*<sub>cọc</sub> =', so(r.QcocCho), 'kN') +
+        dong('Trọng lượng đất trong khối quy ước', '<i>Q</i><sub>đất</sub> =', so(r.Qdat), 'kN') +
+        dong('Trọng lượng khối móng quy ước', '<i>Q</i><sub>qu</sub> =', so(r.Qqu), 'kN') +
+        '</div></section>';
+      var d = '<section class="card"><h2>D. Áp lực tiêu chuẩn tại đáy móng khối quy ước</h2>' +
+        '<p class="hint">Tải tiêu chuẩn = tải quy đổi / n (n = ' + so(tatCa.A.n, 1) + '); tay cần đặt theo góc α = ' + so(r.gocAlpha, 1) + '° so với trục X (góc lớn nhất của các cọc).</p>' +
+        '<div class="table-wrap"><table class="tbl"><thead><tr><th></th><th>N<sub>qu</sub> (kN)</th><th>M<sub>x,qu</sub> (kNm)</th><th>M<sub>y,qu</sub> (kNm)</th></tr></thead><tbody>' +
+        '<tr><td>Khi cẩu làm việc</td><td class="r">' + so(r.quLv.N) + '</td><td class="r">' + so(r.quLv.Mx) + '</td><td class="r">' + so(r.quLv.My) + '</td></tr>' +
+        '<tr><td>Khi cẩu không làm việc</td><td class="r">' + so(r.quKlv.N) + '</td><td class="r">' + so(r.quKlv.Mx) + '</td><td class="r">' + so(r.quKlv.My) + '</td></tr>' +
+        '</tbody></table></div><div class="params" style="margin-top:8px">' +
+        dong('Mômen chống uốn W<sub>x</sub> / W<sub>y</sub>', '', so(r.Wx, 2) + ' / ' + so(r.Wy, 2), 'm³') +
+        dong('p<sub>tc,tb</sub> = N<sub>qu</sub>/A<sub>qu</sub>', '', so(r.ptb), 'kPa') +
+        dong('p<sub>tc,max</sub> / p<sub>tc,min</sub> = N/A ± M<sub>x</sub>/W<sub>x</sub> ± M<sub>y</sub>/W<sub>y</sub>', '', so(r.pmax) + ' / ' + so(r.pmin), 'kPa') +
+        '</div></section>';
+      var e = '<section class="card"><h2>E. Sức chịu tải của đất nền tại mặt phẳng mũi cọc (4.6.9 TCVN 9362:2012)</h2>' +
+        '<div class="formula"><i>R</i> = m<sub>1</sub>m<sub>2</sub>/k<sub>tc</sub> × (A·b·γ<sub>II</sub> + B·h·γ\'<sub>II</sub> + D·c<sub>II</sub> − γ<sub>II</sub>·h<sub>0</sub>)</div>' +
+        '<div class="grid-2"><div class="params">' +
+        dong('b (cạnh bé khối quy ước)', '', so(r.b, 3), 'm') +
+        dong('φ<sub>II</sub> → A / B / D', '', so(r.phiII, 1) + '° → ' + so(r.A, 3) + ' / ' + so(r.B, 3) + ' / ' + so(r.Dr, 3), '') +
+        dong('c<sub>II</sub>', '', so(r.cII, 2), 'kN/m²') +
+        dong('γ<sub>II</sub> / γ\'<sub>II</sub>', '', so(r.gammaII, 2) + ' / ' + so(r.gammaII2, 3), 'kN/m³') +
+        '</div><div class="params">' +
+        dong('h / h<sub>1</sub> / h<sub>2</sub>', '', so(r.h, 2) + ' / ' + so(r.h1, 2) + ' / ' + so(r.h2, 2), 'm') +
+        dong('h<sub>tđ</sub> = h<sub>1</sub> + h<sub>2</sub>γ<sub>kc</sub>/γ\'<sub>II</sub>', '', so(r.htd, 2), 'm') +
+        dong('h<sub>0</sub> (chiều sâu đến nền tầng hầm)', '', so(r.h0, 2), 'm') +
+        dong('Áp lực cho phép', '<i>R</i> =', so(r.R), 'kPa') +
+        '</div></div><div class="table-wrap" style="margin-top:8px"><table class="tbl kiem-tra"><tbody>' +
+        kt('p<sub>tc,tb</sub> = ' + so(r.ptb) + ' kPa', '≤', 'R = ' + so(r.R) + ' kPa', r.ok1) +
+        kt('p<sub>tc,max</sub> = ' + so(r.pmax) + ' kPa', '≤', '1,2R = ' + so(1.2 * r.R) + ' kPa', r.ok2) +
+        kt('p<sub>tc,min</sub> = ' + so(r.pmin) + ' kPa', '≥', '0', r.ok3) +
+        '</tbody></table></div></section>';
+      var bangE = '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Lớp</th><th>N<sub>SPT</sub></th><th>E Excel (MPa)</th><th>E đúng mã hạt (MPa)</th></tr></thead><tbody>' +
+        r.Elop.map(function (x) {
+          var lech = Math.abs(x.E - x.Edung) > 1e-9;
+          return '<tr><td class="c">' + esc(x.ten) + '</td><td class="r">' + so(x.NSPT, 2) + '</td><td class="r' + (lech ? ' o-lech' : '') + '">' + so(x.E, 2) +
+            (lech ? ' <span class="canh-bao">⚠</span>' : '') + '</td><td class="r">' + so(x.Edung, 2) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      var bangDiem = '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Điểm</th><th>z (m)</th><th>Cao độ (m)</th><th>Lớp</th><th>E (MPa)</th>' +
+        '<th>α</th><th>p<sub>0zi</sub> (kPa)</th><th>p<sub>dzi</sub> (kPa)</th></tr></thead><tbody>' +
+        r.diem.map(function (x, i) {
+          return '<tr><td class="c">' + i + '</td><td class="r">' + so(x.z, 3) + '</td><td class="r">' + so(x.cao, 3) + '</td><td class="c">' + esc(x.lop) +
+            '</td><td class="r">' + so(x.E, 2) + '</td><td class="r">' + so(x.alpha, 4) + '</td><td class="r">' + so(x.p0z, 2) + '</td><td class="r">' + so(x.pdz, 2) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      var f = '<section class="card"><h2>F. Kiểm tra độ lún của móng (phụ lục C TCVN 9362:2012)</h2>' +
+        '<div class="formula"><i>S</i> = β·Σ(p<sub>i</sub>h<sub>i</sub>/E<sub>i</sub>) ≤ S<sub>max</sub>;   β = 0,8;   E<sub>i</sub> = [a + c(N<sub>SPT</sub> + 6)]/10 (Tassios, Anagnostopoulos)</div>' +
+        '<div class="params">' +
+        dong('Áp lực bản thân tại mặt phẳng mũi cọc', '<i>p</i><sub>dz(0)</sub> =', so(r.pdz0), 'kPa') +
+        dong('Áp lực phụ thêm tại mũi cọc', '<i>p</i><sub>0</sub> = p<sub>tc,tb</sub> − p<sub>dz(0)</sub> =', so(r.p0), 'kPa') +
+        dong('Chiều dày lớp phân tố', '<i>h</i><sub>i</sub> = 0,2Y<sub>qu</sub> =', so(r.hi, 3), 'm') +
+        '</div><div class="ke-ben" style="margin-top:10px"><div>' + bangE + '</div>' +
+        ghiChuLech('Lỗi hàm TinhE trong Excel', '<p>Excel truyền kích thước hạt dạng chữ ("Thô") thay vì mã ("T") vào TinhE, nên với <strong>đất cát</strong> hệ số c = 0. ' +
+          'App tính giống Excel (ô ⚠). Nếu dùng đúng mã: <strong>S = ' + so(r.ghiChu.SDung, 2) + ' cm</strong> (' + (r.ghiChu.okSDung ? 'đạt' : 'không đạt') + ').</p>') +
+        '</div><details class="more"><summary>Bảng ' + r.diem.length + ' điểm tính lún</summary><div style="margin-top:8px">' + bangDiem + '</div></details>' +
+        '<div class="table-wrap" style="margin-top:10px"><table class="tbl kiem-tra"><tbody>' +
+        kt('S = ' + so(r.S, 2) + ' cm', '≤', 'S<sub>max</sub> = ' + so(r.Smax, 1) + ' cm', r.okS) + '</tbody></table></div>' +
+        '<p class="hint">Điểm đầu tiên thỏa p<sub>0zi</sub> ≤ 0,1p<sub>dzi</sub>: z = ' + (r.diemDungLun === null ? 'chưa đạt trong số điểm đã tính' : so(r.diemDungLun, 2) + ' m') + '.</p></section>';
+      return b + c + d + e + f;
+    }
+  };
+
   // ---------------- Khung điều hướng ----------------
   // Trạng thái đạt/không đạt của từng mục để hiện ở thanh danh mục
   function trangThaiMuc(id) {
@@ -1171,6 +1266,7 @@
       case 'sct': return tatCa && tatCa.SCT && tatCa.SCT.hopLe ? true : null;
       case 'dia-chat': return tatCa && tatCa.DC && tatCa.DC.hopLe ? true : null;
       case 'tai-ngang': return tatCa && tatCa.TN && tatCa.TN.hopLe ? tatCa.TN.tatCaOk : null;
+      case 'lun': return tatCa && tatCa.LUN && tatCa.LUN.hopLe ? tatCa.LUN.tatCaOk : null;
       case 'tuong-tac': return tatCa && tatCa.TT && tatCa.TT.hopLe && tatCa.TT.diemNoiLuc.length ? tatCa.TT.tatCaOk : null;
       default: return undefined;
     }

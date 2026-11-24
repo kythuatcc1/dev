@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 ['cau-thap', 'vat-lieu', 'bang-tra', 'mau-dia-chat', 'he-so-tai-ngang'].forEach((f) => require(`../js/data/${f}.js`));
 require('../js/mac-dinh.js');
 ['dia-chat', 'sct-coc', 'phan-a-tai-trong', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong',
-  'phan-f-ket-luan', 'tai-ngang', 'tuong-tac', 'tinh-tat-ca'].forEach((f) => require(`../js/calc/${f}.js`));
+  'phan-f-ket-luan', 'tai-ngang', 'tuong-tac', 'lun', 'tinh-tat-ca'].forEach((f) => require(`../js/calc/${f}.js`));
 const MCT = globalThis.MCT;
 const REF = require('./excel-tham-chieu.json').tuongTac;
 

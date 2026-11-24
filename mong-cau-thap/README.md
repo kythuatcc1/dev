@@ -17,7 +17,7 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | GĐ3 | Xuất thuyết minh Word theo mẫu MD3-1: khung, chương I, Phần 2 mục A → F | ✔ |
 | GĐ4 | Địa chất + sức chịu tải cọc (vật liệu, SPT, thiết kế → Qa, Qa' tự động) | ✔ |
 | GĐ5 | Cọc chịu tải ngang (chuyển vị, M, Q, σz, chịu cắt, ổn định đất) | ✔ |
-| GĐ6 | Ổn định – lún | |
+| GĐ6 | Ổn định – lún (móng khối quy ước, R theo TCVN 9362, lún cộng lớp) | ✔ |
 | GĐ7 | Biểu đồ tương tác, biểu đồ SPT | ✔ |
 
 ## Cấu trúc

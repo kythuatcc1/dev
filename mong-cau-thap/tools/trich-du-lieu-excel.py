@@ -312,6 +312,8 @@ def doc_bang_tra(wbv):
             'CVUA': vung(bt, 'J5:L9'), 'CTO': vung(bt, 'F13:H17'), 'CNHO': vung(bt, 'J13:L17'), 'CBUI': vung(bt, 'J21:L25'),
         },
         'gammaK': [{'ten': r[0], 'gk': r[1]} for r in vung(bt, 'B158:C162')],
+        # Bảng C.1 TCVN 9362:2012 – hệ số α (dòng 1: Xqu/Yqu, cột 1: 2z/b), dùng với NSXY
+        'C1': vung(bt, 'B184:J213'),
         'kyHieuLoaiDat': [{'vi': r[0], 'en': r[1], 'ky': r[2]} for r in vung(bt, 'B166:D169')],
         'kyHieuTinhChat': [{'vi': r[0], 'en': r[1], 'ky': r[2]} for r in vung(bt, 'B172:D174')],
         'kyHieuKichThuoc': [{'vi': r[0], 'en': r[1], 'ky': r[2]} for r in vung(bt, 'B177:D181')],
@@ -433,6 +435,28 @@ def doc_tuong_tac(wbv):
     }
 
 
+def doc_lun(wbv):
+    """Sheet On dinh - Lun: móng khối quy ước, áp lực đáy, R theo TCVN 9362, lún."""
+    ws = wbv['On dinh - Lun']
+    o = lambda a: ws[a].value
+    dau_vao = {'viTri': o('H25'), 'm1': o('K112'), 'm2': o('K113'), 'ktc': o('K114'), 'gammaKc': o('K127'),
+               'Smax': o('K152'), 'soDiem': sum(1 for r in range(180, 231) if o('D%d' % r) not in (None, ''))}
+    ten = {'tongPhiL': 'K75', 'tongL': 'K76', 'phiTb': 'K78', 'loaiMui': 'J79', 'ILmui': 'K80', 'a': 'K82', 'Xqu': 'K83', 'Yqu': 'K84',
+           'Qdai': 'K86', 'Qcoc': 'K87', 'QdaiCho': 'K88', 'QcocCho': 'K89', 'Qdat': 'K90', 'Qqu': 'K91', 'gocAlpha': 'K93',
+           'NquLv': 'G97', 'MxLv': 'H97', 'MyLv': 'I97', 'NquKlv': 'G98', 'MxKlv': 'H98', 'MyKlv': 'I98', 'Wx': 'K99', 'Wy': 'K100',
+           'ptb': 'K102', 'pmax': 'K104', 'pmin': 'K106', 'b': 'K115', 'phiII': 'K116', 'A': 'K117', 'B': 'K118', 'D': 'K119',
+           'cII': 'K120', 'h': 'K121', 'h1': 'K122', 'h2': 'K123', 'htd': 'K125', 'h0': 'K126', 'gammaII': 'K128', 'gammaII2': 'K129',
+           'R': 'K130', 'kt1': 'L132', 'kt2': 'L133', 'kt3': 'L134', 'pdz0': 'K142', 'p0': 'K144', 'hi': 'K155', 'S': 'J177', 'ktS': 'L177',
+           'NtcLv': 'G22', 'MtcLv': 'H22', 'HtcLv': 'I22', 'mat': 'H32'}
+    return {
+        'dauVao': dau_vao,
+        'ketQua': {k: o(c) for k, c in ten.items()},
+        'E': [{'ten': o('F%d' % r), 'NSPT': o('J%d' % r), 'E': o('K%d' % r)} for r in range(161, 176) if o('F%d' % r) not in (None, '')],
+        'diem': [{'z': o('E%d' % r), 'cao': o('F%d' % r), 'lop': o('G%d' % r), 'E': o('H%d' % r), 'alpha': o('J%d' % r),
+                  'p0z': o('K%d' % r), 'pdz': o('L%d' % r)} for r in range(180, 231) if o('D%d' % r) not in (None, '')],
+    }
+
+
 def js_file(path, var, data, header):
     body = json.dumps(data, ensure_ascii=False, indent=1)
     with open(path, 'w', encoding='utf-8') as f:
@@ -478,6 +502,7 @@ def main():
         'diaChat': dia_chat_tc,
         'sct': doc_sct(wbv),
         'tuongTac': doc_tuong_tac(wbv),
+        'lun': doc_lun(wbv),
         'taiNgang': {'dauVao': tai_ngang['dauVao'], 'ketQua': tai_ngang['ketQua'], 'bang': tai_ngang['bang']},
     }
     with open(os.path.join(ROOT, 'tests', 'excel-tham-chieu.json'), 'w', encoding='utf-8') as f:
