@@ -298,6 +298,65 @@ def doc_tham_chieu_phan_e(wsv):
     }
 
 
+def vung(ws, ref):
+    """Đọc một vùng ô thành mảng 2 chiều (None giữ nguyên)."""
+    return [[c.value for c in row] for row in ws[ref]]
+
+
+def doc_bang_tra(wbv):
+    bt = wbv['Bang tra']
+    return {
+        # Bảng A.1 TCVN 10304:2025 – hệ số tỷ lệ k (dùng với hàm NSXY, cột x = 1)
+        'K': {
+            'SET': vung(bt, 'B5:D11'), 'CPHA': vung(bt, 'B15:D19'), 'CSAN': vung(bt, 'F5:H9'),
+            'CVUA': vung(bt, 'J5:L9'), 'CTO': vung(bt, 'F13:H17'), 'CNHO': vung(bt, 'J13:L17'), 'CBUI': vung(bt, 'J21:L25'),
+        },
+        'gammaK': [{'ten': r[0], 'gk': r[1]} for r in vung(bt, 'B158:C162')],
+        'kyHieuLoaiDat': [{'vi': r[0], 'en': r[1], 'ky': r[2]} for r in vung(bt, 'B166:D169')],
+        'kyHieuTinhChat': [{'vi': r[0], 'en': r[1], 'ky': r[2]} for r in vung(bt, 'B172:D174')],
+        'kyHieuKichThuoc': [{'vi': r[0], 'en': r[1], 'ky': r[2]} for r in vung(bt, 'B177:D181')],
+    }
+
+
+def doc_dia_chat(wbv):
+    """Số liệu địa chất mặc định (hố khoan đầu tiên trên sheet SL Dia chat) + giá trị tham chiếu."""
+    ws = wbv['SL Dia chat']
+    o = lambda a: ws[a].value
+    tinh_chat = {}
+    for r in range(6, 21):
+        ten = ws.cell(r, 3).value
+        if ten is None or ten == '':
+            continue
+        tinh_chat[str(ten)] = [ws.cell(r, c).value for c in range(4, 13)]
+    lop = []
+    r = 30
+    while ws.cell(r, 3).value not in (None, ''):
+        ten = str(ws.cell(r, 3).value)
+        tc = tinh_chat.get(ten, [None] * 9)
+        so = lambda v: v if isinstance(v, (int, float)) else 0
+        lop.append({'ten': ten, 'caoDoDinh': ws.cell(r, 4).value, 'loai': tc[0], 'tinhChat': tc[1] or '', 'kichThuoc': tc[2] or '',
+                    'gamma': so(tc[3]), 'phi': so(tc[4]), 'c': so(tc[5]), 'IL': so(tc[6]), 'e': so(tc[7]), 'Sr': so(tc[8])})
+        r += 1
+    cao_do_day = ws.cell(r, 4).value
+    buoc = o('B48')
+    spt = []
+    for rr in range(48, 98):
+        v = ws.cell(rr, 5).value
+        if v is None or v == '':
+            break
+        spt.append(v)
+    mac_dinh = {'hoKhoan': o('C29'), 'MNN': o('D29'), 'lop': lop, 'caoDoDay': cao_do_day, 'sptBuoc': buoc, 'spt': spt}
+    tham_chieu = {
+        'lop': [{'ten': o('U%d' % r), 'dinh': o('V%d' % r), 'day': o('W%d' % r), 'spt': o('X%d' % r), 'k': o('AH%d' % r),
+                 'kyLoai': o('AI%d' % r), 'kyTinhChat': o('AJ%d' % r), 'kyKichThuoc': o('AK%d' % r)}
+                for r in range(30, 45) if o('U%d' % r) not in (None, '')],
+        'sptTheoDoSau': [{'doSau': o('D%d' % r), 'spt': o('U%d' % r), 'lop': o('V%d' % r), 'loai': o('W%d' % r)}
+                         for r in range(48, 98) if o('U%d' % r) not in (None, '')],
+        'MNN': o('V28'),
+    }
+    return mac_dinh, tham_chieu
+
+
 def js_file(path, var, data, header):
     body = json.dumps(data, ensure_ascii=False, indent=1)
     with open(path, 'w', encoding='utf-8') as f:
@@ -315,6 +374,8 @@ def main():
     lookup = doc_bang_phu(wsf, wsv)
     cranes, tc_cau = doc_khoi_cau(wsf, wsv, lookup)
     vat_lieu = doc_vat_lieu(wsv)
+    bang_tra = doc_bang_tra(wbv)
+    dia_chat_md, dia_chat_tc = doc_dia_chat(wbv)
 
     os.makedirs(os.path.join(ROOT, 'js', 'data'), exist_ok=True)
     os.makedirs(os.path.join(ROOT, 'tests'), exist_ok=True)
@@ -322,6 +383,10 @@ def main():
             'Catalogue cẩu tháp (sheet Solieu)')
     js_file(os.path.join(ROOT, 'js', 'data', 'vat-lieu.js'), 'vatLieu', vat_lieu,
             'Bê tông, cốt thép, bulong (sheet Solieu)')
+    js_file(os.path.join(ROOT, 'js', 'data', 'bang-tra.js'), 'bangTra', bang_tra,
+            'Bảng tra hệ số (sheet Bang tra)')
+    js_file(os.path.join(ROOT, 'js', 'data', 'mau-dia-chat.js'), 'mauDiaChat', dia_chat_md,
+            'Số liệu địa chất mặc định (sheet SL Dia chat, hố khoan đầu tiên)')
 
     tham_chieu = {
         'nguon': os.path.basename(src),
@@ -330,6 +395,7 @@ def main():
         'sheetCauThap_phanB': doc_tham_chieu_phan_b(wbv['Cau thap']),
         'sheetCauThap_phanD': doc_tham_chieu_phan_d(wbv['Cau thap']),
         'sheetCauThap_phanE': doc_tham_chieu_phan_e(wbv['Cau thap']),
+        'diaChat': dia_chat_tc,
     }
     with open(os.path.join(ROOT, 'tests', 'excel-tham-chieu.json'), 'w', encoding='utf-8') as f:
         json.dump(tham_chieu, f, ensure_ascii=False, indent=1)

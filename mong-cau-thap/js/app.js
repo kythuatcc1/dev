@@ -20,7 +20,7 @@
     { id: 'bulong', ma: 'E', ten: 'Bulong neo' },
     { id: 'ket-luan', ma: 'F', ten: 'Kết luận' },
     { nhom: 'Cọc & địa chất' },
-    { id: 'dia-chat', ma: '', ten: 'Số liệu địa chất', sapCo: 'GĐ4' },
+    { id: 'dia-chat', ma: '', ten: 'Số liệu địa chất' },
     { id: 'sct', ma: '', ten: 'Sức chịu tải cọc', sapCo: 'GĐ4' },
     { id: 'tai-ngang', ma: '', ten: 'Cọc chịu tải ngang', sapCo: 'GĐ5' },
     { id: 'lun', ma: '', ten: 'Ổn định – lún', sapCo: 'GĐ6' },
@@ -82,6 +82,8 @@
     if (v === null || v === undefined || v === '') return '–';
     if (typeof v !== 'number') return esc(v);
     if (!isFinite(v)) return '–';
+    var dd = d === undefined ? 2 : d;
+    if (Math.abs(v) < 0.5 * Math.pow(10, -dd)) v = 0;   // tránh "-0,0"
     // Dấu phẩy thập phân, không phân cách hàng nghìn (tránh nhầm 34.500 với 34,5)
     return v.toLocaleString('vi-VN', {
       minimumFractionDigits: d === undefined ? 2 : d,
@@ -797,6 +799,123 @@
     }
   };
 
+  // ---------------- Số liệu địa chất ----------------
+  var LOAI_DAT = ['Cát', 'Cát pha', 'Sét', 'Sét pha'];
+  var TINH_CHAT = ['', 'Rời', 'Chặt vừa', 'Chặt'];
+  var KICH_THUOC = ['', 'Bụi', 'Nhỏ', 'Vừa', 'Thô', 'Sạn'];
+
+  function oChuBang(path, nhan, rong) {
+    return '<input class="in" type="text" style="width:' + (rong || 70) + 'px" aria-label="' + esc(nhan) + '" id="in-' + path +
+      '" data-bind="' + path + '" value="' + esc(layGiaTri(path)) + '">';
+  }
+  function oChonBang(path, ds, nhan, veLai, tat) {
+    var v = String(layGiaTri(path) == null ? '' : layGiaTri(path));
+    return '<select class="in" aria-label="' + esc(nhan) + '" id="in-' + path + '" data-bind="' + path + '"' +
+      (veLai ? ' data-ve-lai="1"' : '') + (tat ? ' disabled' : '') + '>' +
+      ds.map(function (o) { return '<option value="' + esc(o) + '"' + (o === v ? ' selected' : '') + '>' + esc(o || '–') + '</option>'; }).join('') +
+      '</select>';
+  }
+
+  // Biểu đồ SPT theo độ sâu (SVG) – ranh giới lớp và mực nước ngầm
+  function bieuDoSPT(dc) {
+    var ds = dc.sptTheoDoSau;
+    if (!ds.length) return '';
+    var W = 360, H = 520, l = 46, r = 14, t = 38, b = 16;
+    var sMax = Math.max(10, Math.ceil(Math.max.apply(null, ds.map(function (x) { return x.spt; })) / 10) * 10);
+    var zMin = Math.min(dc.caoDoDay, ds[ds.length - 1].doSau);
+    var X = function (v) { return l + v / sMax * (W - l - r); };
+    var Y = function (z) { return t + (0 - z) / (0 - zMin) * (H - t - b); };
+    var svg = '<svg class="bieu-do-spt" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Biểu đồ SPT theo độ sâu">';
+    for (var v = 0; v <= sMax; v += 10) {
+      svg += '<line x1="' + X(v) + '" y1="' + t + '" x2="' + X(v) + '" y2="' + (H - b) + '" class="bd-luoi"/>' +
+        '<text x="' + X(v) + '" y="' + (t - 6) + '" class="bd-chu" text-anchor="middle">' + v + '</text>';
+    }
+    dc.lop.forEach(function (lp) {
+      svg += '<line x1="' + l + '" y1="' + Y(lp.dinh) + '" x2="' + (W - r) + '" y2="' + Y(lp.dinh) + '" class="bd-lop"/>' +
+        '<text x="' + (W - r - 4) + '" y="' + (Y(lp.dinh) + 13) + '" class="bd-chu" text-anchor="end">Lớp ' + esc(lp.ten) + '</text>' +
+        '<text x="' + (l - 6) + '" y="' + (Y(lp.dinh) + 4) + '" class="bd-chu" text-anchor="end">' + so(lp.dinh, 1) + '</text>';
+    });
+    svg += '<line x1="' + l + '" y1="' + Y(dc.caoDoDay) + '" x2="' + (W - r) + '" y2="' + Y(dc.caoDoDay) + '" class="bd-lop"/>' +
+      '<text x="' + (l - 6) + '" y="' + (Y(dc.caoDoDay) + 4) + '" class="bd-chu" text-anchor="end">' + so(dc.caoDoDay, 1) + '</text>';
+    if (isFinite(dc.MNN)) {
+      svg += '<line x1="' + l + '" y1="' + Y(dc.MNN) + '" x2="' + (W - r) + '" y2="' + Y(dc.MNN) + '" class="bd-mnn"/>' +
+        '<text x="' + (l + 4) + '" y="' + (Y(dc.MNN) - 4) + '" class="bd-chu bd-chu-mnn">MNN ' + so(dc.MNN, 1) + '</text>';
+    }
+    svg += '<polyline class="bd-duong" points="' + ds.map(function (x) { return X(x.spt) + ',' + Y(x.doSau); }).join(' ') + '"/>';
+    ds.forEach(function (x) { svg += '<circle cx="' + X(x.spt) + '" cy="' + Y(x.doSau) + '" r="2.6" class="bd-diem"/>'; });
+    svg += '<text x="' + ((l + W - r) / 2) + '" y="13" class="bd-chu" text-anchor="middle">Chỉ số SPT (N)</text></svg>';
+    return '<figure class="so-do-wrap">' + svg + '<figcaption>Biểu đồ SPT – hố khoan ' + esc(dc.hoKhoan) +
+      '. Trục đứng: cao độ (m); nét đứt xanh: mực nước ngầm.</figcaption></figure>';
+  }
+
+  TRANG['dia-chat'] = {
+    tieuDe: 'Số liệu địa chất',
+    moTa: 'Lớp đất theo hố khoan và chỉ số SPT theo độ sâu (sheet SL Dia chat). Cao độ là số âm, tính từ mặt đất.',
+    nhap: function () {
+      var dc = state.diaChat;
+      var lopRows = dc.lop.map(function (l, i) {
+        var pth = 'diaChat.lop.' + i + '.';
+        var laCat = l.loai === 'Cát';
+        return '<tr><td class="c">' + (i + 1) + '</td>' +
+          '<td>' + oChuBang(pth + 'ten', 'Tên lớp ' + (i + 1), 54) + '</td>' +
+          '<td>' + oSoBang(pth + 'caoDoDinh', 'Cao độ đỉnh lớp ' + (i + 1)) + '</td>' +
+          '<td>' + oChonBang(pth + 'loai', LOAI_DAT, 'Loại đất lớp ' + (i + 1), true) + '</td>' +
+          '<td>' + oChonBang(pth + 'tinhChat', TINH_CHAT, 'Tính chất hạt lớp ' + (i + 1), false, !laCat) + '</td>' +
+          '<td>' + oChonBang(pth + 'kichThuoc', KICH_THUOC, 'Kích thước hạt lớp ' + (i + 1), false, !laCat) + '</td>' +
+          ['gamma', 'phi', 'c', 'IL', 'e'].map(function (k) { return '<td>' + oSoBang(pth + k, k + ' lớp ' + (i + 1)) + '</td>'; }).join('') +
+          '<td class="c"><button type="button" class="btn-x" data-action="xoa-dong" data-ds="diaChat.lop" data-i="' + i +
+          '" aria-label="Xóa lớp ' + (i + 1) + '"' + (dc.lop.length <= 1 ? ' disabled' : '') + '>✕</button></td></tr>';
+      }).join('');
+      var sptRows = dc.spt.map(function (v, i) {
+        return '<tr><td class="c">' + (i + 1) + '</td><td class="r muted">' + so(-i * (Number(dc.sptBuoc) || 2), 1) + '</td>' +
+          '<td>' + oSoBang('diaChat.spt.' + i, 'SPT dòng ' + (i + 1)) + '</td>' +
+          '<td class="c"><button type="button" class="btn-x" data-action="xoa-dong" data-ds="diaChat.spt" data-i="' + i +
+          '" aria-label="Xóa dòng SPT ' + (i + 1) + '"' + (dc.spt.length <= 1 ? ' disabled' : '') + '>✕</button></td></tr>';
+      }).join('');
+      return '<section class="card"><h2>Hố khoan</h2><div class="params">' +
+        '<div class="lbl"><label for="in-diaChat.hoKhoan">Địa chất được chọn (tên hố khoan)</label></div><div class="val">' +
+        oChuBang('diaChat.hoKhoan', 'Tên hố khoan', 110) + '</div>' +
+        oNhapSo('diaChat.MNN', 'Cao độ mực nước ngầm', 'GWL =', 'm') +
+        oNhapSo('diaChat.caoDoDay', 'Cao độ đáy lớp cuối cùng', '', 'm') +
+        '</div></section>' +
+        '<section class="card"><h2>Các lớp đất</h2><div class="table-wrap"><table class="tbl tbl-nhap tbl-dia-chat"><thead><tr>' +
+        '<th>STT</th><th>Tên lớp</th><th>Cao độ đỉnh (m)</th><th>Loại đất</th><th>Tính chất hạt</th><th>Kích thước hạt</th>' +
+        '<th>γ (kN/m³)</th><th>φ (độ)</th><th>c (kN/m²)</th><th>I<sub>L</sub></th><th>e</th><th></th></tr></thead><tbody>' + lopRows +
+        '</tbody></table></div><p><button type="button" class="btn btn-ghost" data-action="them-dong" data-ds="diaChat.lop">+ Thêm lớp</button></p>' +
+        '<p class="hint">Tính chất hạt và kích thước hạt chỉ dùng cho đất cát. Để trống I<sub>L</sub>, e thì nhập 0 (giống ô trống trong Excel).</p></section>' +
+        '<section class="card"><h2>Chỉ số SPT theo độ sâu</h2><div class="params">' +
+        oNhapSo('diaChat.sptBuoc', 'Khoảng cách giữa các lần đo SPT (biên độ)', '', 'm') +
+        '</div><div class="spt-nhap"><div class="table-wrap"><table class="tbl tbl-nhap"><thead><tr><th>STT</th><th>Độ sâu (m)</th><th>SPT</th><th></th></tr></thead>' +
+        '<tbody>' + sptRows + '</tbody></table></div>' +
+        '<div><p><button type="button" class="btn btn-ghost" data-action="them-dong" data-ds="diaChat.spt">+ Thêm dòng SPT</button></p>' +
+        '<div class="field"><label for="dan-spt">Dán nhanh cả dãy SPT (cách nhau bởi dấu cách, xuống dòng hoặc dấu chấm phẩy)</label>' +
+        '<textarea class="in wide" id="dan-spt" rows="4" placeholder="0 7 1 1 1 2 2 3 16 18 …"></textarea></div>' +
+        '<p><button type="button" class="btn" data-action="dan-spt">Thay bằng dãy vừa dán</button></p></div></div></section>';
+    },
+    ketQua: function () {
+      var r = tatCa && tatCa.DC;
+      if (!r || !r.hopLe) return loiHtml(r);
+      var bangLop = '<div class="table-wrap"><table class="tbl"><thead><tr><th>STT</th><th>Tên lớp</th><th>Loại đất</th>' +
+        '<th>Cao độ đỉnh</th><th>Độ dày</th><th>SPT TB</th><th>γ</th><th>φ</th><th>c</th><th>I<sub>L</sub></th><th>e</th><th>k</th></tr>' +
+        '<tr class="units"><th></th><th></th><th></th><th>m</th><th>m</th><th></th><th>kN/m³</th><th>độ</th><th>kN/m²</th><th></th><th></th><th>kN/m⁴</th></tr></thead><tbody>' +
+        r.lop.map(function (l) {
+          var loai = l.loai + (l.tinhChat ? ' – ' + l.tinhChat : '') + (l.kichThuoc ? ' – ' + l.kichThuoc : '');
+          return '<tr><td class="c">' + l.stt + '</td><td class="c">' + esc(l.ten) + '</td><td>' + esc(loai) + '</td>' +
+            '<td class="r">' + so(l.dinh, 2) + '</td><td class="r">' + so(l.day, 2) + '</td><td class="r">' + so(l.spt, 2) + '</td>' +
+            '<td class="r">' + so(l.gamma, 2) + '</td><td class="r">' + so(l.phi, 2) + '</td><td class="r">' + so(l.c, 2) + '</td>' +
+            '<td class="r">' + so(l.IL, 2) + '</td><td class="r">' + so(l.e, 2) + '</td><td class="r">' + so(l.k, 0) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      var bangSpt = '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Độ sâu (m)</th><th>SPT</th><th>Lớp</th></tr></thead><tbody>' +
+        r.sptTheoDoSau.map(function (x) {
+          return '<tr><td class="r">' + so(x.doSau, 1) + '</td><td class="r">' + so(x.spt, 0) + '</td><td class="c">' + esc(x.lop || '–') + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      return '<section class="card"><h2>Bảng thống kê địa chất – hố khoan ' + esc(r.hoKhoan) + '</h2>' + bangLop +
+        '<p class="hint">SPT TB: trung bình các giá trị SPT có độ sâu thuộc lớp (giống AVERAGEIF trong Excel). ' +
+        'k: hệ số tỷ lệ theo bảng A.1 TCVN 10304:2025 (nội suy theo I<sub>L</sub> với đất dính, theo e với đất cát).</p></section>' +
+        '<section class="card"><h2>Biểu đồ SPT</h2><div class="coc-layout">' + bieuDoSPT(r) + '<div>' + bangSpt + '</div></div></section>';
+    }
+  };
+
   // ---------------- Khung điều hướng ----------------
   // Trạng thái đạt/không đạt của từng mục để hiện ở thanh danh mục
   function trangThaiMuc(id) {
@@ -879,6 +998,9 @@
       }
       tinh();
       $('#vung-nhap').innerHTML = TRANG.cau.nhap();
+    } else if (el.getAttribute('data-ve-lai')) {
+      tinh();
+      $('#vung-nhap').innerHTML = TRANG[trangHienTai].nhap();
     } else {
       tinh();
     }
@@ -904,6 +1026,36 @@
       if (nut && !nut.disabled) chuyenTrang(nut.getAttribute('data-trang'));
       if (e.target.closest('[data-action="toggle-nav"]')) document.body.classList.toggle('nav-open');
       if (e.target.closest('[data-action="xuat-tm"]')) xuatThuyetMinh();
+      var themDong = e.target.closest('[data-action="them-dong"]');
+      var xoaDong = e.target.closest('[data-action="xoa-dong"]');
+      if ((themDong && !themDong.disabled) || (xoaDong && !xoaDong.disabled)) {
+        var nutDong = themDong || xoaDong;
+        var mang = layGiaTri(nutDong.getAttribute('data-ds'));
+        if (themDong) {
+          var cuoi = mang[mang.length - 1];
+          mang.push(typeof cuoi === 'object' ? Object.assign(JSON.parse(JSON.stringify(cuoi)), cuoi.ten !== undefined ? { ten: '' } : {}) : 0);
+        } else {
+          mang.splice(Number(xoaDong.getAttribute('data-i')), 1);
+        }
+        tinh();
+        $('#vung-nhap').innerHTML = TRANG[trangHienTai].nhap();
+        veKetQua();
+        luu();
+      }
+      if (e.target.closest('[data-action="dan-spt"]')) {
+        var day = (($('#dan-spt') || {}).value || '').split(/[\s;]+/).map(function (t) { return t.replace(',', '.'); })
+          .filter(function (t) { return t !== '' && isFinite(Number(t)); }).map(Number);
+        if (day.length) {
+          state.diaChat.spt = day;
+          tinh();
+          $('#vung-nhap').innerHTML = TRANG[trangHienTai].nhap();
+          veKetQua();
+          luu();
+          datTrangThai('Đã thay ' + day.length + ' giá trị SPT');
+        } else {
+          datTrangThai('Không đọc được số nào trong ô dán SPT');
+        }
+      }
       var them = e.target.closest('[data-action="them-coc"]');
       var xoa = e.target.closest('[data-action="xoa-coc"]');
       if ((them && !them.disabled) || (xoa && !xoa.disabled)) {

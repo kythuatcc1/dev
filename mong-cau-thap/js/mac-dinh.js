@@ -16,6 +16,8 @@
       tuVanGiamSat: 'CÔNG TY CỔ PHẦN TƯ VẤN QUẢN LÝ CHẤT LƯỢNG ĐẦU TIÊN',
       donViThamTra: 'CÔNG TY TNHH TƯ VẤN THIẾT KẾ VÀ ĐẦU TƯ XÂY DỰNG NAM PHÁT'
     },
+    // Địa chất: hố khoan đầu tiên của sheet SL Dia chat (js/data/mau-dia-chat.js – nạp trước file này)
+    diaChat: MCT.data && MCT.data.mauDiaChat ? JSON.parse(JSON.stringify(MCT.data.mauDiaChat)) : null,
     cau: { ten: 'LLT5020-10', chieuCao: 37.5 },
     dai: { beTong: 'B35', cotThep: 'CB500-V', a_cm: 15, X: 4, Y: 3.678, H: 1.6 },
     coc: {

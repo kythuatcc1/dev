@@ -1352,5 +1352,268 @@
    "kiemTraChocThung": "OK",
    "ketLuan": "Móng cẩu tháp đủ khả năng chịu lực"
   }
+ },
+ "diaChat": {
+  "lop": [
+   {
+    "ten": "A",
+    "dinh": 0,
+    "day": 2.3,
+    "spt": 3.5,
+    "k": 10000,
+    "kyLoai": "C",
+    "kyTinhChat": "CV",
+    "kyKichThuoc": "T"
+   },
+   {
+    "ten": 1,
+    "dinh": -2.3,
+    "day": 11.2,
+    "spt": 1.4,
+    "k": 1112.0000000000002,
+    "kyLoai": "S",
+    "kyTinhChat": null,
+    "kyKichThuoc": null
+   },
+   {
+    "ten": 2,
+    "dinh": -13.5,
+    "day": 4.5,
+    "spt": 9.5,
+    "k": 5360,
+    "kyLoai": "S",
+    "kyTinhChat": null,
+    "kyKichThuoc": null
+   },
+   {
+    "ten": 3,
+    "dinh": -18,
+    "day": 3.6999999999999993,
+    "spt": 19,
+    "k": 4800,
+    "kyLoai": "S",
+    "kyTinhChat": null,
+    "kyKichThuoc": null
+   },
+   {
+    "ten": 4,
+    "dinh": -21.7,
+    "day": 7.900000000000002,
+    "spt": 13.5,
+    "k": 4760,
+    "kyLoai": "S",
+    "kyTinhChat": null,
+    "kyKichThuoc": null
+   },
+   {
+    "ten": 5,
+    "dinh": -29.6,
+    "day": 22.699999999999996,
+    "spt": 37.833333333333336,
+    "k": 10000,
+    "kyLoai": "C",
+    "kyTinhChat": "CV",
+    "kyKichThuoc": "T"
+   },
+   {
+    "ten": 6,
+    "dinh": -52.3,
+    "day": 7.700000000000003,
+    "spt": 37.5,
+    "k": 5960,
+    "kyLoai": "S",
+    "kyTinhChat": null,
+    "kyKichThuoc": null
+   }
+  ],
+  "sptTheoDoSau": [
+   {
+    "doSau": 0,
+    "spt": 0,
+    "lop": "A",
+    "loai": "Cát"
+   },
+   {
+    "doSau": -2,
+    "spt": 7,
+    "lop": "A",
+    "loai": "Cát"
+   },
+   {
+    "doSau": -4,
+    "spt": 1,
+    "lop": 1,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -6,
+    "spt": 1,
+    "lop": 1,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -8,
+    "spt": 1,
+    "lop": 1,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -10,
+    "spt": 2,
+    "lop": 1,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -12,
+    "spt": 2,
+    "lop": 1,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -14,
+    "spt": 3,
+    "lop": 2,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -16,
+    "spt": 16,
+    "lop": 2,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -18,
+    "spt": 18,
+    "lop": 3,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -20,
+    "spt": 20,
+    "lop": 3,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -22,
+    "spt": 15,
+    "lop": 4,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -24,
+    "spt": 13,
+    "lop": 4,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -26,
+    "spt": 14,
+    "lop": 4,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -28,
+    "spt": 12,
+    "lop": 4,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -30,
+    "spt": 15,
+    "lop": 5,
+    "loai": "Cát"
+   },
+   {
+    "doSau": -32,
+    "spt": 24,
+    "lop": 5,
+    "loai": "Cát"
+   },
+   {
+    "doSau": -34,
+    "spt": 52,
+    "lop": 5,
+    "loai": "Cát"
+   },
+   {
+    "doSau": -36,
+    "spt": 54,
+    "lop": 5,
+    "loai": "Cát"
+   },
+   {
+    "doSau": -38,
+    "spt": 56,
+    "lop": 5,
+    "loai": "Cát"
+   },
+   {
+    "doSau": -40,
+    "spt": 59,
+    "lop": 5,
+    "loai": "Cát"
+   },
+   {
+    "doSau": -42,
+    "spt": 38,
+    "lop": 5,
+    "loai": "Cát"
+   },
+   {
+    "doSau": -44,
+    "spt": 38,
+    "lop": 5,
+    "loai": "Cát"
+   },
+   {
+    "doSau": -46,
+    "spt": 41,
+    "lop": 5,
+    "loai": "Cát"
+   },
+   {
+    "doSau": -48,
+    "spt": 25,
+    "lop": 5,
+    "loai": "Cát"
+   },
+   {
+    "doSau": -50,
+    "spt": 25,
+    "lop": 5,
+    "loai": "Cát"
+   },
+   {
+    "doSau": -52,
+    "spt": 27,
+    "lop": 5,
+    "loai": "Cát"
+   },
+   {
+    "doSau": -54,
+    "spt": 30,
+    "lop": 6,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -56,
+    "spt": 30,
+    "lop": 6,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -58,
+    "spt": 44,
+    "lop": 6,
+    "loai": "Sét"
+   },
+   {
+    "doSau": -60,
+    "spt": 46,
+    "lop": 6,
+    "loai": "Sét"
+   }
+  ],
+  "MNN": -1
  }
 }

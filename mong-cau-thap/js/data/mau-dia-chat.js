@@ -1,0 +1,137 @@
+// Số liệu địa chất mặc định (sheet SL Dia chat, hố khoan đầu tiên)
+// Tự sinh bởi tools/trich-du-lieu-excel.py — không sửa tay.
+(function (MCT) {
+  MCT.data = MCT.data || {};
+  MCT.data.mauDiaChat = {
+ "hoKhoan": "HK7",
+ "MNN": -1,
+ "lop": [
+  {
+   "ten": "A",
+   "caoDoDinh": 0,
+   "loai": "Cát",
+   "tinhChat": "Chặt vừa",
+   "kichThuoc": "Thô",
+   "gamma": 20,
+   "phi": 20,
+   "c": 1,
+   "IL": 0,
+   "e": 0,
+   "Sr": 0
+  },
+  {
+   "ten": "1",
+   "caoDoDinh": -2.3,
+   "loai": "Sét",
+   "tinhChat": "",
+   "kichThuoc": "",
+   "gamma": 14.5,
+   "phi": 15.4,
+   "c": 8,
+   "IL": 1.14,
+   "e": 0,
+   "Sr": 0
+  },
+  {
+   "ten": "2",
+   "caoDoDinh": -13.5,
+   "loai": "Sét",
+   "tinhChat": "",
+   "kichThuoc": "",
+   "gamma": 19.3,
+   "phi": 32.5,
+   "c": 42.4,
+   "IL": 0.16,
+   "e": 0,
+   "Sr": 0
+  },
+  {
+   "ten": "3",
+   "caoDoDinh": -18,
+   "loai": "Sét",
+   "tinhChat": "",
+   "kichThuoc": "",
+   "gamma": 20,
+   "phi": 27.38,
+   "c": 22.1,
+   "IL": 0.3,
+   "e": 0,
+   "Sr": 0
+  },
+  {
+   "ten": "4",
+   "caoDoDinh": -21.7,
+   "loai": "Sét",
+   "tinhChat": "",
+   "kichThuoc": "",
+   "gamma": 18.8,
+   "phi": 22.84,
+   "c": 32.3,
+   "IL": 0.31,
+   "e": 0,
+   "Sr": 0
+  },
+  {
+   "ten": "5",
+   "caoDoDinh": -29.6,
+   "loai": "Cát",
+   "tinhChat": "Chặt vừa",
+   "kichThuoc": "Thô",
+   "gamma": 21,
+   "phi": 30,
+   "c": 2,
+   "IL": 0,
+   "e": 0.47,
+   "Sr": 0
+  },
+  {
+   "ten": "6",
+   "caoDoDinh": -52.3,
+   "loai": "Sét",
+   "tinhChat": "",
+   "kichThuoc": "",
+   "gamma": 20.6,
+   "phi": 38.42,
+   "c": 35.4,
+   "IL": 0.01,
+   "e": 0,
+   "Sr": 0
+  }
+ ],
+ "caoDoDay": -60,
+ "sptBuoc": 2,
+ "spt": [
+  0,
+  7,
+  1,
+  1,
+  1,
+  2,
+  2,
+  3,
+  16,
+  18,
+  20,
+  15,
+  13,
+  14,
+  12,
+  15,
+  24,
+  52,
+  54,
+  56,
+  59,
+  38,
+  38,
+  41,
+  25,
+  25,
+  27,
+  30,
+  30,
+  44,
+  46
+ ]
+};
+})(globalThis.MCT = globalThis.MCT || {});
