@@ -24,7 +24,7 @@
     { id: 'sct', ma: '', ten: 'Sức chịu tải cọc' },
     { id: 'tai-ngang', ma: '', ten: 'Cọc chịu tải ngang' },
     { id: 'lun', ma: '', ten: 'Ổn định – lún', sapCo: 'GĐ6' },
-    { id: 'tuong-tac', ma: '', ten: 'Biểu đồ tương tác', sapCo: 'GĐ7' }
+    { id: 'tuong-tac', ma: '', ten: 'Biểu đồ tương tác' }
   ];
 
   // ---------------- Trạng thái ----------------
@@ -825,38 +825,6 @@
       '</select>';
   }
 
-  // Biểu đồ SPT theo độ sâu (SVG) – ranh giới lớp và mực nước ngầm
-  function bieuDoSPT(dc) {
-    var ds = dc.sptTheoDoSau;
-    if (!ds.length) return '';
-    var W = 360, H = 520, l = 46, r = 14, t = 38, b = 16;
-    var sMax = Math.max(10, Math.ceil(Math.max.apply(null, ds.map(function (x) { return x.spt; })) / 10) * 10);
-    var zMin = Math.min(dc.caoDoDay, ds[ds.length - 1].doSau);
-    var X = function (v) { return l + v / sMax * (W - l - r); };
-    var Y = function (z) { return t + (0 - z) / (0 - zMin) * (H - t - b); };
-    var svg = '<svg class="bieu-do-spt" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Biểu đồ SPT theo độ sâu">';
-    for (var v = 0; v <= sMax; v += 10) {
-      svg += '<line x1="' + X(v) + '" y1="' + t + '" x2="' + X(v) + '" y2="' + (H - b) + '" class="bd-luoi"/>' +
-        '<text x="' + X(v) + '" y="' + (t - 6) + '" class="bd-chu" text-anchor="middle">' + v + '</text>';
-    }
-    dc.lop.forEach(function (lp) {
-      svg += '<line x1="' + l + '" y1="' + Y(lp.dinh) + '" x2="' + (W - r) + '" y2="' + Y(lp.dinh) + '" class="bd-lop"/>' +
-        '<text x="' + (W - r - 4) + '" y="' + (Y(lp.dinh) + 13) + '" class="bd-chu" text-anchor="end">Lớp ' + esc(lp.ten) + '</text>' +
-        '<text x="' + (l - 6) + '" y="' + (Y(lp.dinh) + 4) + '" class="bd-chu" text-anchor="end">' + so(lp.dinh, 1) + '</text>';
-    });
-    svg += '<line x1="' + l + '" y1="' + Y(dc.caoDoDay) + '" x2="' + (W - r) + '" y2="' + Y(dc.caoDoDay) + '" class="bd-lop"/>' +
-      '<text x="' + (l - 6) + '" y="' + (Y(dc.caoDoDay) + 4) + '" class="bd-chu" text-anchor="end">' + so(dc.caoDoDay, 1) + '</text>';
-    if (isFinite(dc.MNN)) {
-      svg += '<line x1="' + l + '" y1="' + Y(dc.MNN) + '" x2="' + (W - r) + '" y2="' + Y(dc.MNN) + '" class="bd-mnn"/>' +
-        '<text x="' + (l + 4) + '" y="' + (Y(dc.MNN) - 4) + '" class="bd-chu bd-chu-mnn">MNN ' + so(dc.MNN, 1) + '</text>';
-    }
-    svg += '<polyline class="bd-duong" points="' + ds.map(function (x) { return X(x.spt) + ',' + Y(x.doSau); }).join(' ') + '"/>';
-    ds.forEach(function (x) { svg += '<circle cx="' + X(x.spt) + '" cy="' + Y(x.doSau) + '" r="2.6" class="bd-diem"/>'; });
-    svg += '<text x="' + ((l + W - r) / 2) + '" y="13" class="bd-chu" text-anchor="middle">Chỉ số SPT (N)</text></svg>';
-    return '<figure class="so-do-wrap">' + svg + '<figcaption>Biểu đồ SPT – hố khoan ' + esc(dc.hoKhoan) +
-      '. Trục đứng: cao độ (m); nét đứt xanh: mực nước ngầm.</figcaption></figure>';
-  }
-
   TRANG['dia-chat'] = {
     tieuDe: 'Số liệu địa chất',
     moTa: 'Lớp đất theo hố khoan và chỉ số SPT theo độ sâu (sheet SL Dia chat). Cao độ là số âm, tính từ mặt đất.',
@@ -921,7 +889,8 @@
       return '<section class="card"><h2>Bảng thống kê địa chất – hố khoan ' + esc(r.hoKhoan) + '</h2>' + bangLop +
         '<p class="hint">SPT TB: trung bình các giá trị SPT có độ sâu thuộc lớp (giống AVERAGEIF trong Excel). ' +
         'k: hệ số tỷ lệ theo bảng A.1 TCVN 10304:2025 (nội suy theo I<sub>L</sub> với đất dính, theo e với đất cát).</p></section>' +
-        '<section class="card"><h2>Biểu đồ SPT</h2><div class="coc-layout">' + bieuDoSPT(r) + '<div>' + bangSpt + '</div></div></section>';
+        '<section class="card"><h2>Biểu đồ SPT</h2><div class="coc-layout"><figure class="so-do-wrap bieu-do-svg">' + MCT.bieuDo.spt(r) +
+        '<figcaption>Trục đứng: cao độ (m); nét đứt xanh: mực nước ngầm.</figcaption></figure><div>' + bangSpt + '</div></div></section>';
     }
   };
 
@@ -1053,28 +1022,6 @@
   };
 
   // ---------------- Cọc chịu tải ngang ----------------
-  // Biểu đồ nội lực dọc thân cọc: trục đứng z (m), trục ngang giá trị (0 ở giữa)
-  function bieuDoNoiLuc(bang, k, ten, donVi, mau) {
-    var W = 220, H = 300, l = 34, r = 10, t = 24, b = 12;
-    var zMin = Math.min.apply(null, bang.map(function (x) { return x.z; }));
-    var vMax = Math.max.apply(null, bang.map(function (x) { return Math.abs(x[k]); })) || 1;
-    var X = function (v) { return (l + W - r) / 2 + v / vMax * (W - l - r) / 2; };
-    var Y = function (z) { return t + z / zMin * (H - t - b); };
-    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" class="bieu-do-nl" role="img" aria-label="Biểu đồ ' + esc(ten) + '">' +
-      '<line x1="' + X(0) + '" y1="' + t + '" x2="' + X(0) + '" y2="' + (H - b) + '" class="bd-lop"/>';
-    for (var z = 0; z >= zMin; z -= 2) {
-      svg += '<line x1="' + l + '" y1="' + Y(z) + '" x2="' + (W - r) + '" y2="' + Y(z) + '" class="bd-luoi"/>' +
-        '<text x="' + (l - 4) + '" y="' + (Y(z) + 4) + '" class="bd-chu" text-anchor="end">' + z + '</text>';
-    }
-    var pts = bang.map(function (x) { return X(x[k]) + ',' + Y(x.z); });
-    svg += '<polygon points="' + X(0) + ',' + Y(bang[0].z) + ' ' + pts.join(' ') + ' ' + X(0) + ',' + Y(bang[bang.length - 1].z) +
-      '" fill="' + mau + '" fill-opacity="0.18" stroke="none"/>' +
-      '<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + mau + '" stroke-width="1.6"/>' +
-      '<text x="' + ((l + W - r) / 2) + '" y="13" class="bd-chu" text-anchor="middle">' + esc(ten) + ' (' + esc(donVi) + ') – max ' +
-      so(vMax, 2) + '</text></svg>';
-    return svg;
-  }
-
   TRANG['tai-ngang'] = {
     tieuDe: 'Kiểm tra cọc chịu tải ngang',
     moTa: 'TCVN 10304 phụ lục A – sheet Kiem tra tai ngang. Tải trọng ngang lấy từ mục A, đặc trưng cọc và hệ số k, αε lấy từ phần sức chịu tải cọc.',
@@ -1120,8 +1067,9 @@
         '</tbody></table></div></section>';
 
       var bd = '<section class="card"><h2>C, D, E. Mômen, lực cắt và áp lực ngang dọc thân cọc</h2>' +
-        '<div class="ba-bieu-do">' + bieuDoNoiLuc(r.bang, 'M', 'M', 'kNm', '#0a58a8') + bieuDoNoiLuc(r.bang, 'Q', 'Q', 'kN', '#b45309') +
-        bieuDoNoiLuc(r.bang, 'sigma', 'σz', 'kN/m²', '#18794e') + '</div>' +
+        '<div class="ba-bieu-do bieu-do-svg">' + MCT.bieuDo.noiLuc(r.bang, 'M', 'MOMENT DỌC THÂN CỌC', 'Mz (kNm)', '#0a58a8') +
+        MCT.bieuDo.noiLuc(r.bang, 'Q', 'LỰC CẮT DỌC THÂN CỌC', 'Qz (kN)', '#b45309') +
+        MCT.bieuDo.noiLuc(r.bang, 'sigma', 'ÁP LỰC NGANG', 'σz (kN/m²)', '#18794e') + '</div>' +
         '<div class="params" style="margin-top:10px">' +
         dong('Mômen lớn nhất dọc thân cọc (tại z = ' + so(r.zM, 2) + ' m so với cao độ đáy đài)', '<i>M</i><sub>z</sub> =', so(r.Mmax, 2), 'kNm') +
         dong('Lực cắt lớn nhất (tại z = ' + so(r.zQ, 2) + ' m)', '<i>Q</i><sub>z</sub> =', so(r.Qmax, 2), 'kN') +
@@ -1163,6 +1111,54 @@
     }
   };
 
+  // ---------------- Biểu đồ tương tác ----------------
+  TRANG['tuong-tac'] = {
+    tieuDe: 'Biểu đồ tương tác cọc',
+    moTa: 'Biểu đồ N–M tiết diện cọc tròn (sheet Bieu do tuong tac). Tiết diện, thép, vật liệu lấy từ phần sức chịu tải cọc; ' +
+      'M lấy từ tải ngang, N lấy Pmax/Pmin của mục B.',
+    nhap: function () {
+      return '<section class="card"><h2>A. Thông số cọc</h2><div class="params">' +
+        oNhapSo('tuongTac.a', 'Lớp bê tông bảo vệ (tính tới tâm cốt thép)', '<i>a</i> =', 'mm') +
+        '</div></section>';
+    },
+    ketQua: function () {
+      var r = tatCa && tatCa.TT;
+      if (!r || !r.hopLe) return loiHtml(r);
+      var a = '<section class="card"><h2>Thông số cọc và vật liệu</h2><div class="grid-2"><div class="params">' +
+        dong('Đường kính tiết diện cọc', '<i>D</i> =', so(r.D, 2), 'm') +
+        dong('Bán kính tiết diện cọc', '<i>r</i> =', so(r.r, 2), 'm') +
+        dong('Diện tích tiết diện ngang', '<i>A</i><sub>b</sub> =', so(r.Ab, 3), 'm²') +
+        dong('Số thanh thép / đường kính', '<i>n</i>, <i>d</i> =', r.n + ' Ø' + so(r.d, 0), '') +
+        dong('Diện tích cốt thép', '<i>A</i><sub>s</sub> =', so(r.As, 0), 'mm²') +
+        '</div><div class="params">' +
+        dong('Bê tông ' + esc(r.beTong) + ': R<sub>b</sub> / R\'<sub>b</sub> = R<sub>b</sub>γ<sub>cb</sub>γ\'<sub>cb</sub>', '', so(r.Rb, 2) + ' / ' + so(r.Rb2, 3), 'MPa') +
+        dong('R<sub>bt</sub> / R\'<sub>bt</sub>', '', so(r.Rbt, 2) + ' / ' + so(r.Rbt2, 3), 'MPa') +
+        dong('Cốt thép ' + esc(r.cotThep) + ': R<sub>s</sub> / R<sub>sc</sub>', '', so(r.Rs, 0) + ' / ' + so(r.Rsc, 0), 'MPa') +
+        dong('β = a/D ; α = R<sub>s</sub>A<sub>s</sub>/(R<sub>b</sub>A<sub>b</sub>) ; δ = 1,5 + 6R<sub>s</sub>·10⁻⁴', '',
+          so(r.beta, 3) + ' ; ' + so(r.alpha, 4) + ' ; ' + so(r.delta, 3), '') +
+        '</div></div></section>';
+      var kt = '<div class="table-wrap"><table class="tbl"><thead><tr><th>Trường hợp</th><th>M (kNm)</th><th>N (kN)</th><th>M giới hạn tại N (kNm)</th><th>Kết quả</th></tr></thead><tbody>' +
+        r.diemNoiLuc.map(function (p) {
+          return '<tr><td>' + esc(p.ten.replace('_', '')) + '</td><td class="r">' + so(p.M) + '</td><td class="r">' + so(p.N) + '</td><td class="r">' +
+            so(p.Mgh) + '</td><td class="c">' + nhanKetLuan(p.ok) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+      var b = '<section class="card"><h2>C. Ngoại lực và biểu đồ tương tác</h2><div class="coc-layout coc-layout-rong">' +
+        '<figure class="so-do-wrap bieu-do-svg">' + MCT.bieuDo.tuongTac(r) +
+        '<figcaption>Đường bao: 31 điểm φ = 0…π (bước π/30), lấy đối xứng; điểm đỏ: nội lực (M<sub>z,max</sub>; P<sub>max</sub>) và (M<sub>z,max</sub>; P<sub>min</sub>).</figcaption></figure>' +
+        '<div>' + kt + ghiChuLech('App bổ sung', '<p>Sheet Excel chỉ vẽ biểu đồ, <strong>không có ô kiểm tra</strong>. App bổ sung kiểm tra: |M| ≤ M giới hạn ' +
+          'nội suy trên đường bao tại cùng lực dọc N.</p><p>Biểu đồ dùng R<sub>b</sub> = ' + so(r.Rb, 1) + ' MPa (không nhân γ<sub>cb</sub>γ\'<sub>cb</sub>) như Excel; ' +
+          'điểm đóng biểu đồ phía kéo (M = 0; N = ' + so(r.NTrend, 0) + ' kN) là ngoại suy TREND như ô D80.</p>') +
+        '</div></div>' +
+        '<details class="more"><summary>Bảng 31 điểm của biểu đồ</summary><div class="table-wrap" style="margin-top:8px"><table class="tbl compact"><thead><tr>' +
+        '<th>STT</th><th>φ (rad)</th><th>ξ</th><th>φ<sub>s</sub></th><th>M (kNm)</th><th>N (kN)</th></tr></thead><tbody>' +
+        r.diem.map(function (p, i) {
+          return '<tr><td class="c">' + i + '</td><td class="r">' + so(p.phi, 4) + '</td><td class="r">' + so(p.xi, 4) + '</td><td class="r">' + so(p.phis, 4) +
+            '</td><td class="r">' + so(p.M, 2) + '</td><td class="r">' + so(p.N, 2) + '</td></tr>';
+        }).join('') + '</tbody></table></div></details></section>';
+      return a + b;
+    }
+  };
+
   // ---------------- Khung điều hướng ----------------
   // Trạng thái đạt/không đạt của từng mục để hiện ở thanh danh mục
   function trangThaiMuc(id) {
@@ -1175,6 +1171,7 @@
       case 'sct': return tatCa && tatCa.SCT && tatCa.SCT.hopLe ? true : null;
       case 'dia-chat': return tatCa && tatCa.DC && tatCa.DC.hopLe ? true : null;
       case 'tai-ngang': return tatCa && tatCa.TN && tatCa.TN.hopLe ? tatCa.TN.tatCaOk : null;
+      case 'tuong-tac': return tatCa && tatCa.TT && tatCa.TT.hopLe && tatCa.TT.diemNoiLuc.length ? tatCa.TT.tatCaOk : null;
       default: return undefined;
     }
   }

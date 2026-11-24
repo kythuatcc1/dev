@@ -18,7 +18,7 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | GĐ4 | Địa chất + sức chịu tải cọc (vật liệu, SPT, thiết kế → Qa, Qa' tự động) | ✔ |
 | GĐ5 | Cọc chịu tải ngang (chuyển vị, M, Q, σz, chịu cắt, ổn định đất) | ✔ |
 | GĐ6 | Ổn định – lún | |
-| GĐ7 | Biểu đồ tương tác, biểu đồ SPT | |
+| GĐ7 | Biểu đồ tương tác, biểu đồ SPT | ✔ |
 
 ## Cấu trúc
 ```
@@ -28,6 +28,7 @@ js/data/                 dữ liệu trích từ Excel (tự sinh, không sửa 
 js/calc/                 phần tính toán, mỗi file ứng với một mục trong Excel
 js/app.js                điều khiển giao diện
 tests/                   test đối chiếu với giá trị Excel (excel-tham-chieu.json)
+js/bieu-do.js            biểu đồ SVG dùng chung (SPT, M/Q/σz, tương tác) – giao diện và thuyết minh
 js/bao-cao/              tạo thuyết minh Word (.docx)
 vendor/                  thư viện docx 9.15.3 (MIT) – tạo file Word ngay trong trình duyệt, không cần mạng
 tools/                   script trích dữ liệu từ file Excel

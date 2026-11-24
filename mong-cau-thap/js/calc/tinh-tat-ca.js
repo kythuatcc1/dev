@@ -22,6 +22,7 @@
     var E = MCT.calc.tinhPhanE(A, s.bulong);
     var F = MCT.calc.tinhKetLuan(B, C, D, E);
     var TN = MCT.calc.tinhTaiNgang(s.taiNgang, { DC: DC, SCT: SCT, A: A, B: B });
-    return { DC: DC, SCT: SCT, A: A, B: B, C: C, D: D, E: E, F: F, TN: TN };
+    var TT = MCT.calc.tinhTuongTac(s.tuongTac || { a: 100 }, { SCT: SCT, B: B, TN: TN });
+    return { DC: DC, SCT: SCT, A: A, B: B, C: C, D: D, E: E, F: F, TN: TN, TT: TT };
   };
 })(globalThis.MCT = globalThis.MCT || {});

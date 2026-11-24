@@ -418,6 +418,21 @@ def doc_tai_ngang(wbv):
     return {'heSo': he_so, 'dauVao': dau_vao, 'ketQua': ket_qua, 'bang': bang}
 
 
+def doc_tuong_tac(wbv):
+    """Sheet Bieu do tuong tac: thông số, 31 điểm (φ, ξ, φs, M, N), điểm TREND, ngoại lực."""
+    ws = wbv['Bieu do tuong tac']
+    o = lambda a: ws[a].value
+    return {
+        'dauVao': {'a': o('H11')},
+        'ketQua': {'D': o('H9'), 'r': o('H10'), 'Ab': o('H12'), 'n': o('H13'), 'd': o('H14'), 'As': o('H15'),
+                   'Rb': o('G17'), 'Rb2': o('G18'), 'Rbt': o('G19'), 'Rbt2': o('G20'), 'Rs': o('G21'), 'Rsc': o('G22'),
+                   'beta': o('D46'), 'alpha': o('F46'), 'delta': o('H46'), 'NTrend': o('D80'),
+                   'M': [o('E26'), o('F26')], 'N': [o('E27'), o('F27')]},
+        'diem': [{'phi': o('D%d' % r), 'xi': o('E%d' % r), 'phis': o('F%d' % r), 'M': o('G%d' % r), 'N': o('H%d' % r)}
+                 for r in range(48, 79)],
+    }
+
+
 def js_file(path, var, data, header):
     body = json.dumps(data, ensure_ascii=False, indent=1)
     with open(path, 'w', encoding='utf-8') as f:
@@ -462,6 +477,7 @@ def main():
         'sheetCauThap_phanE': doc_tham_chieu_phan_e(wbv['Cau thap']),
         'diaChat': dia_chat_tc,
         'sct': doc_sct(wbv),
+        'tuongTac': doc_tuong_tac(wbv),
         'taiNgang': {'dauVao': tai_ngang['dauVao'], 'ketQua': tai_ngang['ketQua'], 'bang': tai_ngang['bang']},
     }
     with open(os.path.join(ROOT, 'tests', 'excel-tham-chieu.json'), 'w', encoding='utf-8') as f:
