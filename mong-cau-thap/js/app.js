@@ -13,7 +13,13 @@
       hangMuc: 'Móng Cọc Cẩu Tháp CT1'
     },
     cau: { ten: 'LLT5020-10', chieuCao: 37.5 },
-    dai: { beTong: 'B35', cotThep: 'CB500-V', a_cm: 15, X: 4, Y: 3.678, H: 1.6 }
+    dai: { beTong: 'B35', cotThep: 'CB500-V', a_cm: 15, X: 4, Y: 3.678, H: 1.6 },
+    coc: {
+      D: 0.8,
+      Qa: 4243.15,      // tạm nhập tay – GĐ4 tự tính từ sheet SCT cọc
+      QaKeo: 2534.12,   // độ lớn sức chịu kéo Qa' (app tự mang dấu âm khi kiểm tra)
+      toaDo: [{ x: -1.2, y: -0.77 }, { x: 1.2, y: -0.77 }, { x: 0, y: 1.31 }]
+    }
   };
 
   var CO_SO = [
@@ -31,7 +37,7 @@
     { nhom: 'Sheet Cau thap' },
     { id: 'cau', ma: 'A.1', ten: 'Cẩu tháp & tải trọng' },
     { id: 'dai', ma: 'A.3', ten: 'Vật liệu & kích thước đài' },
-    { id: 'coc', ma: 'B', ten: 'Tải trọng lên cọc', sapCo: 'GĐ2' },
+    { id: 'coc', ma: 'B', ten: 'Tải trọng lên cọc' },
     { id: 'xuyen', ma: 'C', ten: 'Xuyên thủng đài', sapCo: 'GĐ2' },
     { id: 'thep', ma: 'D', ten: 'Cốt thép đài', sapCo: 'GĐ2' },
     { id: 'bulong', ma: 'E', ten: 'Bulong neo', sapCo: 'GĐ2' },
@@ -63,7 +69,8 @@
 
   var state = tai();
   var trangHienTai = 'cau';
-  var ketQua = null;
+  var ketQua = null;   // phần A
+  var kqB = null;      // phần B
 
   function luu() {
     try {
@@ -79,6 +86,9 @@
       cau: state.cau.ten, chieuCao: state.cau.chieuCao,
       beTong: state.dai.beTong, cotThep: state.dai.cotThep, a_cm: state.dai.a_cm,
       X: state.dai.X, Y: state.dai.Y, H: state.dai.H
+    });
+    kqB = MCT.calc.tinhPhanB(ketQua, {
+      toaDo: state.coc.toaDo, Qa: state.coc.Qa, QaKeo: state.coc.QaKeo
     });
   }
 
@@ -119,7 +129,7 @@
     return '<div class="lbl"><label for="in-' + path + '">' + nhan + '</label></div>' +
       '<div class="val"><span class="sym">' + (ky || '') + '</span>' +
       '<input class="in so" type="text" inputmode="decimal" autocomplete="off" id="in-' + path +
-      '" data-bind="' + path + '" data-kieu="so" value="' + esc(String(v).replace('.', ',')) + '">' +
+      '" data-bind="' + path + '" data-kieu="so" value="' + esc(hienSoNhap(v)) + '">' +
       '<span class="unit">' + (donVi || '') + '</span></div>';
   }
 
@@ -136,19 +146,30 @@
       '<span class="unit">' + (donVi || '') + '</span></div>';
   }
 
+  // Đường dẫn dạng "coc.toaDo.0.x"
   function layGiaTri(path) {
-    var p = path.split('.');
-    return state[p[0]][p[1]];
+    return path.split('.').reduce(function (o, k) { return o == null ? o : o[k]; }, state);
   }
 
   function datGiaTri(path, v) {
     var p = path.split('.');
-    state[p[0]][p[1]] = v;
+    var o = state;
+    for (var i = 0; i < p.length - 1; i++) o = o[p[i]];
+    o[p[p.length - 1]] = v;
   }
 
-  function loiHtml() {
-    if (!ketQua || ketQua.hopLe) return '';
-    return '<div class="alert alert-fail">' + ketQua.loi.map(esc).join('<br>') + '</div>';
+  function hienSoNhap(v) {
+    return v === '' || v === null || v === undefined ? '' : String(v).replace('.', ',');
+  }
+
+  function loiHtml(kq) {
+    kq = kq || ketQua;
+    if (!kq || kq.hopLe) return '';
+    return '<div class="alert alert-fail">' + kq.loi.map(esc).join('<br>') + '</div>';
+  }
+
+  function nhanKetLuan(ok) {
+    return ok ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-fail">FAIL</span>';
   }
 
   // ---------------- Các trang ----------------
@@ -314,6 +335,130 @@
     }
   };
 
+  // ---------------- B. Tải trọng lên cọc ----------------
+  function oSoBang(path, nhan) {
+    return '<input class="in so" type="text" inputmode="decimal" autocomplete="off" aria-label="' + esc(nhan) +
+      '" id="in-' + path + '" data-bind="' + path + '" data-kieu="so" value="' + esc(hienSoNhap(layGiaTri(path))) + '">';
+  }
+
+  // Sơ đồ mặt bằng đài: hệ trục tại tâm chân cẩu, x sang phải, y lên trên
+  function soDoCoc() {
+    var X = Number(state.dai.X) || 0, Y = Number(state.dai.Y) || 0;
+    var Ht = ketQua && ketQua.Ht ? ketQua.Ht : 0;
+    var D = Number(state.coc.D) || 0.8;
+    var dsCoc = kqB && kqB.hopLe ? kqB.coc : [];
+    var pad = 0.7;
+    var maxX = X / 2, maxY = Y / 2;
+    dsCoc.forEach(function (c) {
+      maxX = Math.max(maxX, Math.abs(c.x) + D / 2);
+      maxY = Math.max(maxY, Math.abs(c.y) + D / 2);
+    });
+    var vb = [-maxX - pad, -maxY - pad, 2 * (maxX + pad), 2 * (maxY + pad)];
+    var fs = Math.max(vb[2], vb[3]) / 26;
+    var nk = ' vector-effect="non-scaling-stroke"';
+    var svg = '<svg class="so-do" viewBox="' + vb.join(' ') + '" role="img" aria-label="Sơ đồ bố trí cọc trong đài">';
+    // đài
+    svg += '<rect x="' + (-X / 2) + '" y="' + (-Y / 2) + '" width="' + X + '" height="' + Y +
+      '" class="sd-dai"' + nk + '/>';
+    // trục
+    var ax = maxX + pad * 0.55, ay = maxY + pad * 0.55;
+    svg += '<line x1="' + (-ax) + '" y1="0" x2="' + ax + '" y2="0" class="sd-truc"' + nk + '/>' +
+      '<line x1="0" y1="' + ay + '" x2="0" y2="' + (-ay) + '" class="sd-truc"' + nk + '/>' +
+      '<text x="' + (ax - fs * 0.2) + '" y="' + (-fs * 0.4) + '" font-size="' + fs + '" class="sd-chu" text-anchor="end">x</text>' +
+      '<text x="' + (fs * 0.4) + '" y="' + (-ay + fs) + '" font-size="' + fs + '" class="sd-chu">y</text>';
+    // chân cẩu
+    if (Ht) {
+      svg += '<rect x="' + (-Ht / 2) + '" y="' + (-Ht / 2) + '" width="' + Ht + '" height="' + Ht +
+        '" class="sd-chan"' + nk + '/>';
+    }
+    // cọc
+    dsCoc.forEach(function (c) {
+      var lonNhat = kqB.Pmax === c.Pimax;
+      svg += '<circle cx="' + c.x + '" cy="' + (-c.y) + '" r="' + (D / 2) + '" class="sd-coc' +
+        (lonNhat ? ' sd-coc-max' : '') + '"' + nk + '/>' +
+        '<text x="' + c.x + '" y="' + (-c.y + fs * 0.35) + '" font-size="' + fs + '" class="sd-chu sd-so" text-anchor="middle">' +
+        c.stt + '</text>';
+    });
+    // kích thước
+    svg += '<text x="0" y="' + (Y / 2 + fs * 1.4) + '" font-size="' + fs * 0.9 + '" class="sd-chu sd-dim" text-anchor="middle">X = ' +
+      so(X, 3) + ' m</text>' +
+      '<text x="' + (-X / 2 - fs * 0.6) + '" y="0" font-size="' + fs * 0.9 + '" class="sd-chu sd-dim" text-anchor="middle" transform="rotate(-90 ' +
+      (-X / 2 - fs * 0.6) + ' 0)">Y = ' + so(Y, 3) + ' m</text>';
+    svg += '</svg>';
+    return '<figure class="so-do-wrap">' + svg + '<figcaption>Mặt bằng đài: ô vuông nét đứt là chân cẩu ' +
+      'H<sub>t</sub> = ' + so(Ht, 2) + ' m; cọc tô đậm là cọc có P<sub>max</sub>. Trục tọa độ đặt tại tâm chân cẩu.</figcaption></figure>';
+  }
+
+  TRANG.coc = {
+    tieuDe: 'B. Kiểm tra tải trọng tác dụng lên cọc',
+    moTa: 'Nhập tọa độ từng cọc so với tâm chân cẩu và sức chịu tải cho phép của cọc.',
+    nhap: function () {
+      var toaDo = state.coc.toaDo;
+      var dong1 = toaDo.map(function (c, i) {
+        return '<tr><td class="c">' + (i + 1) + '</td>' +
+          '<td>' + oSoBang('coc.toaDo.' + i + '.x', 'x cọc ' + (i + 1)) + '</td>' +
+          '<td>' + oSoBang('coc.toaDo.' + i + '.y', 'y cọc ' + (i + 1)) + '</td>' +
+          '<td class="c"><button type="button" class="btn-x" data-action="xoa-coc" data-i="' + i +
+          '" aria-label="Xóa cọc ' + (i + 1) + '"' + (toaDo.length <= 1 ? ' disabled' : '') + '>✕</button></td></tr>';
+      }).join('');
+      return '<section class="card"><h2>Sức chịu tải của cọc</h2><div class="params">' +
+        oNhapSo('coc.Qa', 'Sức chịu tải của cọc khi chịu nén', '<i>Q</i><sub>a</sub> =', 'kN') +
+        oNhapSo('coc.QaKeo', 'Sức chịu tải của cọc khi chịu kéo (nhập độ lớn)', "<i>Q</i><sub>a</sub>' =", 'kN') +
+        oNhapSo('coc.D', 'Đường kính cọc (dùng để vẽ sơ đồ)', '<i>D</i> =', 'm') +
+        '</div><p class="hint">Tạm nhập tay. Ở giai đoạn 4, Q<sub>a</sub> và Q<sub>a</sub>\' sẽ tự lấy từ phần tính sức chịu tải cọc ' +
+        '(Excel: \'SCT Coc nhoi FULL\'!N268 và N277).</p></section>' +
+        '<section class="card"><h2>Tọa độ từng cọc</h2>' +
+        '<div class="table-wrap"><table class="tbl tbl-nhap"><thead><tr><th>Cọc</th><th>x<sub>i</sub> (m)</th><th>y<sub>i</sub> (m)</th><th></th></tr></thead>' +
+        '<tbody>' + dong1 + '</tbody></table></div>' +
+        '<p><button type="button" class="btn btn-ghost" data-action="them-coc"' +
+        (toaDo.length >= MCT.calc.SO_COC_TOI_DA ? ' disabled' : '') + '>+ Thêm cọc</button></p>' +
+        '<p class="hint">Số cọc n lấy theo số dòng tọa độ (tối đa ' + MCT.calc.SO_COC_TOI_DA + ' cọc như Excel).</p></section>';
+    },
+    ketQua: function () {
+      var r = kqB;
+      if (!r || !r.hopLe) return loiHtml(ketQua) + loiHtml(r);
+      var bang = '<div class="table-wrap"><table class="tbl"><thead><tr><th>Cọc</th><th>x<sub>i</sub></th><th>y<sub>i</sub></th>' +
+        '<th>α<sub>i</sub></th><th>P<sub>imax</sub></th><th>P<sub>imin</sub></th></tr>' +
+        '<tr class="units"><th></th><th>m</th><th>m</th><th>độ</th><th>kN</th><th>kN</th></tr></thead><tbody>' +
+        r.coc.map(function (c) {
+          return '<tr' + (c.Pimax === r.Pmax || c.Pimin === r.Pmin ? ' class="hi"' : '') + '><td class="c">' + c.stt + '</td>' +
+            '<td class="r">' + so(c.x) + '</td><td class="r">' + so(c.y) + '</td><td class="r">' + so(c.alpha) + '</td>' +
+            '<td class="r">' + so(c.Pimax) + '</td><td class="r">' + so(c.Pimin) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+
+      var chiTiet = '<details class="more"><summary>Chi tiết từng thành phần (làm việc / không làm việc)</summary>' +
+        '<div class="table-wrap" style="margin-top:10px"><table class="tbl compact"><thead><tr><th rowspan="2">Cọc</th>' +
+        '<th colspan="3">Khi cẩu làm việc</th><th colspan="3">Khi cẩu không làm việc</th></tr>' +
+        '<tr><th>N<sub>tt</sub>/n</th><th>M·cosα·|x|/Σx²</th><th>M·sinα·|y|/Σy²</th>' +
+        '<th>N<sub>tt</sub>/n</th><th>M·cosα·|x|/Σx²</th><th>M·sinα·|y|/Σy²</th></tr></thead><tbody>' +
+        r.coc.map(function (c) {
+          return '<tr><td class="c">' + c.stt + '</td><td class="r">' + so(c.lv.Pn) + '</td><td class="r">' + so(c.lv.Mx) +
+            '</td><td class="r">' + so(c.lv.My) + '</td><td class="r">' + so(c.klv.Pn) + '</td><td class="r">' + so(c.klv.Mx) +
+            '</td><td class="r">' + so(c.klv.My) + '</td></tr>';
+        }).join('') + '</tbody></table></div>' +
+        '<p class="hint">Σx<sub>i</sub>² = ' + so(r.sumX2, 4) + ' m²; Σy<sub>i</sub>² = ' + so(r.sumY2, 4) + ' m²</p></details>';
+
+      return loiHtml(ketQua) +
+        '<section class="card"><h2>Tải trọng</h2>' +
+        '<p>Tải trọng tác dụng lên cọc lớn nhất khi tay cần xoay theo phương đi qua tim cọc. ' +
+        'Ở đây, tải trọng lớn nhất và nhỏ nhất tác dụng lên từng cọc có thể tính theo công thức:</p>' +
+        '<div class="formula"><i>P</i><sub>imax/imin</sub> = <i>N</i><sub>tt</sub>/<i>n</i> ± ' +
+        '<i>M</i>·cosα·<i>x</i><sub>max</sub>/Σ<i>x</i><sub>i</sub>² ± <i>M</i>·sinα·<i>y</i><sub>max</sub>/Σ<i>y</i><sub>i</sub>²</div>' +
+        '<p class="hint">Tính cho cả 2 trường hợp cẩu làm việc và không làm việc, lấy giá trị bất lợi. ' +
+        'Số cọc trong đài n = ' + r.n + ' cọc.</p>' +
+        '<div class="coc-layout">' + soDoCoc() + '<div class="coc-bang">' + bang + chiTiet + '</div></div></section>' +
+        '<section class="card"><h2>Tải trọng lớn nhất và nhỏ nhất tác dụng lên cọc</h2>' +
+        '<div class="table-wrap"><table class="tbl kiem-tra"><tbody>' +
+        '<tr><td><i>P</i><sub>max</sub> = ' + so(r.Pmax) + ' kN</td><td class="c">' + (r.Pmax <= r.Qa ? '≤' : '>') +
+        '</td><td><i>Q</i><sub>a</sub> = ' + so(r.Qa) + ' kN</td><td class="c">' + nhanKetLuan(r.kiemTraNen.ok) + '</td>' +
+        '<td class="r muted">Q<sub>a</sub>/P<sub>max</sub> = ' + so(r.kiemTraNen.heSo, 3) + '</td></tr>' +
+        '<tr><td><i>P</i><sub>min</sub> = ' + so(r.Pmin) + ' kN</td><td class="c">' + (r.Pmin >= r.QaKeo ? '≥' : '<') +
+        "</td><td><i>Q</i><sub>a</sub>' = " + so(r.QaKeo) + ' kN</td><td class="c">' + nhanKetLuan(r.kiemTraKeo.ok) + '</td>' +
+        "<td class=\"r muted\">Q<sub>a</sub>'/P<sub>min</sub> = " + (isFinite(r.kiemTraKeo.heSo) ? so(r.kiemTraKeo.heSo, 3) : '–') +
+        '</td></tr></tbody></table></div></section>';
+    }
+  };
+
   // ---------------- Khung điều hướng ----------------
   function veDanhMuc() {
     $('#sidenav').innerHTML = MUC.map(function (m) {
@@ -403,6 +548,21 @@
       var nut = e.target.closest('[data-trang]');
       if (nut && !nut.disabled) chuyenTrang(nut.getAttribute('data-trang'));
       if (e.target.closest('[data-action="toggle-nav"]')) document.body.classList.toggle('nav-open');
+      var them = e.target.closest('[data-action="them-coc"]');
+      var xoa = e.target.closest('[data-action="xoa-coc"]');
+      if ((them && !them.disabled) || (xoa && !xoa.disabled)) {
+        var ds = state.coc.toaDo;
+        if (them) ds.push({ x: 0, y: 0 });
+        else ds.splice(Number(xoa.getAttribute('data-i')), 1);
+        tinh();
+        $('#vung-nhap').innerHTML = TRANG.coc.nhap();
+        veKetQua();
+        luu();
+        if (them) {
+          var oMoi = document.getElementById('in-coc.toaDo.' + (ds.length - 1) + '.x');
+          if (oMoi) oMoi.focus();
+        }
+      }
     });
   }
 

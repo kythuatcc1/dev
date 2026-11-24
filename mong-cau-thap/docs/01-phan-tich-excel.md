@@ -149,6 +149,8 @@ File gồm 15 sheet, khoảng 2.000 dòng macro VBA, 11 biểu đồ và nhiều
 6. **l0**: SCT cọc dùng l0 = 10,4 m (từ đáy đài −2,6 đến đáy hố đào −13), nhưng `Kiem tra tai ngang` lại dùng l0 = 0.
 7. **A0, B0, C0** đang nhập tay cố định (ứng với αε·L ≥ 4). App có thể tự tra bảng theo αε·L.
 8. **Cẩu MCT.205** (sheet `Solieu`, ô G78:G82 – chiều cao từ hàng 78 trở đi): Mqđ khi làm việc = √(MV² + MR²) và **không nhân hệ số n**. Các hàng phía trên lại dùng (MV + MR)·n.
+9. **Cọc số 4** (sheet `Cau thap`, cột H dòng 59–61): Excel **không có công thức** αi, Pimax, Pimin cho cọc số 4. Nếu móng có từ 4 cọc trở lên, cọc này bị bỏ qua khi tìm Pmax/Pmin, nhưng tọa độ của nó vẫn được cộng vào Σx², Σy². Móng 3 cọc hiện tại không bị ảnh hưởng. **App tính đủ mọi cọc.**
+10. **Số cọc n** (ô L47) nhập riêng, không gắn với số tọa độ đã nhập. Nếu hai số này lệch nhau, Ntt/n sẽ sai. **App lấy n bằng số dòng tọa độ cọc.**
 
 ## 7. Đề xuất phạm vi và thứ tự làm app
 

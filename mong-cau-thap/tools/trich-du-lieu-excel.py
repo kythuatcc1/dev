@@ -243,6 +243,23 @@ def doc_tham_chieu_cau_thap(wsv):
     }
 
 
+def doc_tham_chieu_phan_b(wsv):
+    """Mục B sheet Cau thap: tọa độ cọc (E57:N58), αi, Pimax/Pimin, kiểm tra."""
+    o = lambda a: wsv[a].value
+    coc = []
+    for c in 'EFGHIJKLMN':
+        x, y = o(c + '57'), o(c + '58')
+        if x is None or x == '':
+            continue
+        coc.append({'x': x, 'y': y, 'alpha': o(c + '59'), 'Pimax': o(c + '60'), 'Pimin': o(c + '61')})
+    return {
+        'dauVao': {'soCoc': o('L47'), 'Qa': o('L48'), 'QaKeo': o('L49'),
+                   'toaDo': [{'x': c['x'], 'y': c['y']} for c in coc]},
+        'ketQua': {'coc': coc, 'Pmax': o('G63'), 'Pmin': o('G64'),
+                   'kiemTraNen': o('L63'), 'kiemTraKeo': o('L64'), 'sumY2': o('R67')},
+    }
+
+
 def js_file(path, var, data, header):
     body = json.dumps(data, ensure_ascii=False, indent=1)
     with open(path, 'w', encoding='utf-8') as f:
@@ -272,6 +289,7 @@ def main():
         'nguon': os.path.basename(src),
         'cauThapCatalogue': tc_cau,
         'sheetCauThap_phanA': doc_tham_chieu_cau_thap(wbv['Cau thap']),
+        'sheetCauThap_phanB': doc_tham_chieu_phan_b(wbv['Cau thap']),
     }
     with open(os.path.join(ROOT, 'tests', 'excel-tham-chieu.json'), 'w', encoding='utf-8') as f:
         json.dump(tham_chieu, f, ensure_ascii=False, indent=1)
