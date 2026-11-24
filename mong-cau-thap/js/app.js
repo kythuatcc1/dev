@@ -38,7 +38,7 @@
     { id: 'cau', ma: 'A.1', ten: 'Cẩu tháp & tải trọng' },
     { id: 'dai', ma: 'A.3', ten: 'Vật liệu & kích thước đài' },
     { id: 'coc', ma: 'B', ten: 'Tải trọng lên cọc' },
-    { id: 'xuyen', ma: 'C', ten: 'Xuyên thủng đài', sapCo: 'GĐ2' },
+    { id: 'xuyen', ma: 'C', ten: 'Xuyên thủng đài' },
     { id: 'thep', ma: 'D', ten: 'Cốt thép đài', sapCo: 'GĐ2' },
     { id: 'bulong', ma: 'E', ten: 'Bulong neo', sapCo: 'GĐ2' },
     { id: 'ket-luan', ma: 'F', ten: 'Kết luận', sapCo: 'GĐ2' },
@@ -71,6 +71,7 @@
   var trangHienTai = 'cau';
   var ketQua = null;   // phần A
   var kqB = null;      // phần B
+  var kqC = null;      // phần C
 
   function luu() {
     try {
@@ -90,6 +91,7 @@
     kqB = MCT.calc.tinhPhanB(ketQua, {
       toaDo: state.coc.toaDo, Qa: state.coc.Qa, QaKeo: state.coc.QaKeo
     });
+    kqC = MCT.calc.tinhPhanC(ketQua, kqB, { D: state.coc.D });
   }
 
   // ---------------- Tiện ích hiển thị ----------------
@@ -341,14 +343,16 @@
       '" id="in-' + path + '" data-bind="' + path + '" data-kieu="so" value="' + esc(hienSoNhap(layGiaTri(path))) + '">';
   }
 
-  // Sơ đồ mặt bằng đài: hệ trục tại tâm chân cẩu, x sang phải, y lên trên
-  function soDoCoc() {
+  // Sơ đồ mặt bằng đài: hệ trục tại tâm chân cẩu, x sang phải, y lên trên.
+  // xt: kết quả phần C – nếu có thì vẽ thêm đáy tháp xuyên và đường bao tính toán.
+  function soDoCoc(xt) {
     var X = Number(state.dai.X) || 0, Y = Number(state.dai.Y) || 0;
     var Ht = ketQua && ketQua.Ht ? ketQua.Ht : 0;
     var D = Number(state.coc.D) || 0.8;
     var dsCoc = kqB && kqB.hopLe ? kqB.coc : [];
     var pad = 0.7;
     var maxX = X / 2, maxY = Y / 2;
+    if (xt) { maxX = Math.max(maxX, xt.Bxt / 2); maxY = Math.max(maxY, xt.Bxt / 2); }
     dsCoc.forEach(function (c) {
       maxX = Math.max(maxX, Math.abs(c.x) + D / 2);
       maxY = Math.max(maxY, Math.abs(c.y) + D / 2);
@@ -371,11 +375,18 @@
       svg += '<rect x="' + (-Ht / 2) + '" y="' + (-Ht / 2) + '" width="' + Ht + '" height="' + Ht +
         '" class="sd-chan"' + nk + '/>';
     }
+    // đáy tháp xuyên và đường bao tính toán (cách mép chân cẩu h0/2)
+    if (xt) {
+      var b = xt.Bxt, uu = xt.Ht + xt.h0;
+      svg += '<rect x="' + (-b / 2) + '" y="' + (-b / 2) + '" width="' + b + '" height="' + b + '" class="sd-thap"' + nk + '/>' +
+        '<rect x="' + (-uu / 2) + '" y="' + (-uu / 2) + '" width="' + uu + '" height="' + uu + '" class="sd-bao"' + nk + '/>';
+    }
     // cọc
-    dsCoc.forEach(function (c) {
-      var lonNhat = kqB.Pmax === c.Pimax;
-      svg += '<circle cx="' + c.x + '" cy="' + (-c.y) + '" r="' + (D / 2) + '" class="sd-coc' +
-        (lonNhat ? ' sd-coc-max' : '') + '"' + nk + '/>' +
+    dsCoc.forEach(function (c, i) {
+      var lop;
+      if (xt) lop = xt.coc[i] && !xt.coc[i].trongThap ? ' sd-coc-ngoai' : ' sd-coc-trong';
+      else lop = kqB.Pmax === c.Pimax ? ' sd-coc-max' : '';
+      svg += '<circle cx="' + c.x + '" cy="' + (-c.y) + '" r="' + (D / 2) + '" class="sd-coc' + lop + '"' + nk + '/>' +
         '<text x="' + c.x + '" y="' + (-c.y + fs * 0.35) + '" font-size="' + fs + '" class="sd-chu sd-so" text-anchor="middle">' +
         c.stt + '</text>';
     });
@@ -385,8 +396,12 @@
       '<text x="' + (-X / 2 - fs * 0.6) + '" y="0" font-size="' + fs * 0.9 + '" class="sd-chu sd-dim" text-anchor="middle" transform="rotate(-90 ' +
       (-X / 2 - fs * 0.6) + ' 0)">Y = ' + so(Y, 3) + ' m</text>';
     svg += '</svg>';
-    return '<figure class="so-do-wrap">' + svg + '<figcaption>Mặt bằng đài: ô vuông nét đứt là chân cẩu ' +
-      'H<sub>t</sub> = ' + so(Ht, 2) + ' m; cọc tô đậm là cọc có P<sub>max</sub>. Trục tọa độ đặt tại tâm chân cẩu.</figcaption></figure>';
+    var chuThich = xt
+      ? 'Nét đứt xanh: chân cẩu H<sub>t</sub> = ' + so(Ht, 2) + ' m. Nét chấm: đường bao tính toán (cách mép chân cẩu h<sub>0</sub>/2). ' +
+        'Vùng xanh lá: đáy tháp xuyên 45°, cạnh ' + so(xt.Bxt, 2) + ' m. Cọc đỏ: nằm ngoài tháp xuyên, gây xuyên thủng.'
+      : 'Mặt bằng đài: ô vuông nét đứt là chân cẩu H<sub>t</sub> = ' + so(Ht, 2) +
+        ' m; cọc tô đậm là cọc có P<sub>max</sub>. Trục tọa độ đặt tại tâm chân cẩu.';
+    return '<figure class="so-do-wrap">' + svg + '<figcaption>' + chuThich + '</figcaption></figure>';
   }
 
   TRANG.coc = {
@@ -404,7 +419,7 @@
       return '<section class="card"><h2>Sức chịu tải của cọc</h2><div class="params">' +
         oNhapSo('coc.Qa', 'Sức chịu tải của cọc khi chịu nén', '<i>Q</i><sub>a</sub> =', 'kN') +
         oNhapSo('coc.QaKeo', 'Sức chịu tải của cọc khi chịu kéo (nhập độ lớn)', "<i>Q</i><sub>a</sub>' =", 'kN') +
-        oNhapSo('coc.D', 'Đường kính cọc (dùng để vẽ sơ đồ)', '<i>D</i> =', 'm') +
+        oNhapSo('coc.D', 'Đường kính cọc', '<i>D</i> =', 'm') +
         '</div><p class="hint">Tạm nhập tay. Ở giai đoạn 4, Q<sub>a</sub> và Q<sub>a</sub>\' sẽ tự lấy từ phần tính sức chịu tải cọc ' +
         '(Excel: \'SCT Coc nhoi FULL\'!N268 và N277).</p></section>' +
         '<section class="card"><h2>Tọa độ từng cọc</h2>' +
@@ -456,6 +471,66 @@
         "</td><td><i>Q</i><sub>a</sub>' = " + so(r.QaKeo) + ' kN</td><td class="c">' + nhanKetLuan(r.kiemTraKeo.ok) + '</td>' +
         "<td class=\"r muted\">Q<sub>a</sub>'/P<sub>min</sub> = " + (isFinite(r.kiemTraKeo.heSo) ? so(r.kiemTraKeo.heSo, 3) : '–') +
         '</td></tr></tbody></table></div></section>';
+    }
+  };
+
+  // ---------------- C. Xuyên thủng đài ----------------
+  TRANG.xuyen = {
+    tieuDe: 'C. Kiểm tra xuyên thủng cho đài móng',
+    moTa: 'Xuyên thủng đài do chân cẩu, tính theo TCVN 5574:2018 mục 8.1.6.2.1. ' +
+      'Số liệu lấy từ mục A (đài, vật liệu) và mục B (tọa độ, phản lực cọc).',
+    nhap: function () { return ''; },
+    ketQua: function () {
+      var r = kqC;
+      if (!r || !r.hopLe) return loiHtml(ketQua) + loiHtml(kqB) + loiHtml(r);
+      var bang = '<div class="table-wrap"><table class="tbl"><thead><tr><th>Cọc</th><th>|x<sub>i</sub>| + D/2</th>' +
+        '<th>|y<sub>i</sub>| + D/2</th><th>Vị trí so với đáy tháp xuyên</th><th>P<sub>imax</sub></th><th>Tính vào F</th></tr>' +
+        '<tr class="units"><th></th><th>m</th><th>m</th><th>B<sub>xt</sub>/2 = ' + so(r.Bxt / 2) + ' m</th><th>kN</th><th>kN</th></tr></thead><tbody>' +
+        r.coc.map(function (c) {
+          return '<tr' + (c.trongThap ? '' : ' class="hi"') + '><td class="c">' + c.stt + '</td>' +
+            '<td class="r">' + so(c.mepX) + '</td><td class="r">' + so(c.mepY) + '</td>' +
+            '<td class="c">' + (c.trongThap ? 'Nằm trong' : '<strong>Nằm ngoài</strong>') + '</td>' +
+            '<td class="r">' + so(c.Pimax) + '</td><td class="r">' + so(c.F) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+
+      var ketLuan = r.baoTrumTatCa
+        ? 'Tháp xuyên bao trùm tất cả các đầu cọc nên không xảy ra xuyên thủng (F = 0).'
+        : (r.ok ? 'Đài móng đủ khả năng chống xuyên thủng.' : 'Đài móng KHÔNG đủ khả năng chống xuyên thủng.');
+
+      return '<section class="card"><h2>Thông số</h2><div class="params">' +
+        dong('Kích thước chân cẩu tháp', '<i>H</i><sub>t</sub> =', so(r.Ht), 'm') +
+        dong('Chiều cao đài móng', '<i>H</i> =', so(r.H), 'm') +
+        dong('Khoảng cách từ mép đài tới trọng tâm cốt thép', '<i>a</i> =', so(r.a), 'm') +
+        dong('Chiều cao làm việc của đài', '<i>h</i><sub>0</sub> = <i>H</i> − <i>a</i> =', so(r.h0), 'm') +
+        dong('Đường kính cọc', '<i>D</i> =', so(r.D), 'm') +
+        dong('Cường độ chịu kéo tính toán của bê tông', '<i>R</i><sub>bt</sub> =', so(r.Rbt), 'MPa') +
+        '</div></section>' +
+        '<section class="card"><h2>C.1. Phạm vi tháp xuyên</h2>' +
+        '<p>Tháp xuyên tạo bởi các mặt nghiêng 45° đi từ mép chân cẩu tới cao trình cốt thép chịu kéo. ' +
+        'Cọc nào không nằm trọn trong đáy tháp xuyên thì phản lực của cọc đó gây xuyên thủng cho đài ' +
+        '(lấy toàn bộ phản lực của cọc – thiên về an toàn).</p>' +
+        '<div class="formula"><i>B</i><sub>xt</sub> = <i>H</i><sub>t</sub> + 2<i>h</i><sub>0</sub> = ' + so(r.Ht) + ' + 2 × ' +
+        so(r.h0) + ' = ' + so(r.Bxt) + ' m</div>' +
+        '<div class="coc-layout">' + soDoCoc(r) + '<div class="coc-bang">' + bang +
+        '<p class="hint">Cọc nằm trong khi cả |x<sub>i</sub>| + D/2 và |y<sub>i</sub>| + D/2 đều ≤ B<sub>xt</sub>/2. ' +
+        'Số cọc nằm ngoài tháp xuyên: ' + r.soCocNgoai + '.</p></div></div></section>' +
+        '<section class="card"><h2>C.2. Kiểm tra xuyên thủng</h2>' +
+        '<p>Lực gây xuyên thủng bằng tổng phản lực các cọc nằm ngoài tháp xuyên (mômen đã kể đến trong P<sub>imax</sub>):</p>' +
+        '<div class="formula"><i>F</i> = Σ<i>P</i><sub>imax</sub> (cọc ngoài tháp xuyên) = ' + so(r.F) + ' kN</div>' +
+        '<p>Khả năng chống xuyên thủng của đài (TCVN 5574:2018, mục 8.1.6.2.1), với u là chu vi đường bao tính toán ' +
+        'cách mép chân cẩu một khoảng h<sub>0</sub>/2:</p>' +
+        '<div class="formula"><i>F</i><sub>b,ult</sub> = <i>R</i><sub>bt</sub> · <i>u</i> · <i>h</i><sub>0</sub>;   ' +
+        '<i>u</i> = 4(<i>H</i><sub>t</sub> + <i>h</i><sub>0</sub>)</div>' +
+        '<div class="params">' +
+        dong('Chu vi đường bao tính toán', '<i>u</i> =', so(r.u), 'm') +
+        dong('Diện tích tiết diện tính toán', '<i>A</i><sub>b</sub> = <i>u</i>·<i>h</i><sub>0</sub> =', so(r.Ab), 'm²') +
+        dong('Khả năng chống xuyên thủng', '<i>F</i><sub>b,ult</sub> =', so(r.Fbult), 'kN') +
+        '</div>' +
+        '<div class="table-wrap" style="margin-top:12px"><table class="tbl kiem-tra"><tbody><tr>' +
+        '<td><i>F</i> = ' + so(r.F) + ' kN</td><td class="c">' + (r.ok ? '≤' : '>') + '</td>' +
+        '<td><i>F</i><sub>b,ult</sub> = ' + so(r.Fbult) + ' kN</td><td class="c">' + nhanKetLuan(r.ok) + '</td>' +
+        '</tr></tbody></table></div>' +
+        '<p class="ket-luan ' + (r.ok ? 'ok' : 'fail') + '">' + esc(ketLuan) + '</p></section>';
     }
   };
 

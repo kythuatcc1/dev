@@ -13,7 +13,7 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | Giai đoạn | Nội dung | Trạng thái |
 |---|---|---|
 | GĐ1 | Catalogue cẩu, tải quy đổi, vật liệu & kích thước đài (mục A sheet `Cau thap`) | ✔ |
-| GĐ2 | Phản lực cọc ✔, xuyên thủng, thép đài, bulong, kết luận | đang làm |
+| GĐ2 | Phản lực cọc ✔, xuyên thủng ✔, thép đài, bulong, kết luận | đang làm |
 | GĐ3 | Xuất thuyết minh Word | |
 | GĐ4 | Địa chất + sức chịu tải cọc | |
 | GĐ5 | Cọc chịu tải ngang | |

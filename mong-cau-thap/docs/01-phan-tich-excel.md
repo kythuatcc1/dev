@@ -142,7 +142,7 @@ File gồm 15 sheet, khoảng 2.000 dòng macro VBA, 11 biểu đồ và nhiều
 ## 6. Điểm bất thường phát hiện trong file — cần bạn xác nhận
 
 1. **h0 thép lớp trên**: ô I82/I83 (sheet `Cau thap`) dùng h0 = H − **50 mm**, trong khi αm ở G82/G83 dùng h0 = H − **150 mm**. Lớp dưới dùng 150 mm ở cả hai chỗ.
-2. **Xuyên thủng đài**: chỉ ghi câu khẳng định, không có phép tính. App có thể kiểm tra hình học (tháp xuyên 45° có trùm hết đầu cọc không), hoặc tính đầy đủ.
+2. **Xuyên thủng đài**: chỉ ghi câu khẳng định, không có phép tính. **Đã chọn: app tính đầy đủ** theo TCVN 5574:2018 mục 8.1.6.2.1 (xem `js/calc/phan-c-xuyen-thung.js`). F là tổng Pimax của các cọc không nằm trọn trong đáy tháp xuyên 45° (cạnh Ht + 2h0); Fb,ult = Rbt·u·h0 với u = 4(Ht + h0). Với số liệu Excel, F = 0, kết luận giống Excel.
 3. **Chọc thủng cụm bulong**: công thức trong ô có thêm hệ số **0,4**, nhưng dòng công thức in ra thuyết minh không ghi hệ số này.
 4. **Loại cọc**: tiêu đề ghi "cọc khoan nhồi", nhưng phương pháp thi công chọn "**Cọc Khoan Thả**", nên fs = min(2,5N; 125). Với cọc khoan nhồi thì fs = min(3,3N; 165) và fc = min(1,0cu; 100).
 5. **η2** trong kiểm tra ổn định đất (sheet `Kiem tra tai ngang`, G128) lấy từ sheet mô hình (= 0,529), không lấy giá trị vừa tính ngay trong sheet (J124 = 0,459).

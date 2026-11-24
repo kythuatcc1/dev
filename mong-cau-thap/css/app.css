@@ -157,6 +157,13 @@ table.tbl.tbl-nhap { width: auto; }
 .sd-truc { stroke: #9aa2b1; stroke-width: 1; stroke-dasharray: 2 3; }
 .sd-coc { fill: #ffffff; stroke: var(--ink); stroke-width: 1.5; }
 .sd-coc-max { fill: #fde2b0; stroke: #b45309; stroke-width: 2; }
+.sd-coc-trong { fill: #ffffff; stroke: var(--ok); stroke-width: 1.5; }
+.sd-coc-ngoai { fill: #fbd5d1; stroke: var(--fail); stroke-width: 2; }
+.sd-thap { fill: rgba(24, 121, 78, .08); stroke: var(--ok); stroke-width: 1.2; }
+.sd-bao { fill: none; stroke: #6b7280; stroke-width: 1; stroke-dasharray: 1 3; }
+.ket-luan { margin: 14px 0 0; font-weight: 600; padding: 8px 12px; border-radius: 6px; }
+.ket-luan.ok { background: var(--ok-soft); color: var(--ok); }
+.ket-luan.fail { background: var(--fail-soft); color: var(--fail); }
 .sd-chu { fill: var(--ink); font-family: var(--font); }
 .sd-so { font-weight: 700; }
 .sd-dim { fill: var(--muted); }
