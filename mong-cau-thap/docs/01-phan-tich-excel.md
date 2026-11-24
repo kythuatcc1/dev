@@ -154,6 +154,8 @@ File gồm 15 sheet, khoảng 2.000 dòng macro VBA, 11 biểu đồ và nhiều
 11. **Mômen xoắn T** (sheet `Cau thap`, ô L20) trỏ cứng vào `Solieu!E111` (T = 165,53 kNm của cẩu LLT5020-10), nên với **mọi loại cẩu** Excel đều dùng T của LLT5020-10 khi tính lực cắt bulong (E.5). **App lấy T của đúng cẩu đang chọn**; với LLT5020-10 kết quả giống hệt Excel. Ghi chú cạnh mục E.5 hiện giá trị Excel khi khác.
 12. **Chiều dài neo bulong**: ô P102 (ngoài vùng in) tính l = fba·Abn/(π·d·η1·η2·Rbt) = 2553,7 mm, lớn hơn L1 + L2 = 1700 mm, nhưng Excel không dùng ô này; kiểm tra chính dùng H0 = 1497 mm theo TCVN 5575:2024. App ghi chú cạnh mục E.2.
 13. **Kết luận** (ô D143) chỉ gồm 12 kiểm tra của mục B, D, E (không có xuyên thủng vì Excel không tính). **App bổ sung mục C vào kết luận chung** (đã thống nhất với người dùng) và vẫn hiển thị kết luận theo đúng Excel để so sánh.
+14. **γn theo cấp công trình** ('SCT Coc nhoi FULL'!N259): Excel lấy 1,2 cho cấp III, 1,15 cho cấp II, 1 cho cấp khác. Theo TCVN 10304 (cần kiểm tra lại) γn = 1,2 / 1,15 / 1,1 cho cấp I / II / III. App tính giống Excel, ghi chú ở trang Sức chịu tải cọc.
+15. **Phương pháp thi công cọc**: Excel chọn "Cọc Khoan Thả" (fs = min(2,5N; 125), fc = min(1,0cu; 125)) dù cọc là khoan nhồi (fs = min(3,3N; 165), fc = min(1,0cu; 100)). App mặc định giống Excel, có ô chọn; với khoan nhồi Nc,d = 4313,12 kN, Nt,d = 2604,10 kN.
 
 ## 7. Đề xuất phạm vi và thứ tự làm app
 

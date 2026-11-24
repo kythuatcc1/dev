@@ -929,7 +929,7 @@
   TRANG.sct = {
     tieuDe: 'Sức chịu tải cọc khoan nhồi',
     moTa: 'Theo vật liệu và theo chỉ số SPT (TCVN 10304:2025) – sheet SCT Coc nhoi / SCT Coc nhoi FULL. ' +
-      'Kết quả N c,d, N t,d được dùng làm Qa, Qa\' ở mục B.',
+      'Kết quả Nc,d, Nt,d được dùng làm Qa, Qa\' ở mục B.',
     nhap: function () {
       var VL = MCT.data.vatLieu;
       var thepRows = state.sct.thep.map(function (t, i) {

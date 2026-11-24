@@ -15,7 +15,7 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | GĐ1 | Catalogue cẩu, tải quy đổi, vật liệu & kích thước đài (mục A sheet `Cau thap`) | ✔ |
 | GĐ2 | Phản lực cọc, xuyên thủng, thép đài, bulong, kết luận (mục B → F sheet `Cau thap`) | ✔ |
 | GĐ3 | Xuất thuyết minh Word theo mẫu MD3-1: khung, chương I, Phần 2 mục A → F | ✔ |
-| GĐ4 | Địa chất + sức chịu tải cọc | |
+| GĐ4 | Địa chất + sức chịu tải cọc (vật liệu, SPT, thiết kế → Qa, Qa' tự động) | ✔ |
 | GĐ5 | Cọc chịu tải ngang | |
 | GĐ6 | Ổn định – lún | |
 | GĐ7 | Biểu đồ tương tác, biểu đồ SPT | |
