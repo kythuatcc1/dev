@@ -195,30 +195,51 @@
     var Mgh = TT && TT.hopLe ? taoMgh(TT) : null;
 
     // ---------------- Cọc ----------------
-    var tongNen = null, tongKeo = null, MmaxAll = null, VmaxAll = null, tuongTacXau = null, diemTT = [];
+    // Tương tác N–M (như hình Check P-M của báo cáo thẩm tra): vẽ mọi cặp (N, M) của mọi cọc, mọi mặt cắt, mọi tổ hợp;
+    // kiểm tra từng cặp M ≤ M_gh(N); lập bảng điểm nguy hiểm của từng cọc: N nén lớn nhất, N nhỏ nhất (kéo lớn nhất),
+    // M lớn nhất, tỉ số M/M_gh lớn nhất (trùng điểm thì gộp).
+    var tongNen = null, tongKeo = null, MmaxAll = null, VmaxAll = null, tuongTacXau = null, diemTT = [], daCoDiem = {};
+    var nguyHiem = [], soCap = 0, soCapVuot = 0;
     tt.coc.forEach(function (c) {
       if (c.dauNen && hon(tongNen && tongNen.gt, c.dauNen.gt)) tongNen = { gt: c.dauNen.gt, toHop: c.dauNen.toHop, coc: c.ten };
       if (c.dauKeo && hon(tongKeo && tongKeo.gt, c.dauKeo.gt)) tongKeo = { gt: c.dauKeo.gt, toHop: c.dauKeo.toHop, coc: c.ten };
       if (c.Mmax && hon(MmaxAll && MmaxAll.gt, c.Mmax.gt)) MmaxAll = Object.assign({ coc: c.ten }, c.Mmax);
       if (c.Vmax && hon(VmaxAll && VmaxAll.gt, c.Vmax.gt)) VmaxAll = Object.assign({ coc: c.ten }, c.Vmax);
-      var theoTram = {};
+      var nMax = null, nMin = null, mMax = null, xau = null;
       c.capNM.forEach(function (p) {
+        var d = { p: p, gh: null, tiSo: null };
         if (Mgh) {
-          var gh = Mgh(p[0]), tiSo = gh > 0 ? p[1] / gh : Infinity;
-          if (tuongTacXau === null || tiSo > tuongTacXau.tiSo) {
-            tuongTacXau = { tiSo: tiSo, N: p[0], M: p[1], Mgh: gh, coc: c.ten, z: p[3], toHop: tt.toHop[p[2]] };
+          d.gh = Mgh(p[0]);
+          d.tiSo = d.gh > 0 ? p[1] / d.gh : Infinity;
+          soCap++;
+          if (d.tiSo > 1) soCapVuot++;
+          if (tuongTacXau === null || d.tiSo > tuongTacXau.tiSo) {
+            tuongTacXau = { tiSo: d.tiSo, N: p[0], M: p[1], Mgh: d.gh, coc: c.ten, z: p[3], toHop: tt.toHop[p[2]] };
           }
+          if (!xau || d.tiSo > xau.tiSo) xau = d;
         }
-        var b = theoTram[p[3]] || (theoTram[p[3]] = { nMin: p, nMax: p, mMax: p });
-        if (p[0] < b.nMin[0]) b.nMin = p;
-        if (p[0] > b.nMax[0]) b.nMax = p;
-        if (p[1] > b.mMax[1]) b.mMax = p;
+        if (!nMax || p[0] > nMax.p[0] || (p[0] === nMax.p[0] && p[1] > nMax.p[1])) nMax = d;
+        if (!nMin || p[0] < nMin.p[0] || (p[0] === nMin.p[0] && p[1] > nMin.p[1])) nMin = d;
+        if (!mMax || p[1] > mMax.p[1] || (p[1] === mMax.p[1] && d.tiSo > mMax.tiSo)) mMax = d;
+        var khoa = Math.round(p[0] / 10) + '|' + Math.round(p[1] / 2);    // điểm trùng trên hình (10 kN × 2 kNm) chỉ vẽ một lần
+        if (!daCoDiem[khoa]) { daCoDiem[khoa] = true; diemTT.push({ N: p[0], M: p[1] }); }
       });
-      Object.keys(theoTram).forEach(function (k) {
-        var b = theoTram[k];
-        [b.nMin, b.nMax, b.mMax].forEach(function (p) { diemTT.push({ N: p[0], M: p[1] }); });
+      var dsCoc = [];
+      [[nMax, 'N nén lớn nhất'], [nMin, nMin && nMin.p[0] < 0 ? 'Kéo lớn nhất' : 'N nén nhỏ nhất'], [mMax, 'M lớn nhất'], [xau, 'Tỉ số M/Mgh lớn nhất']]
+        .forEach(function (h) {
+          if (!h[0]) return;
+          var cu = dsCoc.filter(function (x) { return x.d === h[0]; })[0];
+          if (cu) cu.loai.push(h[1]); else dsCoc.push({ d: h[0], loai: [h[1]] });
+        });
+      dsCoc.forEach(function (x) {
+        var p = x.d.p;
+        nguyHiem.push({
+          coc: c.ten, loai: x.loai.join('; '), N: p[0], M: p[1], z: p[3], toHop: tt.toHop[p[2]],
+          Mgh: x.d.gh, tiSo: x.d.tiSo, ok: x.d.tiSo === null ? null : x.d.tiSo <= 1
+        });
       });
     });
+    nguyHiem.forEach(function (x, i) { x.stt = i + 1; });
     var Qa = kq.B.Qa, QaKeo = Math.abs(kq.B.QaKeo);   // như mục B (tự tính từ sức chịu tải cọc hoặc nhập tay)
     var Qgh = TN && TN.hopLe ? TN.Qgh : null;
     var cocKiemTra = {
@@ -227,7 +248,8 @@
       okNen: tongNen ? tongNen.gt <= Qa : null,
       okKeo: tongKeo ? tongKeo.gt <= QaKeo : null,
       Mmax: MmaxAll, Vmax: VmaxAll, Qgh: Qgh, okCat: Qgh !== null && VmaxAll ? VmaxAll.gt <= Qgh : null,
-      tuongTac: tuongTacXau, okTuongTac: tuongTacXau ? tuongTacXau.tiSo <= 1 : null
+      tuongTac: tuongTacXau, okTuongTac: tuongTacXau ? tuongTacXau.tiSo <= 1 : null,
+      nguyHiem: nguyHiem, soCapNM: soCap, soCapVuot: soCapVuot
     };
 
     // ---------------- Chuyển vị ----------------

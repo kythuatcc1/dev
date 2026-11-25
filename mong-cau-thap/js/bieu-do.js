@@ -101,11 +101,14 @@
     var W = (kichThuoc && kichThuoc.w) || 460, H = (kichThuoc && kichThuoc.h) || 420;
     var l = 64, r = 16, t = 34, b = 40;
     var bao = [{ M: 0, N: tt.NTrend }].concat(tt.diem);
-    var Mm = Math.max.apply(null, bao.map(function (p) { return p.M; }).concat(tt.diemNoiLuc.map(function (p) { return Math.abs(p.M); })));
-    var Nmin = Math.min.apply(null, bao.map(function (p) { return p.N; }).concat(tt.diemNoiLuc.map(function (p) { return p.N; })));
-    var Nmax = Math.max.apply(null, bao.map(function (p) { return p.N; }).concat(tt.diemNoiLuc.map(function (p) { return p.N; })));
-    var sM = buoc(2 * Mm, 6), sN = buoc(Nmax - Nmin, 8);
-    var m0 = -Math.ceil(Mm / sM) * sM, m1 = -m0, n0 = Math.floor(Nmin / sN) * sN, n1 = Math.ceil(Nmax / sN) * sN;
+    var danhDau = tt.diemDanhDau || [];   // điểm nguy hiểm (đánh số như bảng kiểm tra)
+    var tatCa = tt.diemNoiLuc.concat(danhDau);
+    var Mm = Math.max.apply(null, bao.map(function (p) { return p.M; }).concat(tatCa.map(function (p) { return Math.abs(p.M); })));
+    var Nmin = Math.min.apply(null, bao.map(function (p) { return p.N; }).concat(tatCa.map(function (p) { return p.N; })));
+    var Nmax = Math.max.apply(null, bao.map(function (p) { return p.N; }).concat(tatCa.map(function (p) { return p.N; })));
+    var motPhia = !!tt.motPhia;   // chỉ phía M ≥ 0 (M = √(M2² + M3²) của ETABS) – như hình Check P-M của báo cáo thẩm tra
+    var sM = buoc(motPhia ? Mm : 2 * Mm, 6), sN = buoc(Nmax - Nmin, 8);
+    var m1 = Math.ceil(Mm / sM) * sM, m0 = motPhia ? 0 : -m1, n0 = Math.floor(Nmin / sN) * sN, n1 = Math.ceil(Nmax / sN) * sN;
     var X = function (m) { return l + (m - m0) / (m1 - m0) * (W - l - r); };
     var Y = function (n) { return t + (n1 - n) / (n1 - n0) * (H - t - b); };
     var s = '', v;
@@ -121,17 +124,35 @@
       '<line x1="' + l + '" y1="' + Y(0) + '" x2="' + (W - r) + '" y2="' + Y(0) + '" ' + TRUC + '/>';
     s += '<polyline points="' + bao.map(function (p) { return X(p.M).toFixed(1) + ',' + Y(p.N).toFixed(1); }).join(' ') +
       '" fill="none" stroke="#2a9bb8" stroke-width="2"/>' +
-      '<polyline points="' + bao.map(function (p) { return X(-p.M).toFixed(1) + ',' + Y(p.N).toFixed(1); }).join(' ') +
-      '" fill="none" stroke="#e8893a" stroke-width="2"/>';
+      (motPhia ? bao.map(function (p) { return '<circle cx="' + X(p.M).toFixed(1) + '" cy="' + Y(p.N).toFixed(1) + '" r="2.2" fill="#2a9bb8"/>'; }).join('') :
+        '<polyline points="' + bao.map(function (p) { return X(-p.M).toFixed(1) + ',' + Y(p.N).toFixed(1); }).join(' ') +
+        '" fill="none" stroke="#e8893a" stroke-width="2"/>');
     tt.diemNoiLuc.forEach(function (p) {
       var x = X(p.M), y = Y(p.N);
       s += tt.chamNho   // nhiều điểm (kết quả ETABS): chấm nhỏ như hình P–M của PDF
         ? '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2" fill="#e02424" fill-opacity="0.75"/>'
         : '<path d="M' + x + ' ' + (y - 6) + ' L' + (x + 6) + ' ' + y + ' L' + x + ' ' + (y + 6) + ' L' + (x - 6) + ' ' + y + ' Z" fill="#e02424"/>';
     });
+    // Điểm nguy hiểm: chấm viền đậm, số thứ tự lệch dần để đỡ chồng lên nhau
+    danhDau.forEach(function (p, i) {
+      var x = X(p.M), y = Y(p.N), mau = p.ok === false ? '#e02424' : '#111827';
+      s += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="4.5" fill="#fde047" stroke="' + mau + '" stroke-width="1.6"/>' +
+        '<text x="' + (x + 6 + (i % 3) * 9).toFixed(1) + '" y="' + (y - 5 - (i % 2) * 7).toFixed(1) + '" font-family="Arial, Helvetica, sans-serif" font-size="10" ' +
+        'font-weight="bold" fill="' + mau + '">' + (p.stt || i + 1) + '</text>';
+    });
+    if (tt.chamNho || danhDau.length) {   // chú giải như hình Check P-M của báo cáo thẩm tra
+      var lx = W - r - 150, ly = t + 10;
+      s += '<rect x="' + lx + '" y="' + (ly - 9) + '" width="146" height="' + (danhDau.length ? 46 : 32) + '" fill="#ffffff" fill-opacity="0.85" stroke="#d1d5db"/>' +
+        '<line x1="' + (lx + 6) + '" y1="' + (ly - 2) + '" x2="' + (lx + 26) + '" y2="' + (ly - 2) + '" stroke="#2a9bb8" stroke-width="2"/>' +
+        '<text x="' + (lx + 32) + '" y="' + (ly + 2) + '" ' + CHU + '>TCVN 5574:2018</text>' +
+        '<circle cx="' + (lx + 16) + '" cy="' + (ly + 12) + '" r="2.5" fill="#e02424"/>' +
+        '<text x="' + (lx + 32) + '" y="' + (ly + 16) + '" ' + CHU + '>Nội lực ETABS</text>' +
+        (danhDau.length ? '<circle cx="' + (lx + 16) + '" cy="' + (ly + 26) + '" r="4" fill="#fde047" stroke="#111827" stroke-width="1.4"/>' +
+          '<text x="' + (lx + 32) + '" y="' + (ly + 30) + '" ' + CHU + '>Điểm nguy hiểm</text>' : '');
+    }
     s += '<text x="' + ((l + W - r) / 2) + '" y="' + (H - 8) + '" text-anchor="middle" ' + CHU + '>M (kNm)</text>' +
       '<text x="14" y="' + ((t + H - b) / 2) + '" text-anchor="middle" transform="rotate(-90 14 ' + ((t + H - b) / 2) + ')" ' + CHU + '>N (kN)</text>';
-    return khung(W, H, s, 'BIỂU ĐỒ TƯƠNG TÁC');
+    return khung(W, H, s, tt.tieuDe || 'BIỂU ĐỒ TƯƠNG TÁC');
   }
 
   MCT.bieuDo = { noiLuc: noiLuc, spt: spt, tuongTac: tuongTac };

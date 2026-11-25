@@ -121,6 +121,26 @@ test('Nứt đài (TCVN 5574:2018 8.2.2): M_crc theo tiết diện quy đổi, b
   assert.equal(r2.ok, r2.acrc <= 0.4);
 });
 
+test('Kiểm tra P–M: mọi cặp (N, M), điểm nguy hiểm từng cọc như báo cáo thẩm tra', () => {
+  const ck = r.cocKiemTra, tt = MCT.calc.tomTatEtabs(raw, m, t);
+  const tong = tt.coc.reduce((a, c) => a + c.capNM.length, 0);
+  assert.equal(ck.soCapNM, tong, 'kiểm tra đủ mọi cặp');
+  assert.equal(ck.soCapVuot, 0);
+  assert.ok(r.diemTuongTac.length > 0 && r.diemTuongTac.length <= tong);
+  for (const c of tt.coc) {
+    const ds = ck.nguyHiem.filter((d) => d.coc === c.ten);
+    assert.ok(ds.length >= 2 && ds.length <= 4, c.ten + ': 2–4 điểm nguy hiểm');
+    const Nmax = Math.max(...c.capNM.map((p) => p[0])), Nmin = Math.min(...c.capNM.map((p) => p[0])), Mmax = Math.max(...c.capNM.map((p) => p[1]));
+    gan(ds.find((d) => /N nén lớn nhất/.test(d.loai)).N, Nmax, c.ten + ' Nmax');
+    gan(ds.find((d) => /N nén nhỏ nhất|Kéo lớn nhất/.test(d.loai)).N, Nmin, c.ten + ' Nmin');
+    gan(ds.find((d) => /M lớn nhất/.test(d.loai)).M, Mmax, c.ten + ' Mmax');
+    assert.ok(ds.some((d) => /Tỉ số M\/Mgh lớn nhất/.test(d.loai)));
+    ds.forEach((d) => { gan(d.tiSo, d.M / d.Mgh, 'tỉ số'); assert.equal(d.ok, d.tiSo <= 1); assert.ok(gui.toHop.includes(d.toHop)); });
+  }
+  assert.deepEqual(ck.nguyHiem.map((d) => d.stt), ck.nguyHiem.map((d, i) => i + 1));
+  gan(Math.max(...ck.nguyHiem.map((d) => d.tiSo)), ck.tuongTac.tiSo, 'tỉ số lớn nhất nằm trong bảng');
+});
+
 test('Thiếu kết quả thì báo lỗi', () => {
   assert.equal(MCT.calc.ketQuaEtabs(null, m, t, s, kq).hopLe, false);
 });

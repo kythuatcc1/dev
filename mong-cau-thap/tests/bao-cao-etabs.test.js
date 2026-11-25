@@ -96,9 +96,9 @@ test('Thuyết minh ETABS: khung CC1, đầu mục theo báo cáo thẩm tra, ô
     // nội dung tính
     'Bảng 2.1 Tải trọng chân đế cẩu tháp', 'Bảng 2.3 Tải trọng tác dụng tại tâm đài', 'LV-NEN-000', 'KLV-KEO-000', 'BAO = ENVELOPE',
     'Bảng 3.1 Độ cứng lò xo đất ngang', 'Bảng 4.3 Nội lực cọc từ đáy đài tới mũi cọc', '5.2.1. Sức chịu tải cọc theo vật liệu', '6572', '4561',
-    'Kiểm tra sức chịu tải cọc', String(Math.round(ck.Pnen.gt)), 'Cọc đảm bảo sức chịu tải', 'Hình 6.1 Check P-M', 'Bảng 6.2 Check Shear',
-    'Kiểm tra chuyển vị ngang, góc xoay đầu cọc', 'Bảng 6.3 Kiểm tra đài chịu uốn – phương X', 'Bảng 6.5 Kiểm tra đài chịu cắt',
-    'Bảng 6.6 Kiểm tra nứt đài móng', 'Kiểm tra xuyên thủng đài do chân cẩu', '26013', 'a) Thông số bulong',
+    'Kiểm tra sức chịu tải cọc', String(Math.round(ck.Pnen.gt)), 'Cọc đảm bảo sức chịu tải', 'Hình 6.1 Check P-M', 'Bảng 6.3 Check Shear', 'Bảng 6.2 Các điểm nguy hiểm kiểm tra P–M', 'N nén lớn nhất', 'M lớn nhất', 'Tỉ số M/Mgh lớn nhất', 'Số cặp nội lực (N, M) đã kiểm tra', String(L.kE.cocKiemTra.soCapNM),
+    'Kiểm tra chuyển vị ngang, góc xoay đầu cọc', 'Bảng 6.4 Kiểm tra đài chịu uốn – phương X', 'Bảng 6.6 Kiểm tra đài chịu cắt',
+    'Bảng 6.7 Kiểm tra nứt đài móng', 'Kiểm tra xuyên thủng đài do chân cẩu', '26013', 'a) Thông số bulong',
     'g) Kiểm tra phá hoại cục bộ bê tông', 'h) Kiểm tra bulong chịu kéo + cắt đồng thời', 'Liên kết bu lông móng cẩu đảm bảo chịu lực',
     'a) Kích thước móng khối quy ước', 'Bảng 7.1 Tổng hợp các kiểm tra', 'Bu lông neo móng cẩu đảm bảo khả năng chịu lực',
     'Chiều cao tự đứng của cẩu không được vượt quá chiều cao thiết kế là 37.5m đối với cẩu CT1 – LLT5020-10'

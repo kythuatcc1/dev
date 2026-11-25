@@ -199,14 +199,14 @@
     var x = D();
     opt = opt || {};
     var giuChung = opt.giuChung !== undefined ? opt.giuChung : dsHang.length <= 12;
-    var giua = { align: x.AlignmentType.CENTER, spacing: { after: 0, line: 260 }, keepNext: giuChung };
+    var giua = { align: x.AlignmentType.CENTER, spacing: { after: 0, line: 260 }, keepNext: giuChung, size: opt.co };   // opt.co: cỡ chữ (nửa pt)
     var hang = [hangBang(tieuDe.map(function (t, i) {
       return o(p(t, Object.assign({ bold: true }, giua)), cot[i], { fill: opt.fillTieuDe });
     }), { header: true })];
     dsHang.forEach(function (r, ri) {
       hang.push(hangBang(r.map(function (t, i) {
         var canh = opt.canhTrai && opt.canhTrai.indexOf(i) >= 0
-          ? { align: x.AlignmentType.LEFT, spacing: { after: 0, line: 260 }, keepNext: giuChung } : giua;
+          ? { align: x.AlignmentType.LEFT, spacing: { after: 0, line: 260 }, keepNext: giuChung, size: opt.co } : giua;
         return o(p(t, Object.assign({ bold: opt.dongDam && opt.dongDam(ri) }, canh)), cot[i]);
       })));
     });
@@ -1459,21 +1459,12 @@
     // Tải ngang: P–M, cắt, chuyển vị
     out.push(tieuMuc('Kiểm tra cọc chịu tải trọng ngang'));
     out.push(doan('Nội lực, chuyển vị cọc lấy từ mô hình ETABS (mục 3) có lò xo đất ngang tại các nút cọc, bao mọi tổ hợp tải trọng (mục 2.3).'));
-    var tt = ck.tuongTac;
-    if (tt) {
-      out.push(p('Các cặp nội lực (N, M) tại mọi mặt cắt của các cọc, mọi tổ hợp; M = √(M_{2}^{2} + M_{3}^{2}), N nén dương. Cặp bất lợi nhất (tỉ số M/M_{gh} lớn nhất):',
-        { align: x.AlignmentType.JUSTIFIED, keepNext: true }));
-      out.push(bangDayDu(['N (kN)', 'M (kNm)', 'M_{gh} (kNm)', 'M/M_{gh}', 'Cọc', 'Cao độ (m)', 'Tổ hợp'],
-        [[f(tt.N, 1), f(tt.M, 1), f(tt.Mgh, 1), f(tt.tiSo, 3), tt.coc, f(tt.z, 2), tt.toHop]], [1300, 1300, 1400, 1200, 900, 1300, 2238]));
-    }
-    out = out.concat(hinhAnh(hinh.etabsTuongTac, 380, 'Biểu đồ tương tác', 'Hình 6.1 Check P-M cọc (biểu đồ tương tác TCVN 5574:2018, các điểm nội lực ETABS)'));
-    out.push(p(ck.okTuongTac ? 'Các cặp nội lực (M, N) đều nằm trong biểu đồ tương tác: cọc đủ khả năng chịu lực.' :
-      'Có cặp nội lực (M, N) nằm ngoài biểu đồ tương tác: cọc KHÔNG đủ khả năng chịu lực.', { bold: true, color: ck.okTuongTac ? MAU.ok : MAU.fail }));
+    out = out.concat(kiemTraPM(s, kq, hinh, E, tenCau));
 
     // Bảng Check Shear
     if (TN && TN.hopLe) {
       var thep = (s.sct.thep || []).filter(function (t2) { return Number(t2.n) > 0; }).map(function (t2) { return t2.n + 'd' + t2.d; }).join(' + ');
-      out.push(p('Bảng 6.2 Check Shear', { bold: true, italics: true, align: x.AlignmentType.CENTER, keepNext: true, spacing: { before: 160, after: 60 } }));
+      out.push(p('Bảng 6.3 Check Shear', { bold: true, italics: true, align: x.AlignmentType.CENTER, keepNext: true, spacing: { before: 160, after: 60 } }));
       out.push(bangThongSo([
         { nhan: '1. Thông số vật liệu', dam: true, thut: 0 },
         { nhan: 'Cấp bền chịu nén bê tông:', gt: S && S.hopLe ? S.vatLieu.beTong : s.sct.beTong, nhap: true, thut: 360 },
@@ -1525,7 +1516,7 @@
     out = out.concat(oDanHinh('ETABS: Display → Force/Stress Diagrams → Shell Stresses/Forces → Forces, M11 và M22, tổ hợp BAO (Max/Min)',
       'App đọc được: M_X = ' + f(d.X.duoi.M, 1) + ' / ' + f(-(d.X.tren.M || 0), 1) + ' kNm; M_Y = ' + f(d.Y.duoi.M, 1) + ' / ' + f(-(d.Y.tren.M || 0), 1) +
       ' kNm (thớ dưới / thớ trên, cả bề rộng đài)', 5200, 'Hình 6.3 Mômen đài móng (kNm)'));
-    out = out.concat(bangUonDai(s, E, ['Bảng 6.3 Kiểm tra đài chịu uốn – phương X', 'Bảng 6.4 Kiểm tra đài chịu uốn – phương Y']));
+    out = out.concat(bangUonDai(s, E, ['Bảng 6.4 Kiểm tra đài chịu uốn – phương X', 'Bảng 6.5 Kiểm tra đài chịu uốn – phương Y']));
     out.push(tieuMuc('Kiểm tra đài chịu cắt'));
     out = out.concat(oDanHinh('ETABS: Display → Force/Stress Diagrams → Shell Stresses/Forces → Forces, V13 và V23, tổ hợp BAO',
       'App đọc được: V_X = ' + (d.X.catKT ? f(d.X.catKT.V, 1) : '-') + ' kN; V_Y = ' + (d.Y.catKT ? f(d.Y.catKT.V, 1) : '-') + ' kN (cả bề rộng đài)', 5200,
@@ -1536,8 +1527,8 @@
         var c = h[1];
         return [h[0], f(c.V, 1), f(c.viTri, 3), f(c.b, 3), f(d.h0, 3), f(c.Qb, 1), okKl(c.ok)];
       }), [1100, 1400, 1500, 1300, 1300, 1600, 1438], { fillTieuDe: 'F2F2F2' }));
-    out.push(chuThich('Bảng 6.5 Kiểm tra đài chịu cắt'));
-    out = out.concat(bangNutDai(s, E, 'Bảng 6.6 Kiểm tra nứt đài móng'));
+    out.push(chuThich('Bảng 6.6 Kiểm tra đài chịu cắt'));
+    out = out.concat(bangNutDai(s, E, 'Bảng 6.7 Kiểm tra nứt đài móng'));
     out.push(tieuMuc('Kiểm tra xuyên thủng đài do chân cẩu'));
     out = out.concat(voiTen({ 'C. KIỂM TRA XUYÊN THỦNG CHO ĐÀI MÓNG': null }, null, function () { return phan2MucC(s, kq); }));
 
@@ -1576,6 +1567,44 @@
       'D. SỨC CHỊU TẢI CỦA ĐẤT NỀN TẠI MẶT PHẲNG MŨI CỌC': { t: 'd) Sức chịu tải của đất nền tại mặt phẳng mũi cọc', cap: 'tm' },
       'E. KIỂM TRA ĐỘ LÚN CỦA MÓNG': { t: 'e) Kiểm tra độ lún của móng', cap: 'tm' }
     }, null, function () { return phan5Lun(s, kq); }));
+    return out;
+  }
+
+  // Kiểm tra P–M như hình Check P-M của báo cáo thẩm tra: thông số tiết diện (TCVN 5574:2018), mọi cặp (N, M) ETABS
+  // trên biểu đồ tương tác, bảng các điểm nguy hiểm của từng cọc (đánh số như trên hình), tỉ số lớn nhất
+  function kiemTraPM(s, kq, hinh, E, tenCau) {
+    var x = D(), ck = E.kE.cocKiemTra, TT = kq.TT, ds = ck.nguyHiem || [], out = [];
+    out.push(p('Kiểm tra khả năng chịu lực cọc theo biểu đồ tương tác (TCVN 5574:2018): mọi cặp nội lực (N, M) tại mọi mặt cắt của các cọc, mọi tổ hợp ' +
+      'lấy từ ETABS (M = √(M_{2}^{2} + M_{3}^{2}), N nén dương), kiểm tra M ≤ M_{gh}(N). Các điểm nguy hiểm của từng cọc: N nén lớn nhất, ' +
+      'N nhỏ nhất (kéo lớn nhất), M lớn nhất và điểm có tỉ số M/M_{gh} lớn nhất.', { align: x.AlignmentType.JUSTIFIED, keepNext: true }));
+    if (TT && TT.hopLe) {
+      out.push(bangThongSo([
+        { nhan: 'Tiết diện cọc (TCVN 5574:2018):', dam: true, thut: 0 },
+        { nhan: 'Đường kính cọc:', ky: 'D=', gt: g(TT.D * 1000), dv: 'mm', thut: 360 },
+        { nhan: 'Lớp bê tông bảo vệ (tới trọng tâm thép):', ky: 'a=', gt: g(TT.a), dv: 'mm', nhap: true, thut: 360 },
+        { nhan: 'Cốt thép dọc:', ky: 'n×d=', gt: TT.n + 'd' + g(TT.d), nhap: true, thut: 360 },
+        { nhan: 'Diện tích cốt thép:', ky: 'A_{s}=', gt: f(TT.As, 0), dv: 'mm2', thut: 360 },
+        { nhan: 'Cường độ bê tông (R_{b}·γ_{cb}·γ\'_{cb}):', ky: 'R_{b}=', gt: f(TT.Rb2, 4), dv: 'MPa', thut: 360 },
+        { nhan: 'Cường độ cốt thép:', ky: 'R_{s} / R_{sc}=', gt: g(TT.Rs) + ' / ' + g(TT.Rsc), dv: 'MPa', gtRong: true, thut: 360 },
+        { nhan: 'Số cặp nội lực (N, M) đã kiểm tra:', ky: 'n_{p}=', gt: String(ck.soCapNM), thut: 360 },
+        { nhan: 'Tỉ số M/M_{gh} lớn nhất:', ky: 'Tỷ số=', gt: ck.tuongTac ? f(ck.tuongTac.tiSo, 3) : '-', thut: 360, gtDam: true, kl: okKl(ck.okTuongTac) }
+      ]));
+    }
+    out = out.concat(hinhAnh(hinh.etabsTuongTac, 430, 'Biểu đồ tương tác',
+      'Hình 6.1 Check P-M cọc cẩu ' + tenCau + ' (biểu đồ tương tác TCVN 5574:2018, nội lực ETABS, điểm nguy hiểm đánh số như Bảng 6.2)'));
+    if (ds.length) {
+      out.push(p('Bảng 6.2 Các điểm nguy hiểm kiểm tra P–M', { bold: true, italics: true, align: x.AlignmentType.CENTER, keepNext: true, spacing: { before: 120, after: 60 } }));
+      out.push(bangDayDu(['TT', 'Cọc', 'Điểm kiểm tra', 'N (kN)', 'M (kNm)', 'Cao độ (m)', 'Tổ hợp', 'M_{gh} (kNm)', 'M/M_{gh}', 'Kết quả'],
+        ds.map(function (d) {
+          return [String(d.stt), d.coc, d.loai.replace('M/Mgh', 'M/M_{gh}'), f(d.N, 0), f(d.M, 1), f(d.z, 2), d.toHop, d.Mgh === null ? '-' : f(d.Mgh, 0),
+            d.tiSo === null ? '-' : isFinite(d.tiSo) ? f(d.tiSo, 3) : '> 1', d.ok === null ? '-' : okKl(d.ok)];
+        }), [440, 520, 1700, 720, 720, 820, 1880, 860, 780, 778], { canhTrai: [2], giuChung: false, fillTieuDe: 'F2F2F2', co: 20 }));
+    }
+    var vuot = ck.soCapVuot || 0;
+    out.push(p(ck.okTuongTac
+      ? 'Kết luận: ' + ck.soCapNM + ' cặp nội lực (N, M) đều nằm trong biểu đồ tương tác, tỉ số lớn nhất ' + f(ck.tuongTac.tiSo, 3) + ' ≤ 1: cọc đủ khả năng chịu lực.'
+      : 'Kết luận: có ' + vuot + '/' + ck.soCapNM + ' cặp nội lực (N, M) nằm ngoài biểu đồ tương tác: cọc KHÔNG đủ khả năng chịu lực.',
+      { bold: true, color: ck.okTuongTac ? MAU.ok : MAU.fail, spacing: { before: 80 } }));
     return out;
   }
 

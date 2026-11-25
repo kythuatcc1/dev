@@ -137,9 +137,13 @@ Chọn phương pháp ETABS rồi bấm "Xuất thuyết minh": giữ trang bìa
 | 3. Mô hình tính toán | Mô tả mô hình, **ô dán Hình 3.1 mô hình 3D**, Bảng 3.1 lò xo, Hình 3.2 mặt bằng (app vẽ); 3.1 tên cẩu: **ô dán Hình 3.3–3.6 lực Fx1…Mz1, Fx2…My2** (kèm giá trị app gán để đối chiếu) |
 | 4. Kết quả nội lực | 4.1 tên cẩu: **Bảng 4.1 BAO-MIN, 4.2 BAO-MAX** – 5 ô dán hình (P, M2-2, M3-3, V2-2, V3-3) và P<sub>min</sub>/P<sub>max</sub> app đọc; Bảng 4.3 nội lực cọc, Hình 4.1 bao P–M–V |
 | 5. Tính toán sức chịu tải cọc | Phần sức chịu tải cọc của form CC1, đánh số 5.1–5.3 |
-| 6. Tính toán móng cẩu tháp | 6.1 kiểm tra cọc (sức chịu tải P<sub>min</sub>/P<sub>max</sub> vs R<sub>c,d</sub>/R<sub>t,d</sub>, Hình 6.1 Check P-M, Bảng 6.2 Check Shear, **ô dán Hình 6.2 chuyển vị**, Δ/ψ, áp lực ngang – ổn định đất) · 6.2 đài (**ô dán Hình 6.3 mômen, 6.4 lực cắt đài**, Bảng 6.3–6.4 uốn, 6.5 cắt, **6.6 nứt**, xuyên thủng) · 6.3 bulong (a–g form CC1, **h kéo + cắt đồng thời**) · 6.4 ổn định – lún móng khối quy ước |
+| 6. Tính toán móng cẩu tháp | 6.1 kiểm tra cọc (sức chịu tải P<sub>min</sub>/P<sub>max</sub> vs R<sub>c,d</sub>/R<sub>t,d</sub>, Hình 6.1 Check P-M + Bảng 6.2 điểm nguy hiểm, Bảng 6.3 Check Shear, **ô dán Hình 6.2 chuyển vị**, Δ/ψ, áp lực ngang – ổn định đất) · 6.2 đài (**ô dán Hình 6.3 mômen, 6.4 lực cắt đài**, Bảng 6.4–6.5 uốn, 6.6 cắt, **6.7 nứt**, xuyên thủng) · 6.3 bulong (a–g form CC1, **h kéo + cắt đồng thời**) · 6.4 ổn định – lún móng khối quy ước |
 | 7. Kết luận, kiến nghị | Bảng 7.1 tổng hợp, kết luận cọc / đài / bulong; kiến nghị (sửa ở trang Thông tin dự án, mặc định như báo cáo thẩm tra) |
 
+- **Kiểm tra P–M** như hình Check P-M của báo cáo thẩm tra: kiểm tra M ≤ M<sub>gh</sub>(N) cho mọi cặp (N, M) của mọi cọc, mọi mặt cắt,
+  mọi tổ hợp (`cocKiemTra.soCapNM`, `soCapVuot`); vẽ toàn bộ lên biểu đồ (gộp điểm trùng 10 kN × 2 kNm khi vẽ, chỉ phía M ≥ 0);
+  bảng **điểm nguy hiểm** từng cọc (`cocKiemTra.nguyHiem`): N nén lớn nhất, N nhỏ nhất (kéo lớn nhất), M lớn nhất, tỉ số M/M<sub>gh</sub>
+  lớn nhất – kèm cao độ, tổ hợp, M<sub>gh</sub>, tỉ số, đánh số trên hình (thuyết minh: Hình 6.1, Bảng 6.2; trang Kết quả ETABS).
 - Kiểm tra mới (`kiemTraEtabs`, có trong kết luận): **nứt đài** TCVN 5574:2018 mục 8.2.2 – M<sub>crc</sub> = 1,3·W<sub>red</sub>·R<sub>bt,ser</sub>
   (tiết diện quy đổi, cả thép nén); M > M<sub>crc</sub> thì a<sub>crc</sub> = φ1φ2φ3ψs(σs/Es)ls ≤ 0,4 mm (ngắn hạn; φ1 = 1, φ2 = 0,5, φ3 = 1;
   σs = M/(0,8h0·As); ψs = 1 − 0,8Mcrc/M; ls theo 0,5Abt/As·ds giới hạn 10…40ds, 100…400 mm); dùng mômen tính toán ETABS (thiên về an toàn).

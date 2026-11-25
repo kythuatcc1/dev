@@ -1913,11 +1913,26 @@
         dongKiemTra('Δ = ' + so(cv.DeltaMax.gt) + ' mm', cv.okDelta ? '≤' : '>', '[Δ] = ' + so(cv.gioiHanDelta, 1) + ' mm', cv.okDelta) +
         dongKiemTra('ψ = ' + so(cv.psiMax.gt, 4) + '°', cv.okPsi ? '≤' : '>', '[ψ] = ' + so(cv.gioiHanPsi, 2) + '°', cv.okPsi);
     } else if (trang === 'tuong-tac' && ck.tuongTac) {
-      noiDung = dongKiemTra('N = ' + so(ck.tuongTac.N) + ' kN, M = ' + so(ck.tuongTac.M) + ' kNm (' + esc(ck.tuongTac.coc) + ')', ck.okTuongTac ? '≤' : '>',
-        '<i>M</i><sub>gh</sub> = ' + so(ck.tuongTac.Mgh) + ' kNm', ck.okTuongTac);
+      noiDung = dongKiemTra('Cặp bất lợi nhất: N = ' + so(ck.tuongTac.N) + ' kN, M = ' + so(ck.tuongTac.M) + ' kNm (' + esc(ck.tuongTac.coc) + ')', ck.okTuongTac ? '≤' : '>',
+        '<i>M</i><sub>gh</sub> = ' + so(ck.tuongTac.Mgh) + ' kNm', ck.okTuongTac) + '</div>' + bangNguyHiem(ck) + '<div>';
     }
     return dau + '<p>Kết luận lấy theo nội lực ETABS (chi tiết ở <button type="button" class="link" data-trang="etabs-ket-qua">Kết quả ETABS</button>). ' +
       'Phần tính giải tích bên dưới để tham khảo.</p>' + canhBaoEtabsCu() + '<div class="kiem-tra-dong">' + noiDung + '</div></section>';
+  }
+
+  // Bảng điểm nguy hiểm kiểm tra P–M (ETABS)
+  function bangNguyHiem(ck) {
+    var ds = ck.nguyHiem || [];
+    if (!ds.length) return '';
+    return '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>STT</th><th>Cọc</th><th>Điểm kiểm tra</th><th>N (kN)</th><th>M (kNm)</th>' +
+      '<th>Cao độ (m)</th><th>Tổ hợp</th><th>M<sub>gh</sub> (kNm)</th><th>M/M<sub>gh</sub></th><th></th></tr></thead><tbody>' +
+      ds.map(function (d) {
+        return '<tr><td class="c">' + d.stt + '</td><td class="c">' + esc(d.coc) + '</td><td>' + esc(d.loai) + '</td><td class="r">' + so(d.N, 1) +
+          '</td><td class="r">' + so(d.M, 1) + '</td><td class="r">' + so(d.z, 2) + '</td><td>' + esc(d.toHop) + '</td><td class="r">' +
+          (d.Mgh === null ? '–' : so(d.Mgh, 1)) + '</td><td class="r">' + (d.tiSo === null ? '–' : isFinite(d.tiSo) ? so(d.tiSo, 3) : '&gt; 1') +
+          '</td><td class="c">' + (d.ok === null ? '–' : nhanOk(d.ok)) + '</td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<p class="hint">Tỉ số lớn nhất ' + (ck.tuongTac ? so(ck.tuongTac.tiSo, 3) : '–') + '; ' + (ck.soCapVuot || 0) + '/' + ck.soCapNM + ' cặp vượt biểu đồ tương tác.</p>';
   }
 
   function nhanOk(ok) {
@@ -1992,8 +2007,10 @@
         MCT.bieuDo.noiLuc(bang, 'M', 'MÔMEN', 'M (kNm)', '#c0504d', { w: 300, h: 380 }) +
         MCT.bieuDo.noiLuc(bang, 'V', 'LỰC CẮT', 'V (kN)', '#2a9bb8', { w: 300, h: 380 }) + '</div>';
       if (tatCa.TT && tatCa.TT.hopLe) {
-        html += '<p>Các cặp (N, M) của mọi cọc, mọi mặt cắt so với biểu đồ tương tác (form CC1):</p><div class="bieu-do-svg">' +
-          MCT.bieuDo.tuongTac(Object.assign({}, tatCa.TT, { diemNoiLuc: r.diemTuongTac, chamNho: true }), { w: 520, h: 440 }) + '</div>';
+        html += '<h3>Kiểm tra P–M (biểu đồ tương tác TCVN 5574:2018)</h3><p>Mọi cặp (N, M) của mọi cọc, mọi mặt cắt, mọi tổ hợp (' + ck.soCapNM +
+          ' cặp) so với biểu đồ tương tác của form CC1; điểm nguy hiểm từng cọc đánh số như bảng bên dưới.</p><div class="bieu-do-svg">' +
+          MCT.bieuDo.tuongTac(Object.assign({}, tatCa.TT, { diemNoiLuc: r.diemTuongTac, chamNho: true, diemDanhDau: ck.nguyHiem, motPhia: true }), { w: 560, h: 480 }) + '</div>' +
+          bangNguyHiem(ck);
       }
       html += '</section>';
       // Chuyển vị
@@ -2512,7 +2529,8 @@
       ds.push(['etabsM', BD.noiLuc(bang, 'M', 'BENDING MOMENT – ' + c0.ten, 'M (kNm)', '#c0504d', { w: 250, h: 380 }), 250, 380]);
       ds.push(['etabsV', BD.noiLuc(bang, 'V', 'SHEAR FORCE – ' + c0.ten, 'V (kN)', '#2a9bb8', { w: 250, h: 380 }), 250, 380]);
       if (tatCa.TT && tatCa.TT.hopLe) {
-        ds.push(['etabsTuongTac', BD.tuongTac(Object.assign({}, tatCa.TT, { diemNoiLuc: E.kE.diemTuongTac, chamNho: true }), { w: 480, h: 440 }), 480, 440]);
+        ds.push(['etabsTuongTac', BD.tuongTac(Object.assign({}, tatCa.TT, { diemNoiLuc: E.kE.diemTuongTac, chamNho: true,
+          diemDanhDau: E.kE.cocKiemTra.nguyHiem, motPhia: true, tieuDe: 'BIỂU ĐỒ TƯƠNG TÁC CỌC CẨU THÁP ' + state.duAn.tenMong }), { w: 560, h: 480 }), 560, 480]);
       }
     }
     return Promise.all(ds.map(function (d) { return svgSangPng(d[1], d[2], d[3]); })).then(function (anh) {
