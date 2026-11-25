@@ -81,6 +81,8 @@
       vanTayDung: ''        // dấu vân tay mô hình + tải trọng của lần dựng gần nhất (app tự ghi)
     },
     baoCao: {
+      // Kiến nghị (mục 7.2 thuyết minh ETABS) – để trống: dùng mặc định; {tenMong}, {cau}, {chieuCao} được thay số liệu
+      kienNghi: '',
       moTaThem: 'Cao độ đáy bê tông lót móng -2.600m so với cote MĐTN. ' +
         'Cọc khoan nhồi có cao độ mũi cọc là -34.600m so với cote MĐTN.',
       coSo: [

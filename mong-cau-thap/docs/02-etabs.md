@@ -127,26 +127,26 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
   hiện khung "Đang dùng phương pháp ETABS", dấu ✓/✗ ở danh mục theo ETABS.
 
 ## Bước 6 – thuyết minh Word theo phương pháp ETABS (`js/bao-cao/thuyet-minh.js`)
-Chọn phương pháp ETABS rồi bấm "Xuất thuyết minh": giữ nguyên khung form CC1 (trang bìa, chương I, Phần 1 – 5, đầu trang),
-chỉ thay nội dung các đầu mục kiểm tra bằng nội lực ETABS, trình bày như phụ lục của PDF tham khảo (MD3-1):
+Chọn phương pháp ETABS rồi bấm "Xuất thuyết minh": giữ trang bìa, khung tiêu đề, trang ký, mục lục của form CC1; phần thân đặt
+đầu mục như **phụ lục tính toán của báo cáo thẩm tra** (260917_MD3_1_BCTT mong cau thap FULL), có ô trống để dán hình chụp ETABS:
 
-| Vị trí trong form CC1 | Nội dung khi chọn ETABS |
+| Đầu mục | Nội dung |
 |---|---|
-| Chương I | Phần mềm áp dụng thêm ETABS |
-| Phần 1 | Giữ nguyên (sức chịu tải cọc) |
-| Phần 2 – A | Giữ A.1 – A.4; thêm **A.5 Mô hình tính toán** (mô tả, Hình A.1 mặt bằng đài trong mô hình, Bảng A.1 độ cứng lò xo), **A.6 Tải trọng và tổ hợp** (Bảng A.2 load pattern, 4 bảng tổ hợp LV/KLV × nén/kéo như PDF mục 2.3, BAO), **A.7 Kết quả nội lực cọc** (Bảng A.3, Hình A.2 bao P – M – V cọc có M lớn nhất) |
-| B | Bảng P<sub>max</sub>/P<sub>min</sub> từng cọc kèm tổ hợp, Q<sub>a</sub>, Q<sub>a</sub>' (như PDF 6.1) + dòng kiểm tra CC1 |
-| C, E | Giữ nguyên (xuyên thủng, bulong – giải tích) |
-| D | Bảng D.1, D.2 mômen → thép phương X/Y (M, mặt cắt, b, h, h<sub>0</sub>, α<sub>m</sub>, ξ, A<sub>s</sub>, chọn, μ); Bảng D.3 đài chịu cắt V ≤ Q<sub>b</sub> (như PDF 6.2) |
-| F | Bảng F.1 tổng hợp kiểm tra (`ketLuanEtabs`) + kết luận |
-| Phần 3 | A – D theo ETABS (thông số, chuyển vị và góc xoay từng nút, biểu đồ bao M, V + [Q]); E – F (áp lực ngang, ổn định đất) giữ giải tích |
-| Phần 4 | A, B giữ; C: cặp N – M bất lợi nhất + biểu đồ tương tác với mọi điểm nội lực ETABS |
-| Phần 5 | Giữ nguyên |
+| 1. Cơ sở tính toán | Cơ sở, tiêu chuẩn, phần mềm (thêm ETABS) |
+| 2. Thông số đầu vào | 2.1 vật liệu · 2.2 thông số cẩu (Bảng 2.1 tải chân đế, **ô dán Hình 2.1 catalogue**, Bảng 2.2, tải tính toán ×n) · 2.3 tổ hợp (Bảng 2.3 load pattern, bảng tổ hợp LV/KLV × nén/kéo, BAO, "Trong đó") · 2.4 địa chất (**ô dán Hình 2.2 mặt bằng hố khoan, 2.3 mặt bằng bố trí cẩu, 2.4 hình trụ hố khoan**) |
+| 3. Mô hình tính toán | Mô tả mô hình, **ô dán Hình 3.1 mô hình 3D**, Bảng 3.1 lò xo, Hình 3.2 mặt bằng (app vẽ); 3.1 tên cẩu: **ô dán Hình 3.3–3.6 lực Fx1…Mz1, Fx2…My2** (kèm giá trị app gán để đối chiếu) |
+| 4. Kết quả nội lực | 4.1 tên cẩu: **Bảng 4.1 BAO-MIN, 4.2 BAO-MAX** – 5 ô dán hình (P, M2-2, M3-3, V2-2, V3-3) và P<sub>min</sub>/P<sub>max</sub> app đọc; Bảng 4.3 nội lực cọc, Hình 4.1 bao P–M–V |
+| 5. Tính toán sức chịu tải cọc | Phần sức chịu tải cọc của form CC1, đánh số 5.1–5.3 |
+| 6. Tính toán móng cẩu tháp | 6.1 kiểm tra cọc (sức chịu tải P<sub>min</sub>/P<sub>max</sub> vs R<sub>c,d</sub>/R<sub>t,d</sub>, Hình 6.1 Check P-M, Bảng 6.2 Check Shear, **ô dán Hình 6.2 chuyển vị**, Δ/ψ, áp lực ngang – ổn định đất) · 6.2 đài (**ô dán Hình 6.3 mômen, 6.4 lực cắt đài**, Bảng 6.3–6.4 uốn, 6.5 cắt, **6.6 nứt**, xuyên thủng) · 6.3 bulong (a–g form CC1, **h kéo + cắt đồng thời**) · 6.4 ổn định – lún móng khối quy ước |
+| 7. Kết luận, kiến nghị | Bảng 7.1 tổng hợp, kết luận cọc / đài / bulong; kiến nghị (sửa ở trang Thông tin dự án, mặc định như báo cáo thẩm tra) |
 
-- Tên file thêm đuôi `_ETABS`. Chưa có kết quả ETABS (hoặc kết quả lưu theo cách cũ) → báo lỗi, không xuất nhầm bản giải tích;
-  kết quả ETABS không khớp thông số hiện tại → hỏi trước khi xuất.
-- Hình (mặt bằng mô hình, bao P – M – V, tương tác) vẽ SVG trong app rồi chuyển PNG như các hình khác của thuyết minh.
-- Test: `tests/bao-cao-etabs.test.js` (kết quả ETABS giả lập cùng quy luật với cầu nối giả lập).
+- Kiểm tra mới (`kiemTraEtabs`, có trong kết luận): **nứt đài** TCVN 5574:2018 mục 8.2.2 – M<sub>crc</sub> = 1,3·W<sub>red</sub>·R<sub>bt,ser</sub>
+  (tiết diện quy đổi, cả thép nén); M > M<sub>crc</sub> thì a<sub>crc</sub> = φ1φ2φ3ψs(σs/Es)ls ≤ 0,4 mm (ngắn hạn; φ1 = 1, φ2 = 0,5, φ3 = 1;
+  σs = M/(0,8h0·As); ψs = 1 − 0,8Mcrc/M; ls theo 0,5Abt/As·ds giới hạn 10…40ds, 100…400 mm); dùng mômen tính toán ETABS (thiên về an toàn).
+  **Bulong kéo + cắt đồng thời** √((N1/[N]tb)² + (Q1/[N]vb)²) ≤ 1 như báo cáo thẩm tra.
+- Phương pháp giải tích: thuyết minh giữ đúng form CC1 (chương I, chương II phần 1–5).
+- Tên file thêm đuôi `_ETABS`. Chưa có kết quả ETABS → báo lỗi; kết quả không khớp thông số → hỏi trước khi xuất.
+- Test: `tests/bao-cao-etabs.test.js` (thứ tự đầu mục cấp 2, 3; ô dán hình; nội dung tính), `tests/etabs-ket-qua.test.js` (nứt đài tính tay).
 
 ## Chạy thử bước 1
 1. Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới (đợi mô hình hiện ra).

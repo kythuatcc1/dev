@@ -54,6 +54,39 @@
     return { M: Mabs, b: b, h0: h0, alpha: am, xi: xi, As: As, AsMet: As / b, duTietDien: duTietDien };
   }
 
+  /**
+   * Kiểm tra nứt tiết diện chữ nhật chịu uốn (TCVN 5574:2018 mục 8.2.2), đơn vị đầu vào: M kNm; b, H, a m; As mm²; ds mm; MPa.
+   *  - Hình thành vết nứt: M_crc = γ·W_red·R_bt,ser, γ = 1,3 (tiết diện chữ nhật); W_red = I_red / y_t, tiết diện quy đổi
+   *    (α = E_s/E_b, kể cả thép chịu nén).
+   *  - M > M_crc: bề rộng vết nứt ngắn hạn a_crc = φ1·φ2·φ3·ψs·σs/E_s·l_s ≤ [a_crc] = 0,4 mm (không hạn chế thấm);
+   *    φ1 = 1,0 (ngắn hạn), φ2 = 0,5 (thép có gờ), φ3 = 1,0 (uốn); σs = M/(z_s·A_s), cho phép z_s = 0,8h0;
+   *    ψs = 1 − 0,8·M_crc/M; l_s = 0,5·A_bt/A_s·d_s trong [10d_s; 40d_s] và [100; 400] mm; A_bt = b·y_t, 2a ≤ y_t ≤ 0,5h.
+   */
+  function kiemTraNut(M, b, H, a, AsKeo, AsNen, ds, bt, Es) {
+    var Mabs = Math.abs(M), bm = b * 1000, h = H * 1000, am = a * 1000, h0 = h - am, alpha = Es / bt.Eb;
+    var Ared = bm * h + alpha * (AsKeo + AsNen);
+    var yt = (bm * h * h / 2 + alpha * (AsKeo * am + AsNen * (h - am))) / Ared;   // từ thớ chịu kéo tới trọng tâm
+    var Ired = bm * Math.pow(h, 3) / 12 + bm * h * Math.pow(h / 2 - yt, 2) + alpha * AsKeo * Math.pow(yt - am, 2) +
+      alpha * AsNen * Math.pow(h - am - yt, 2);
+    var Wred = Ired / yt, gamma = 1.3;
+    var Mcrc = gamma * Wred * bt.Rbt_ser / 1e6;
+    var kq = {
+      M: Mabs, b: b, h0: h0 / 1000, As: AsKeo, AsNen: AsNen, ds: ds, alpha: alpha, gamma: gamma, Rbt_ser: bt.Rbt_ser,
+      Ared: Ared / 1e6, Ired: Ired / 1e12, yt: yt, Wred: Wred / 1e9, Mcrc: Mcrc, gioiHan: 0.4
+    };
+    if (Mabs <= Mcrc) return Object.assign(kq, { nut: false, ok: true });
+    var zs = 0.8 * h0, sigma = Mabs * 1e6 / (zs * AsKeo), psi = 1 - 0.8 * Mcrc / Mabs;
+    var ytb = Math.min(Math.max(yt, 2 * am), 0.5 * h), Abt = bm * ytb;
+    var lsTinh = 0.5 * Abt / AsKeo * ds, lsMin = Math.max(10 * ds, 100), lsMax = Math.min(40 * ds, 400);
+    var ls = Math.min(Math.max(lsTinh, lsMin), lsMax);
+    var phi1 = 1.0, phi2 = 0.5, phi3 = 1.0;
+    var acrc = phi1 * phi2 * phi3 * psi * sigma / Es * ls;
+    return Object.assign(kq, {
+      nut: true, zs: zs, sigma: sigma, psi: psi, ytb: ytb, Abt: Abt / 1e6, lsTinh: lsTinh, ls: ls,
+      phi1: phi1, phi2: phi2, phi3: phi3, Es: Es, acrc: acrc, ok: acrc <= kq.gioiHan
+    });
+  }
+
   function thepChon(t) {
     var d = Number(t && t.d), s = Number(t && t.s);
     return d > 0 && s > 0 ? { d: d, s: s, AsMet: Math.PI * d * d / 4 * 1000 / s } : null;
@@ -241,6 +274,34 @@
       Y: Object.assign(datY, { duoi: lop(datY.Mduong, 'duoiY', 'Lớp dưới theo Y'), tren: lop(datY.Mam, 'trenY', 'Lớp trên theo Y'), catKT: cat(datY.Vmax) })
     };
 
+    // Nứt đài: mômen ETABS (tổ hợp tính toán – thiên về an toàn), thép đang chọn của lớp chịu kéo và lớp chịu nén
+    function nut(ten, l, lopNen) {
+      if (!l.can) return { ten: ten, M: 0, nut: false, ok: true, khongCoMomen: true };
+      if (!l.chon) return { ten: ten, M: l.M, ok: null, thieuThep: true };
+      var b = l.can.b;
+      return Object.assign({ ten: ten, viTri: l.viTri, toHop: l.toHop, chon: l.chon },
+        kiemTraNut(l.M, b, H, a, l.chon.AsMet * b, lopNen.chon ? lopNen.chon.AsMet * b : 0, l.chon.d, vl.beTong, vl.cotThep.Es));
+    }
+    var dsNut = [nut('Phương X – thớ dưới chịu kéo', dai.X.duoi, dai.X.tren), nut('Phương X – thớ trên chịu kéo', dai.X.tren, dai.X.duoi),
+      nut('Phương Y – thớ dưới chịu kéo', dai.Y.duoi, dai.Y.tren), nut('Phương Y – thớ trên chịu kéo', dai.Y.tren, dai.Y.duoi)];
+    var coMomen = dsNut.filter(function (n) { return !n.khongCoMomen && !n.thieuThep; });
+    var nutXau = null;
+    coMomen.forEach(function (n) {
+      var muc = n.nut ? 1 + n.acrc : n.M / n.Mcrc;   // ưu tiên tiết diện đã nứt, bề rộng lớn nhất
+      if (nutXau === null || muc > nutXau.muc) nutXau = { muc: muc, n: n };
+    });
+    dai.nut = {
+      ds: dsNut, xauNhat: nutXau ? nutXau.n : null,
+      ok: dsNut.some(function (n) { return n.ok === null; }) ? null : dsNut.every(function (n) { return n.ok; })
+    };
+
+    // Bulong chịu kéo + cắt đồng thời (như báo cáo thẩm tra): √((N1/[N]tb)² + (Q1/[N]vb)²) ≤ 1
+    var E = kq.E, bulong = null;
+    if (E && E.hopLe) {
+      var tiSoBl = Math.sqrt(Math.pow(E.Pt1 / E.Ntb, 2) + Math.pow(E.Ps1 / E.Nvb, 2));
+      bulong = { N1: E.Pt1, Ntb: E.Ntb, Q1: E.Ps1, Nvb: E.Nvb, tiSo: tiSoBl, ok: tiSoBl <= 1 };
+    }
+
     var ketLuan = [
       { ten: 'Cọc chịu nén (đầu cọc)', ok: cocKiemTra.okNen },
       { ten: 'Cọc chịu kéo (đầu cọc)', ok: cocKiemTra.Pkeo ? cocKiemTra.okKeo : true },
@@ -249,12 +310,14 @@
       { ten: 'Chuyển vị ngang', ok: chuyenVi.okDelta },
       { ten: 'Góc xoay', ok: chuyenVi.okPsi },
       { ten: 'Thép đài', ok: [dai.X.duoi, dai.X.tren, dai.Y.duoi, dai.Y.tren].every(function (l) { return l.ok; }) },
-      { ten: 'Đài chịu cắt', ok: [dai.X.catKT, dai.Y.catKT].every(function (c) { return !c || c.ok; }) }
+      { ten: 'Đài chịu cắt', ok: [dai.X.catKT, dai.Y.catKT].every(function (c) { return !c || c.ok; }) },
+      { ten: 'Nứt đài móng', ok: dai.nut.ok }
     ];
+    if (bulong) ketLuan.push({ ten: 'Bulong chịu kéo + cắt đồng thời', ok: bulong.ok });
     return {
       hopLe: true, loi: [],
       toHop: tt.toHop, coc: tt.coc, cocKiemTra: cocKiemTra, diemTuongTac: diemTT,
-      chuyenVi: chuyenVi, dai: dai, ketLuan: ketLuan,
+      chuyenVi: chuyenVi, dai: dai, bulong: bulong, ketLuan: ketLuan,
       tatCaOk: ketLuan.every(function (k) { return k.ok !== false; })
     };
   }
@@ -297,8 +360,16 @@
     [['X', d.X.catKT], ['Y', d.Y.catKT]].forEach(function (x) {
       if (x[1]) ngang.push(muc('ETABS', 'etabs-ket-qua', 'Đài chịu cắt phương ' + x[0], { v: x[1].V, k: 'V', dv: 'kN' }, '≤', { v: x[1].Qb, k: 'Qb', dv: 'kN' }, x[1].ok));
     });
+    var nx = d.nut && d.nut.xauNhat;
+    if (nx) {
+      D.push(nx.nut
+        ? muc('D', 'etabs-ket-qua', 'Nứt đài móng (bề rộng vết nứt)', { v: nx.acrc, k: 'acrc', dv: 'mm' }, '≤', { v: nx.gioiHan, k: '[acrc]', dv: 'mm' }, nx.ok)
+        : muc('D', 'etabs-ket-qua', 'Nứt đài móng (chưa hình thành vết nứt)', { v: nx.M, k: 'M', dv: 'kNm' }, '≤', { v: nx.Mcrc, k: 'Mcrc', dv: 'kNm' }, true));
+    }
+    var bl = kE.bulong ? [muc('E', 'etabs-ket-qua', 'Bulong chịu kéo + cắt đồng thời', { v: kE.bulong.tiSo, k: '√((N/Ntb)²+(Q/Nvb)²)', dv: '' }, '≤',
+      { v: 1, k: 'giới hạn', dv: '' }, kE.bulong.ok)] : [];
     var giu = F.ds.filter(function (m) { return m.ma === 'C' || m.ma === 'E'; });
-    var ds = B.concat(giu.filter(function (m) { return m.ma === 'C'; }), D, giu.filter(function (m) { return m.ma === 'E'; }), ngang);
+    var ds = B.concat(giu.filter(function (m) { return m.ma === 'C'; }), D, giu.filter(function (m) { return m.ma === 'E'; }), bl, ngang);
     var ok = ds.every(function (m) { return m.ok; });
     return {
       hopLe: true, loi: [], phuongPhap: 'etabs', ds: ds, ok: ok,
@@ -313,4 +384,5 @@
   MCT.calc.kiemTraEtabs = kiemTraEtabs;
   MCT.calc.ketQuaEtabs = ketQuaEtabs;
   MCT.calc.ketLuanEtabs = ketLuanEtabs;
+  MCT.calc.kiemTraNut = kiemTraNut;
 })(globalThis.MCT = globalThis.MCT || {});

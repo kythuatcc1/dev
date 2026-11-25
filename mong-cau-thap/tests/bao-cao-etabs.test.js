@@ -64,52 +64,64 @@ function soLieuEtabs() {
 const chuCua = (xml) => xml.replace(/<[^>]+>/g, '');
 const f0 = (v) => (Math.round(v)).toString();
 
-test('Thuyết minh ETABS: giữ khung CC1, thêm mô hình – tổ hợp – nội lực, kiểm tra theo nội lực ETABS', async () => {
+// Các đoạn tiêu đề (Heading 2, Heading 3) theo thứ tự trong document.xml
+function tieuDe(xml, kieu) {
+  return xml.split(/<w:p[ >]/).filter((d) => d.includes('<w:pStyle w:val="' + kieu + '"/>')).map(chuCua);
+}
+
+test('Thuyết minh ETABS: khung CC1, đầu mục theo báo cáo thẩm tra, ô dán hình ETABS, tính móng theo nội lực ETABS', async () => {
   const L = soLieuEtabs();
   assert.equal(L.kE.hopLe, true, (L.kE.loi || []).join('; '));
   const buf = await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(L.s, L.tatCa));
   assert.equal(buf.slice(0, 2).toString(), 'PK');
   const xml = docTrongZip(buf, 'word/document.xml');
   const chu = chuCua(xml);
+  // đầu mục cấp 2, 3 đúng thứ tự phụ lục tính toán của báo cáo thẩm tra
+  assert.deepEqual(tieuDe(xml, 'Heading2'), ['1. CƠ SỞ TÍNH TOÁN', '2. THÔNG SỐ ĐẦU VÀO', '3. MÔ HÌNH TÍNH TOÁN', '4. KẾT QUẢ NỘI LỰC',
+    '5. TÍNH TOÁN SỨC CHỊU TẢI CỌC', '6. TÍNH TOÁN MÓNG CẨU THÁP', '7. KẾT LUẬN, KIẾN NGHỊ']);
+  assert.deepEqual(tieuDe(xml, 'Heading3'), ['2.1. Thông số vật liệu', '2.2. Thông số cẩu tháp', '2.3. Tổ hợp tải trọng', '2.4. Số liệu địa chất',
+    '3.1. CT1 – LLT5020-10', '4.1. CT1 – LLT5020-10', '5.1. Thông số đầu vào', '5.2. Tính toán sức chịu tải cọc',
+    '5.3. Tổng hợp sức chịu tải theo từng phương pháp', '6.1. Kiểm tra cọc', '6.2. Kiểm tra đài móng', '6.3. Kiểm tra bu lông móng cẩu',
+    '6.4. Kiểm tra ổn định đất nền và độ lún móng khối quy ước', '7.1. Kết luận', '7.2. Kiến nghị']);
   const ck = L.kE.cocKiemTra;
   [
-    // khung CC1 giữ nguyên
-    'THUYẾT MINH TÍNH TOÁN', 'CHƯƠNG I. TỔNG QUAN', 'PHẦN 1. TÍNH TOÁN SỨC CHỊU TẢI CỌC', 'A. THÔNG SỐ ĐẦU VÀO',
-    'B. KIỂM TRA TẢI TRỌNG TÁC DỤNG LÊN CỌC', 'C. KIỂM TRA XUYÊN THỦNG CHO ĐÀI MÓNG', '26013', 'D. TÍNH CỐT THÉP CHO ĐÀI MÓNG',
-    'E. KIỂM TRA BULONG', '4162.5', 'F. KẾT LUẬN', 'PHẦN 3. KIỂM TRA CỌC CHỊU TẢI NGANG', 'PHẦN 4. TÍNH TOÁN BIỂU ĐỒ TƯƠNG TÁC CỌC',
-    'PHẦN 5. KIỂM TRA ỔN ĐỊNH ĐẤT NỀN VÀ KIỂM TRA LÚN', '20356.50',
-    // nội dung ETABS (trình bày như PDF tham khảo)
-    'ETABS (Computers and Structures, Inc.)', 'A.5. Mô hình tính toán (phần mềm ETABS)', 'thick shell', 'Bảng A.1 Độ cứng lò xo đất ngang',
-    'A.6. Tải trọng và tổ hợp tải trọng', 'Bảng A.2 Tải trọng tác dụng tại tâm đài', 'FX1', 'MY2', 'LV-NEN-000', 'KLV-KEO-000',
-    'Trường hợp cẩu tháp làm việc – các tổ hợp tính toán cho cọc chịu nén', 'Trường hợp cẩu tháp không làm việc – các tổ hợp tính toán cho cọc chịu kéo',
-    'BAO = ENVELOPE', 'A.7. Kết quả nội lực cọc', 'Bảng A.3 Nội lực cọc',
-    'lấy từ kết quả ETABS', f0(ck.Pnen.gt), ck.Pnen.toHop,
-    'tích phân nội lực tấm vỏ', 'Thép theo phương X', 'Bảng D.2 Kiểm tra đài chịu uốn phương Y', 'Bảng D.3 Kiểm tra đài chịu cắt',
-    'Bảng F.1 Tổng hợp các kiểm tra', 'Phần 3', 'Phần 4',
-    'B. CHUYỂN VỊ NGANG VÀ GÓC XOAY ĐẦU CỌC', 'Tâm đài', 'Đầu cọc C1', 'C. MOMENT DỌC THEO THÂN CỌC', 'D. LỰC CẮT DỌC THEO THÂN CỌC',
-    'E. ÁP LỰC NGANG DỌC THEO THÂN CỌC', 'Cặp bất lợi nhất', 'Kiểm tra P–M cọc'
+    // khung CC1
+    'THUYẾT MINH TÍNH TOÁN', 'MÓNG CẨU THÁP CT1 LLT5020-10', 'TÍNH TOÁN MÓNG CẨU THÁP CT1 LLT5020-10',
+    // ô dán hình như báo cáo thẩm tra
+    'Dán hình chụp từ ETABS', 'Hình 2.1 Thông tin tải trọng cần trục tháp LLT5020-10 tự đứng 37.5m', 'Hình 2.2 Mặt bằng hố khoan',
+    'Hình 2.3 Mặt bằng bố trí cẩu tháp', 'Hình 2.4 Hình trụ hố khoan', 'Hình 3.1 Mô hình móng cẩu tháp',
+    'Hình 3.3 Lực Fx1, Fy1, Fz1 của cẩu tháp tác dụng lên móng (kN)', 'Hình 3.4 Lực Mx1, My1, Mz1', 'Hình 3.5 Lực Fx2, Fy2, Fz2', 'Hình 3.6 Lực Mx2, My2',
+    'Bảng 4.1 Nội lực cọc tổ hợp BAO-MIN', 'Bảng 4.2 Nội lực cọc tổ hợp BAO-MAX', 'Moment 2-2', 'Shear 3-3', 'Dán hình',
+    'Hình 6.2 Chuyển vị ngang, góc xoay đầu cọc', 'Hình 6.3 Mômen đài móng (kNm)', 'Hình 6.4 Lực cắt đài móng (kN)',
+    // nội dung tính
+    'Bảng 2.1 Tải trọng chân đế cẩu tháp', 'Bảng 2.3 Tải trọng tác dụng tại tâm đài', 'LV-NEN-000', 'KLV-KEO-000', 'BAO = ENVELOPE',
+    'Bảng 3.1 Độ cứng lò xo đất ngang', 'Bảng 4.3 Nội lực cọc từ đáy đài tới mũi cọc', '5.2.1. Sức chịu tải cọc theo vật liệu', '6572', '4561',
+    'Kiểm tra sức chịu tải cọc', String(Math.round(ck.Pnen.gt)), 'Cọc đảm bảo sức chịu tải', 'Hình 6.1 Check P-M', 'Bảng 6.2 Check Shear',
+    'Kiểm tra chuyển vị ngang, góc xoay đầu cọc', 'Bảng 6.3 Kiểm tra đài chịu uốn – phương X', 'Bảng 6.5 Kiểm tra đài chịu cắt',
+    'Bảng 6.6 Kiểm tra nứt đài móng', 'Kiểm tra xuyên thủng đài do chân cẩu', '26013', 'a) Thông số bulong',
+    'g) Kiểm tra phá hoại cục bộ bê tông', 'h) Kiểm tra bulong chịu kéo + cắt đồng thời', 'Liên kết bu lông móng cẩu đảm bảo chịu lực',
+    'a) Kích thước móng khối quy ước', 'Bảng 7.1 Tổng hợp các kiểm tra', 'Bu lông neo móng cẩu đảm bảo khả năng chịu lực',
+    'Chiều cao tự đứng của cẩu không được vượt quá chiều cao thiết kế là 37.5m đối với cẩu CT1 – LLT5020-10'
   ].forEach((t) => assert.ok(chu.includes(t), 'thiếu: ' + t));
-  // phần giải tích của mục B, phần 4 không còn
-  assert.ok(!chu.includes('Nén (P_{max})') && !chu.includes('Nén (Pmax)'), 'bảng ngoại lực giải tích phần 4 phải được thay');
+  // không còn đầu mục kiểu form CC1 cũ
+  ['CHƯƠNG I. TỔNG QUAN', 'PHẦN 1. TÍNH TOÁN SỨC CHỊU TẢI CỌC', 'B. KIỂM TRA TẢI TRỌNG TÁC DỤNG LÊN CỌC', 'E. KIỂM TRA BULONG', 'E.1. Thông số bulong',
+    'PHẦN 5. KIỂM TRA ỔN ĐỊNH', 'A.1. Thông số địa chất'].forEach((t) => assert.ok(!chu.includes(t), 'còn đầu mục cũ: ' + t));
   assert.equal(MCT.baoCao.tenFile(L.s, L.tatCa), 'Thuyet_minh_mong_cau_thap_CT1_LLT5020-10_ETABS.docx');
-  // đủ 4 bảng tổ hợp, mỗi tổ hợp tuyến tính một dòng
-  const soToHop = L.t.toHop.filter((c) => c.loai === 0).length;
   L.t.toHop.filter((c) => c.loai === 0).forEach((c) => assert.ok(chu.includes(c.ten), 'thiếu tổ hợp ' + c.ten));
-  assert.equal(soToHop, L.t.thongKe.soToHop);
   assert.equal((xml.match(/<\/w:tbl><w:tbl>/g) || []).length, 0, 'hai bảng liền nhau');
 });
 
-test('Thuyết minh ETABS: có ảnh thì chèn ảnh, các ô chờ hình biến mất', async () => {
+test('Thuyết minh ETABS: biểu đồ app vẽ được chèn, các ô dán hình chụp ETABS vẫn giữ', async () => {
   const L = soLieuEtabs();
-  // PNG 1×1 hợp lệ
   const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64'));
   const h = { data: png, w: 300, h: 400 };
   const hinh = { etabsMatBang: { data: png, w: 560, h: 420 }, etabsP: h, etabsM: h, etabsV: h, etabsTuongTac: { data: png, w: 480, h: 440 }, sigma: h, spt: h };
   const buf = await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(L.s, L.tatCa, hinh));
   const chu = chuCua(docTrongZip(buf, 'word/document.xml'));
-  ['Mặt bằng mô hình đài', 'Biểu đồ bao nội lực cọc', 'Biểu đồ bao mômen', 'Biểu đồ bao lực cắt', 'Biểu đồ tương tác (biểu đồ']
-    .forEach((t) => assert.ok(!chu.includes(t), 'còn ô chờ: ' + t));
-  assert.ok(chu.includes('Hình A.2 Bao lực dọc nén, mômen, lực cắt cọc'));
+  assert.ok(!chu.includes('được chèn khi xuất từ app'), 'còn ô chờ biểu đồ app vẽ');
+  assert.ok(chu.includes('Dán hình chụp từ ETABS'));
+  assert.ok(chu.includes('Hình 4.1 Bao lực dọc nén, mômen, lực cắt cọc'));
+  assert.ok(chu.includes('Hình 5.1 Biểu đồ chỉ số SPT'), 'đánh số lại hình SPT trong mục 5');
 });
 
 test('Chọn ETABS mà chưa có kết quả ETABS: báo lỗi rõ ràng, không xuất nhầm bản giải tích', () => {

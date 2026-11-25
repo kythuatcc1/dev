@@ -206,6 +206,8 @@
         oDoan('baoCao.phanMem', 'Phần 2 – Phần mềm áp dụng', 2, 'Mỗi dòng là một gạch đầu dòng.') +
         oDoan('baoCao.ghiChuGio', 'Phần 3 – Ghi chú tải trọng gió (in nghiêng)', 4) +
         oDoan('baoCao.gioiThieuTaiNgang', 'Chương II, Phần 3 – Đoạn giới thiệu kiểm tra cọc chịu tải ngang', 3) +
+        oDoan('baoCao.kienNghi', 'Thuyết minh ETABS, mục 7.2 – Kiến nghị', 3,
+          'Mỗi dòng là một gạch đầu dòng. Để trống: dùng kiến nghị mặc định như báo cáo thẩm tra. {tenMong}, {cau}, {chieuCao} được thay bằng số liệu.') +
         '</div><div class="params" style="margin-top:12px">' +
         oNhapSo('baoCao.taiToiDa', 'Tải tối đa của cẩu (Bảng 3.2)', '', 'T') +
         oNhapSo('baoCao.taiDauCan', 'Tải đầu cần (Bảng 3.2)', '', 'T') +
@@ -2011,6 +2013,21 @@
           '</td><td class="r">' + so(l.can.alpha, 4) + '</td><td class="r">' + (l.can.duTietDien ? so(l.can.AsMet, 0) : 'α<sub>m</sub> > 0,5') + '</td><td class="c nowrap">' +
           (l.chon ? 'Ø' + so(l.chon.d, 0) + 'a' + so(l.chon.s, 0) : '–') + '</td><td class="r">' + (l.chon ? so(l.chon.AsMet, 0) : '–') + '</td><td class="c">' + nhanOk(l.ok) + '</td></tr>';
       }
+      // Nứt đài (TCVN 5574:2018 mục 8.2.2) – 4 tiết diện
+      function bangNutEtabs(nut) {
+        if (!nut) return '';
+        return '<h3>Kiểm tra nứt đài (TCVN 5574:2018 mục 8.2.2)</h3><p class="hint">M<sub>crc</sub> = 1,3·W<sub>red</sub>·R<sub>bt,ser</sub>; ' +
+          'khi M &gt; M<sub>crc</sub>: a<sub>crc</sub> = φ<sub>1</sub>φ<sub>2</sub>φ<sub>3</sub>ψ<sub>s</sub>(σ<sub>s</sub>/E<sub>s</sub>)l<sub>s</sub> ≤ 0,4 mm ' +
+          '(ngắn hạn, không hạn chế thấm; σ<sub>s</sub> = M/(0,8h<sub>0</sub>A<sub>s</sub>)). Mômen tính toán ETABS – thiên về an toàn; thép đang chọn ở mục D.</p>' +
+          '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Tiết diện</th><th>M (kNm)</th><th>M<sub>crc</sub> (kNm)</th><th>Nứt</th>' +
+          '<th>σ<sub>s</sub> (MPa)</th><th>a<sub>crc</sub> (mm)</th><th></th></tr></thead><tbody>' +
+          nut.ds.map(function (r) {
+            if (r.khongCoMomen) return '<tr><td>' + esc(r.ten) + '</td><td class="r">0</td><td class="c">–</td><td class="c">Không</td><td class="c">–</td><td class="c">–</td><td class="c">' + nhanOk(true) + '</td></tr>';
+            if (r.thieuThep) return '<tr><td>' + esc(r.ten) + '</td><td class="r">' + so(r.M) + '</td><td colspan="5">Chưa chọn thép</td></tr>';
+            return '<tr><td>' + esc(r.ten) + '</td><td class="r">' + so(r.M) + '</td><td class="r">' + so(r.Mcrc) + '</td><td class="c">' + (r.nut ? 'Có' : 'Không') +
+              '</td><td class="r">' + (r.nut ? so(r.sigma, 1) : '–') + '</td><td class="r">' + (r.nut ? so(r.acrc, 3) : '–') + '</td><td class="c">' + nhanOk(r.ok) + '</td></tr>';
+          }).join('') + '</tbody></table></div>';
+      }
       function dongCat(ten, c) {
         if (!c) return '';
         return dongKiemTra(ten + ': V = ' + so(c.V) + ' kN (mặt cắt tại ' + so(c.viTri, 3) + ' m, b = ' + so(c.b, 3) + ' m)', c.ok ? '≤' : '>',
@@ -2023,6 +2040,7 @@
         '<th>A<sub>s</sub> cần (mm²/m)</th><th>Chọn</th><th>A<sub>s</sub> chọn (mm²/m)</th><th></th></tr></thead><tbody>' +
         [d.X.duoi, d.X.tren, d.Y.duoi, d.Y.tren].map(dongThep).join('') + '</tbody></table></div>' +
         '<div class="kiem-tra-dong">' + dongCat('Theo X', d.X.catKT) + dongCat('Theo Y', d.Y.catKT) + '</div>' +
+        bangNutEtabs(d.nut) +
         '<details class="more"><summary>Bao mômen từng mặt cắt</summary><div class="grid-2">' +
         [['X', d.X, 'x'], ['Y', d.Y, 'y']].map(function (h) {
           return '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>' + h[2] + ' (m)</th><th>M<sub>max</sub></th><th>M<sub>min</sub></th><th>V<sub>max</sub></th></tr></thead><tbody>' +

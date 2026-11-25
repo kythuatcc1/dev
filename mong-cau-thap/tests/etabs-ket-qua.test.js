@@ -92,7 +92,33 @@ test('Đài: mômen, lực cắt mặt cắt = ∫ trên suốt bề rộng; th�
   gan(r.dai.X.duoi.chon.AsMet, Math.PI * 400 / 4 * 1000 / 150, 'As chọn Ø20a150 (mm²/m)');
   assert.equal(r.dai.X.duoi.ok, true);
   gan(r.dai.X.catKT.Qb, 0.5 * 1.3e3 * Y * h0, 'Qb = 0,5·Rbt·b·h0');
-  assert.equal(r.ketLuan.length, 8);
+  assert.equal(r.ketLuan.length, 10, '8 kiểm tra + nứt đài + bulong kéo–cắt');
+  // nứt đài: 4 trường hợp, chọn trường hợp bất lợi; bulong kéo + cắt đồng thời theo mục E
+  assert.equal(r.dai.nut.ds.length, 4);
+  assert.ok(r.dai.nut.xauNhat && r.dai.nut.xauNhat.Mcrc > 0);
+  gan(r.bulong.tiSo, Math.hypot(kq.E.Pt1 / kq.E.Ntb, kq.E.Ps1 / kq.E.Nvb), 'bulong kéo + cắt');
+});
+
+test('Nứt đài (TCVN 5574:2018 8.2.2): M_crc theo tiết diện quy đổi, bề rộng vết nứt khi M > M_crc', () => {
+  const bt = { Rbt_ser: 1.95, Eb: 34500 }, Es = 200000;
+  const b = 4, H = 1.6, a = 0.15, As = 2094.4 * 4, Asn = 2094.4 * 4, ds = 20;
+  // tính tay (mm, N)
+  const bm = 4000, h = 1600, am = 150, al = Es / 34500;
+  const Ared = bm * h + al * (As + Asn);
+  const yt = (bm * h * h / 2 + al * (As * am + Asn * (h - am))) / Ared;
+  const Ired = bm * h ** 3 / 12 + bm * h * (h / 2 - yt) ** 2 + al * As * (yt - am) ** 2 + al * Asn * (h - am - yt) ** 2;
+  const Mcrc = 1.3 * Ired / yt * 1.95 / 1e6;
+  const r1 = MCT.calc.kiemTraNut(1000, b, H, a, As, Asn, ds, bt, Es);
+  gan(r1.Mcrc, Mcrc, 'Mcrc');
+  assert.ok(Mcrc > 1.3 * bm * h * h / 6 * 1.95 / 1e6, 'thép làm tăng Mcrc so với tiết diện bê tông');
+  assert.equal(r1.nut, false); assert.equal(r1.ok, true);
+  const M = 9000, r2 = MCT.calc.kiemTraNut(-M, b, H, a, As, Asn, ds, bt, Es);
+  const sigma = M * 1e6 / (0.8 * (h - am) * As), psi = 1 - 0.8 * Mcrc / M;
+  const ls = Math.min(Math.max(0.5 * bm * Math.min(Math.max(yt, 2 * am), h / 2) / As * ds, 200), 400);
+  assert.equal(r2.nut, true);
+  gan(r2.sigma, sigma, 'σs'); gan(r2.psi, psi, 'ψs'); gan(r2.ls, ls, 'ls');
+  gan(r2.acrc, 0.5 * psi * sigma / Es * ls, 'acrc');
+  assert.equal(r2.ok, r2.acrc <= 0.4);
 });
 
 test('Thiếu kết quả thì báo lỗi', () => {
@@ -122,10 +148,12 @@ test('Kết luận theo phương pháp ETABS: B, D theo ETABS, thêm kiểm tra 
   assert.ok(F.ds.some((x) => x.ten === 'Tải trọng nén lên cọc' && x.etabs));
   assert.ok(F.ds.some((x) => x.ten === 'Thép lớp dưới phương X' && x.etabs));
   assert.ok(ten.includes('Xuyên thủng đài do chân cẩu'), 'giữ mục C');
-  assert.equal(F.ds.filter((x) => x.ma === 'E').length, 6, 'giữ 6 kiểm tra bulong');
+  assert.equal(F.ds.filter((x) => x.ma === 'E').length, 7, 'giữ 6 kiểm tra bulong + kéo–cắt đồng thời');
+  assert.ok(ten.includes('Bulong chịu kéo + cắt đồng thời'));
+  assert.ok(ten.some((x) => /^Nứt đài móng/.test(x)));
   assert.ok(ten.includes('Chuyển vị ngang') && ten.includes('Góc xoay') && ten.includes('Cọc chịu cắt') && ten.includes('Tương tác N–M cọc'));
   assert.equal(F.ds.filter((x) => x.ma === 'B').length, 2);
-  assert.equal(F.ds.filter((x) => x.ma === 'D').length, 4);
+  assert.equal(F.ds.filter((x) => x.ma === 'D').length, 5, '4 lớp thép + nứt đài');
   // số liệu giả lập: chuyển vị 48 mm > 10 mm → không đủ
   assert.equal(F.ok, false);
   assert.equal(F.ketLuanGiaiTich, kq.F.ketLuan);
