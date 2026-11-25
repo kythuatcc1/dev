@@ -13,13 +13,24 @@ const thuMucCauNoi = path.join(tam, 'cau-noi');
 execFileSync('dotnet', ['build', path.join(__dirname, 'gia-lap', 'ETABSv1.csproj'), '-c', 'Release', '-o', thuMucGiaLap, '--nologo', '-v', 'q'], { stdio: 'inherit' });
 execFileSync('dotnet', ['build', path.join(__dirname, 'MctEtabs', 'MctEtabs.csproj'), '-c', 'Release', '-o', thuMucCauNoi, '--nologo', '-v', 'q'], { stdio: 'inherit' });
 
+// Mô hình do app tạo (js/calc/etabs-mo-hinh.js) với số liệu mặc định
+globalThis.MCT = {};
+const goc = path.join(__dirname, '..', '..', 'js');
+['data/cau-thap', 'data/vat-lieu', 'data/bang-tra', 'data/mau-dia-chat', 'data/he-so-tai-ngang', 'mac-dinh', 'calc/dia-chat', 'calc/sct-coc',
+  'calc/phan-a-tai-trong', 'calc/phan-b-tai-coc', 'calc/phan-c-xuyen-thung', 'calc/phan-d-thep-dai', 'calc/phan-e-bulong', 'calc/phan-f-ket-luan',
+  'calc/tai-ngang', 'calc/tuong-tac', 'calc/lun', 'calc/tinh-tat-ca', 'calc/etabs-mo-hinh'].forEach((f) => require(path.join(goc, f + '.js')));
+const trangThai = JSON.parse(JSON.stringify(globalThis.MCT.macDinh));
+const moHinh = globalThis.MCT.calc.taoMoHinhEtabs(trangThai, globalThis.MCT.calc.tinhTatCa(trangThai));
+const fileGhi = path.join(tam, 'mo-hinh-gia-lap.json');
+const fileEdb = path.join(tam, 'Mô hình', 'CT1 thử.EDB');
+
 function chay(tinhHuong, yeuCau) {
   const vao = path.join(tam, 'vao.json');
   const ra = path.join(tam, 'ra.json');
   fs.rmSync(ra, { force: true });
   fs.writeFileSync(vao, JSON.stringify(Object.assign({ lenh: 'kiem-tra', thuNghiem: true, duongDanEtabs: thuMucGiaLap }, yeuCau)), 'utf8');
   const r = spawnSync('dotnet', [path.join(thuMucCauNoi, 'MctEtabs.dll'), '--yeu-cau', vao, '--ket-qua', ra],
-    { env: Object.assign({}, process.env, { MCT_GIA_LAP: tinhHuong }), encoding: 'utf8' });
+    { env: Object.assign({}, process.env, { MCT_GIA_LAP: tinhHuong, MCT_GIA_LAP_GHI: fileGhi }), encoding: 'utf8' });
   assert.ok(fs.existsSync(ra), 'không có file kết quả: ' + r.stderr);
   return JSON.parse(fs.readFileSync(ra, 'utf8'));
 }
@@ -63,6 +74,31 @@ const ca = [
   ['lệnh đăng ký khi không phải Windows', '', { lenh: 'dang-ky-giao-dien' }, function (k) {
     assert.strictEqual(k.ok, false);
     assert.strictEqual(k.buocLoi, 'he-dieu-hanh');
+  }],
+  ['dựng mô hình (số liệu mặc định)', '', { lenh: 'dung-mo-hinh', duLieu: { moHinh: globalThis.MCT.calc.duLieuGuiEtabs(moHinh), fileMoHinh: fileEdb } }, function (k) {
+    assert.strictEqual(k.ok, true, k.loi);
+    const g = JSON.parse(fs.readFileSync(fileGhi, 'utf8'));
+    assert.strictEqual(g.file, fileEdb);
+    assert.strictEqual(g.donVi, 'kN_m_C');
+    assert.strictEqual(g.caoDoDay, -34.6);
+    assert.strictEqual(g.soTang, moHinh.tang.ds.length);
+    assert.strictEqual(g.soDiem, moHinh.diem.length);
+    assert.strictEqual(g.soThanh, moHinh.thanh.length);
+    assert.strictEqual(g.soVo, moHinh.vo.length);
+    assert.strictEqual(g.soLoXo, moHinh.loXo.length);
+    assert.strictEqual(g.soGoi, 3);
+    assert.deepStrictEqual(g.tietDienThanh.sort(), ['COC', 'COC_TRONG_DAI', 'LK_CUNG']);
+    assert.strictEqual(k.thongTin.fileMoHinh, fileEdb);
+    assert.ok(k.buoc.every(function (b) { return b.ok; }));
+    assert.ok(fs.existsSync(path.dirname(fileEdb)), 'chưa tạo thư mục lưu');
+  }],
+  ['dựng mô hình: SetStories_2 chỉ nhận "None"', 'tang-loi', { lenh: 'dung-mo-hinh', duLieu: { moHinh: globalThis.MCT.calc.duLieuGuiEtabs(moHinh), fileMoHinh: fileEdb } }, function (k) {
+    assert.strictEqual(k.ok, true, k.loi);
+    assert.ok(k.buoc.some(function (b) { return b.ten === 'tang' && b.ok; }));
+  }],
+  ['dựng mô hình: thiếu dữ liệu', '', { lenh: 'dung-mo-hinh' }, function (k) {
+    assert.strictEqual(k.ok, false);
+    assert.strictEqual(k.buocLoi, 'doc-yeu-cau');
   }],
   ['sai thư mục ETABS', '', { duongDanEtabs: path.join(tam, 'không có') }, function (k) {
     // không có thư mục → tìm tiếp trong Program Files; trên máy build không có ETABS nên báo không thấy DLL

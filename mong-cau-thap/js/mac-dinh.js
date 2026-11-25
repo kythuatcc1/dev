@@ -58,7 +58,11 @@
     // Nội dung chữ của thuyết minh (mỗi dòng là một gạch đầu dòng)
     // Kết nối ETABS (chỉ dùng trong chương trình Windows)
     etabs: {
-      duongDan: ''          // thư mục cài ETABS; để trống thì tự tìm
+      duongDan: '',         // thư mục cài ETABS; để trống thì tự tìm
+      batDauLoXo: 'day-dai',// lò xo đất bắt đầu từ: 'day-dai' (móng đài thấp) | 'day-ho' (đáy hố đào – đầu cọc tính toán)
+      luoi: 0.25,           // m – kích thước lưới chia tấm đài
+      buocCoc: 1,           // m – bước chia cọc (vị trí lò xo đất)
+      fileMoHinh: ''        // đường dẫn lưu mô hình .EDB; để trống: Documents\MongCauThap\<tên móng>.EDB
     },
     baoCao: {
       moTaThem: 'Cao độ đáy bê tông lót móng -2.600m so với cote MĐTN. ' +

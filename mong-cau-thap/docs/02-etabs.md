@@ -62,13 +62,30 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 ## Các bước
 | Bước | Nội dung | Trạng thái |
 |---|---|---|
-| 1 | Kết nối: trang "Kết nối ETABS", lệnh `kiem-tra` (phiên bản, file mô hình, đơn vị, số phần tử, load pattern) | Gắn được ETABS 23 qua COM; thiếu đăng ký type library (E_NOINTERFACE) → thêm chẩn đoán + đăng ký giao diện, chờ chạy thử |
-| 2 | Dựng mô hình: vật liệu B35, cọc tròn D chia 1 m, đài shell X×Y×H, lò xo ngang, mũi cọc, điểm đặt tải | Chờ |
+| 1 | Kết nối: trang "Kết nối ETABS", lệnh `kiem-tra` (phiên bản, file mô hình, đơn vị, số phần tử, load pattern) | ✔ Đã chạy trên máy thật (ETABS 23.2.0, API 2.014) sau khi chạy RegisterETABS.exe bằng quyền Administrator |
+| 2 | Dựng mô hình (lệnh `dung-mo-hinh`, trang "Mô hình ETABS", `js/calc/etabs-mo-hinh.js`) | Đã làm – chờ chạy thử trên máy thật |
 | 3 | Tải trọng & tổ hợp: Dead, Fx/Fy/Fz/Mx/My/Mz làm việc và không làm việc, 32 tổ hợp + hướng bất lợi, BAO | Chờ |
 | 4 | Chạy phân tích, lấy nội lực cọc theo chiều sâu, chuyển vị và góc xoay đài, mô men và lực cắt đài | Chờ |
 | 5 | Chọn phương pháp; kiểm tra cọc nén/kéo, tải ngang (cắt, P–M), thép đài, chuyển vị/góc xoay theo form CC1 | Chờ |
 | 6 | Thuyết minh form CC1 cho phương pháp ETABS | Chờ |
 | 7 | Tự cập nhật: đổi thông số → dựng lại, chạy lại, lấy kết quả | Chờ |
+
+## Bước 2 – mô hình app tự dựng (`js/calc/etabs-mo-hinh.js`)
+- **Gốc toạ độ:** tâm đài = tâm cẩu (như toạ độ cọc mục B); Z = cao độ so với MĐTN; đơn vị kN, m.
+- **Đài:** tấm vỏ dày (`ShellThick`, tiết diện `DAI`, dày H) đặt ở mặt phẳng giữa đài; lưới chia ≤ 0,25 m (chỉnh được),
+  đường lưới đi qua tâm cọc, 4 chân cẩu, tâm đài và mép đài – cọc và chân cẩu nối đúng nút của tấm.
+- **Cọc:** thanh tròn D (`COC`), nút ở đáy đài rồi mỗi 1 m (chỉnh được) tới mũi; đoạn từ giữa đài tới đáy đài là
+  thanh cứng `COC_TRONG_DAI` (hệ số độ cứng ×100, khối lượng và trọng lượng = 0 vì đã tính trong đài).
+- **Lò xo đất ngang:** K = k·z·b<sub>p</sub>·l tại mỗi nút cọc dưới cao độ bắt đầu, gán cả U1 và U2; k theo lớp (bảng A.1),
+  b<sub>p</sub> như phần sức chịu tải; cao độ bắt đầu: đáy đài (mặc định) hoặc đáy hố đào (chèn thêm nút tại cao độ này).
+- **Mũi cọc:** gối chặn UZ.
+- **Điểm đặt tải:** `TAM_CAU` ở mặt đài (0; 0; z<sub>mặt</sub>), 4 thanh cứng `LK_CUNG` (1×1 m, ×100, không trọng lượng)
+  xuống 4 chân cẩu tại góc thân cẩu (±b/2; ±b/2), b = bề rộng thân cẩu theo catalogue.
+- **Tầng ETABS:** mỗi cao độ nút là một tầng, đáy công trình ở mũi cọc; tên `MAT_DAI`, `GIUA_DAI`, `DAY_DAI`, `DAY_HO`, `Zm13p6`…
+- **Lệnh cầu nối:** `InitializeNewModel(kN_m_C)` → `File.NewBlank` → `Story.SetStories_2` (dự phòng SimilarToStory "None",
+  `SetStories`, `NewGridOnly`) → vật liệu, tiết diện → `PointObj.AddCartesian` → `FrameObj.AddByPoint` → `AreaObj.AddByPoint`
+  → `SetSpring`, `SetRestraint` → `File.Save` (mặc định `Documents\MongCauThap\MCT_<tên móng>_<cẩu>.EDB`) → đếm lại.
+  Mỗi lệnh kiểm tra mã trả về, lỗi thì dừng và báo đúng lệnh, tham số.
 
 ## Chạy thử bước 1
 1. Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới (đợi mô hình hiện ra).

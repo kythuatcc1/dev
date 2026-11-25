@@ -26,7 +26,8 @@
     { id: 'lun', ma: '', ten: 'Ổn định – lún' },
     { id: 'tuong-tac', ma: '', ten: 'Biểu đồ tương tác' },
     { nhom: 'Tính bằng ETABS' },
-    { id: 'etabs', ma: '', ten: 'Kết nối ETABS' }
+    { id: 'etabs', ma: '', ten: 'Kết nối ETABS' },
+    { id: 'etabs-mo-hinh', ma: '', ten: 'Mô hình ETABS' }
   ];
 
   // ---------------- Trạng thái ----------------
@@ -1263,6 +1264,7 @@
   var etabsKq = null;          // kết quả lệnh kiểm tra gần nhất
   var etabsDangKyKq = null;    // kết quả lệnh đăng ký / gỡ đăng ký giao diện gần nhất
   var etabsDangChay = false;
+  var etabsDungKq = null;      // kết quả lệnh dựng mô hình gần nhất
 
   function coChuongTrinh() { return !!(window.mctDesktop && window.mctDesktop.etabs); }
 
@@ -1271,8 +1273,20 @@
     'nap-dll': 'Nạp thư viện API', 'kiem-tra-com': 'Đăng ký COM của ETABS', 'ket-noi': 'Gắn vào phiên ETABS',
     'doc-mo-hinh': 'Đọc mô hình đang mở', 'he-dieu-hanh': 'Hệ điều hành', 'cau-noi': 'Chạy cầu nối',
     'net8': '.NET 8', 'loi-chung': 'Lỗi khác', 'tim-tlb': 'Tìm type library (.tlb)', 'dang-ky': 'Đăng ký giao diện',
-    'go-dang-ky': 'Gỡ đăng ký giao diện', 'kiem-tra-dang-ky': 'Kiểm tra đăng ký'
+    'go-dang-ky': 'Gỡ đăng ký giao diện', 'kiem-tra-dang-ky': 'Kiểm tra đăng ký',
+    'mo-hinh-moi': 'Mô hình mới', 'tang': 'Tầng (cao độ nút)', 'vat-lieu': 'Vật liệu', 'tiet-dien': 'Tiết diện',
+    'diem': 'Điểm', 'thanh': 'Thanh (cọc, liên kết cứng)', 'vo': 'Vỏ (tấm đài)', 'lo-xo': 'Lò xo đất', 'goi': 'Gối mũi cọc',
+    'luu': 'Lưu file .EDB', 'kiem-tra-so-luong': 'Kiểm tra số lượng trong ETABS'
   };
+
+  function bangBuocEtabs(r) {
+    var dong = (r.buoc || []).map(function (b) {
+      return '<tr><td class="c">' + (b.ok ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-fail">Lỗi</span>') +
+        '</td><td>' + esc(TEN_BUOC_ETABS[b.ten] || b.ten) + '</td><td>' + esc(b.chiTiet) + '</td></tr>';
+    }).join('');
+    return dong ? '<div class="table-wrap"><table class="tbl compact"><thead><tr><th></th><th>Bước</th><th>Chi tiết</th></tr></thead><tbody>' +
+      dong + '</tbody></table></div>' : '';
+  }
 
   // Lời khuyên theo mã gợi ý cầu nối trả về
   function goiYEtabs(r) {
@@ -1409,27 +1423,145 @@
         '<textarea class="in wide" rows="8" readonly>' + esc(JSON.stringify(r, null, 2)) + '</textarea></details></section>';
   }
 
+  function moHinhEtabs() {
+    return tatCa && MCT.calc.taoMoHinhEtabs ? MCT.calc.taoMoHinhEtabs(state, tatCa) : { hopLe: false, loi: ['Chưa tính.'] };
+  }
+
+  function tenFileMoHinh() {
+    var cau = ketQua && ketQua.cau ? ketQua.cau.ten : '';
+    return ['MCT', state.duAn.tenMong, cau].filter(Boolean).join('_').replace(/[\\/:*?"<>|\s]+/g, '_');
+  }
+
+  // Mặt bằng đài: lưới tấm, cọc, chân cẩu, thanh cứng
+  function svgMatBangEtabs(m) {
+    var t = m.thongSo, W = 560, Hh = 420, le = 46;
+    var sc = Math.min((W - 2 * le) / t.X, (Hh - 2 * le) / t.Y);
+    function px(x) { return le + (x + t.X / 2) * sc + ((W - 2 * le) - t.X * sc) / 2; }
+    function py(y) { return le + (t.Y / 2 - y) * sc + ((Hh - 2 * le) - t.Y * sc) / 2; }
+    function f(v) { return Math.round(v * 10) / 10; }
+    var g = [];
+    m.xs.forEach(function (x) { g.push('<line x1="' + f(px(x)) + '" y1="' + f(py(t.Y / 2)) + '" x2="' + f(px(x)) + '" y2="' + f(py(-t.Y / 2)) + '" stroke="#d6dde6" stroke-width="0.7"/>'); });
+    m.ys.forEach(function (y) { g.push('<line x1="' + f(px(-t.X / 2)) + '" y1="' + f(py(y)) + '" x2="' + f(px(t.X / 2)) + '" y2="' + f(py(y)) + '" stroke="#d6dde6" stroke-width="0.7"/>'); });
+    g.push('<rect x="' + f(px(-t.X / 2)) + '" y="' + f(py(t.Y / 2)) + '" width="' + f(t.X * sc) + '" height="' + f(t.Y * sc) + '" fill="none" stroke="#1f4e79" stroke-width="2"/>');
+    m.chan.forEach(function (c) {
+      g.push('<line x1="' + f(px(0)) + '" y1="' + f(py(0)) + '" x2="' + f(px(c.x)) + '" y2="' + f(py(c.y)) + '" stroke="#c0504d" stroke-width="1.6" stroke-dasharray="5 3"/>');
+    });
+    m.coc.forEach(function (c) {
+      g.push('<circle cx="' + f(px(c.x)) + '" cy="' + f(py(c.y)) + '" r="' + f(t.D / 2 * sc) + '" fill="#dbe8f5" stroke="#1f4e79" stroke-width="1.4"/>' +
+        '<text x="' + f(px(c.x)) + '" y="' + f(py(c.y) + 4) + '" text-anchor="middle" font-size="12" fill="#1f4e79">' + c.ten + '</text>');
+    });
+    m.chan.forEach(function (c) {
+      g.push('<rect x="' + f(px(c.x) - 5) + '" y="' + f(py(c.y) - 5) + '" width="10" height="10" fill="#c0504d"/>');
+    });
+    g.push('<circle cx="' + f(px(0)) + '" cy="' + f(py(0)) + '" r="5" fill="#fff" stroke="#c0504d" stroke-width="2"/>');
+    g.push('<text x="' + f(px(0)) + '" y="' + f(py(t.Y / 2) - 10) + '" text-anchor="middle" font-size="12" fill="#333">X = ' + so(t.X, 3) + ' m</text>');
+    g.push('<text x="' + f(px(t.X / 2) + 10) + '" y="' + f(py(0)) + '" font-size="12" fill="#333" transform="rotate(90 ' + f(px(t.X / 2) + 10) + ' ' + f(py(0)) + ')" text-anchor="middle">Y = ' + so(t.Y, 3) + ' m</text>');
+    return '<div class="bieu-do-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="Mặt bằng đài trong mô hình ETABS">' +
+      '<rect width="' + W + '" height="' + Hh + '" fill="#fff"/>' + g.join('') + '</svg></div>' +
+      '<p class="hint">Lưới tấm đài (xám), cọc (xanh), 4 chân cẩu (đỏ) nối với tâm chân cẩu ở mặt đài bằng thanh cứng (nét đứt).</p>';
+  }
+
+  TRANG['etabs-mo-hinh'] = {
+    tieuDe: 'Mô hình ETABS',
+    moTa: 'Bước 2: app tự dựng mô hình móng cẩu tháp trong ETABS từ thông số đang nhập (đài, cọc, lò xo đất), rồi lưu thành file .EDB.',
+    nhap: function () {
+      var chon = oChon('etabs.batDauLoXo', [
+        { v: 'day-dai', t: 'Đáy đài – móng đài thấp (mặc định)' },
+        { v: 'day-ho', t: 'Đáy hố đào – đầu cọc tính toán' }], 'Lò xo đất bắt đầu từ', '', '');
+      return '<section class="card"><h2>Thông số dựng mô hình</h2><div class="params">' + chon +
+        oNhapSo('etabs.luoi', 'Kích thước lưới chia tấm đài', '', 'm') +
+        oNhapSo('etabs.buocCoc', 'Bước chia cọc (khoảng cách lò xo đất)', '', 'm') + '</div>' +
+        '<div class="field field-wide" style="margin-top:12px"><label for="in-etabs.fileMoHinh">Lưu mô hình vào (để trống: Documents\\MongCauThap\\' +
+        esc(tenFileMoHinh()) + '.EDB)</label><input class="in wide" type="text" id="in-etabs.fileMoHinh" data-bind="etabs.fileMoHinh" value="' +
+        esc(layGiaTri('etabs.fileMoHinh')) + '"></div>' +
+        (coChuongTrinh()
+          ? '<p><button type="button" class="btn" data-action="etabs-dung-mo-hinh"' + (etabsDangChay ? ' disabled' : '') + '>' +
+            (etabsDangChay ? 'Đang dựng mô hình…' : 'Dựng mô hình trong ETABS') + '</button></p>' +
+            '<p class="hint">ETABS sẽ đóng mô hình đang mở (không lưu) để tạo mô hình mới – lưu mô hình đang mở trước. Thường mất 10–60 giây.</p>'
+          : '<p class="hint">Nút dựng mô hình chỉ có trong chương trình MongCauThap.exe (Windows, có ETABS v22/v23).</p>') +
+        '</section>';
+    },
+    ketQua: function () {
+      var m = moHinhEtabs();
+      var kq = '';
+      if (etabsDungKq) {
+        var r = etabsDungKq, t = r.thongTin || {};
+        kq = '<section class="card"><h2>Kết quả dựng mô hình</h2><div class="ket-luan-lon ' + (r.ok ? 'ok' : 'fail') + '">' +
+          (r.ok ? 'Đã dựng và lưu mô hình: ' + esc(t.fileMoHinh || '') : 'Chưa dựng được: ' + esc(r.loi || '')) + '</div>' +
+          (r.ok ? '' : goiYEtabs(r)) + bangBuocEtabs(r) +
+          (r.ok ? '<p class="hint">' + esc(t.soDiem) + ' điểm, ' + esc(t.soThanh) + ' thanh, ' + esc(t.soVo) + ' ô vỏ, ' + esc(t.soLoXo) +
+            ' lò xo; ' + esc(t.soLenhApi) + ' lệnh API trong ' + esc(t.thoiGianGiay) + ' giây. Mở ETABS để xem mô hình.</p>' : '') +
+          '<details class="more"><summary>Chi tiết kỹ thuật</summary><textarea class="in wide" rows="8" readonly>' +
+          esc(JSON.stringify(r, null, 2)) + '</textarea></details></section>';
+      }
+      if (!m.hopLe) return kq + loiHtml(m);
+      var t = m.thongSo, tk = m.thongKe;
+      var thongSo = '<section class="card"><h2>Mô hình sẽ dựng</h2><div class="grid-2"><div class="params">' +
+        dong('Đài (tấm vỏ dày)', '', so(t.X, 3) + ' × ' + so(t.Y, 3) + ' × ' + so(t.H, 2), 'm') +
+        dong('Cao độ mặt / giữa / đáy đài', '', so(t.zMat, 2) + ' / ' + so(t.zGiua, 2) + ' / ' + so(t.zDay, 2), 'm') +
+        dong('Tấm vỏ đặt ở', '', 'mặt phẳng giữa đài', '') +
+        dong('Lưới chia tấm', '', (t.nx - 1) + ' × ' + (t.ny - 1) + ' ô (≤ ' + so(t.luoi, 2) + ' m)', '') +
+        dong('Cọc', '', t.soCoc + ' cọc D' + so(t.D * 1000, 0), '') +
+        dong('Mũi cọc', '', so(t.zMui, 2), 'm') +
+        dong('Mũi cọc', '', 'gối chặn chuyển vị đứng', '') +
+        '</div><div class="params">' +
+        dong('Lò xo đất bắt đầu từ', '', so(t.zBatDau, 2) + (t.batDauLoXo === 'day-ho' ? ' (đáy hố đào)' : ' (đáy đài)'), 'm') +
+        dong('Bề rộng quy ước', '<i>b</i><sub>p</sub> =', so(t.bp, 2), 'm') +
+        dong('Chân cẩu (góc thân cẩu)', '', '±' + so(t.b / 2, 3) + ' ; ±' + so(t.b / 2, 3), 'm') +
+        dong('Điểm đặt tải', '', 'tâm chân cẩu, cao độ ' + so(t.zMat, 2), 'm') +
+        dong('Tầng ETABS (đáy tại mũi cọc)', '', String(tk.soTang), '') +
+        dong('Điểm / thanh / ô vỏ', '', tk.soDiem + ' / ' + tk.soThanh + ' / ' + tk.soVo, '') +
+        dong('Lò xo đất', '', tk.soLoXo + ' (' + m.bangLoXo.length + ' nút × ' + t.soCoc + ' cọc)', '') +
+        '</div></div></section>';
+      var matBang = '<section class="card"><h2>Mặt bằng đài trong mô hình</h2>' + svgMatBangEtabs(m) + '</section>';
+      var bang = '<section class="card"><h2>Lò xo đất ngang tại nút cọc</h2>' +
+        '<p>K = k·z·b<sub>p</sub>·l (TCVN 10304:2025 phụ lục A); k theo lớp đất (bảng A.1), z tính từ cao độ bắt đầu lò xo, ' +
+        'l là đoạn cọc nút đảm nhận. Gán cho cả hai phương X và Y, giống nhau ở mọi cọc.</p>' +
+        '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Cao độ (m)</th><th>z (m)</th><th>Lớp</th>' +
+        '<th>k (kN/m⁴)</th><th>l (m)</th><th>K (kN/m)</th></tr></thead><tbody>' +
+        m.bangLoXo.map(function (r) {
+          return '<tr><td class="r">' + so(r.caoDo, 2) + '</td><td class="r">' + so(r.doSau, 2) + '</td><td class="c">' + esc(r.lop) +
+            '</td><td class="r">' + so(r.k, 0) + '</td><td class="r">' + so(r.l, 2) + '</td><td class="r">' + so(r.K, 0) + '</td></tr>';
+        }).join('') + '</tbody></table></div></section>';
+      return kq + thongSo + matBang + bang;
+    }
+  };
+
   function etabsChay(lenh) {
     if (!coChuongTrinh() || etabsDangChay) return;
     if (lenh === 'dang-ky-giao-dien' && !window.confirm('Đăng ký giao diện API (type library) của ETABS cho tài khoản Windows này?\n\n' +
         'Chỉ ghi vào phần registry của tài khoản bạn, không cần quyền Administrator. Gỡ lại được bằng nút "Gỡ đăng ký".')) return;
     if (lenh === 'go-dang-ky-giao-dien' && !window.confirm('Gỡ đăng ký giao diện API của ETABS cho tài khoản Windows này?')) return;
+    var duLieu = null;
+    if (lenh === 'dung-mo-hinh') {
+      var m = moHinhEtabs();
+      if (!m.hopLe) { datTrangThai('Mô hình chưa hợp lệ: ' + m.loi.join(' ')); return; }
+      var file = String(state.etabs.fileMoHinh || '').trim();
+      if (!window.confirm('Dựng mô hình mới trong ETABS?\n\nETABS sẽ đóng mô hình đang mở (KHÔNG lưu) để tạo mô hình mới. ' +
+          'Hãy lưu mô hình đang mở trước nếu cần.\n\nMô hình mới được lưu vào: ' +
+          (file || 'Documents\\MongCauThap\\' + tenFileMoHinh() + '.EDB'))) return;
+      duLieu = { moHinh: MCT.calc.duLieuGuiEtabs(m), tenFile: tenFileMoHinh(), fileMoHinh: file };
+    }
     etabsDangChay = true;
-    if (trangHienTai === 'etabs') veTrang();
-    datTrangThai(lenh === 'kiem-tra' ? 'Đang kết nối ETABS…' : 'Đang xử lý đăng ký giao diện ETABS…');
+    if (trangHienTai === 'etabs' || trangHienTai === 'etabs-mo-hinh') veTrang();
+    datTrangThai(lenh === 'kiem-tra' ? 'Đang kết nối ETABS…' : lenh === 'dung-mo-hinh' ? 'Đang dựng mô hình trong ETABS…' : 'Đang xử lý đăng ký giao diện ETABS…');
     Promise.resolve().then(function () {
-      return window.mctDesktop.etabs({ lenh: lenh, duongDanEtabs: String(state.etabs.duongDan || '').trim(), thoiGianToiDa: 90000 });
+      return window.mctDesktop.etabs({ lenh: lenh, duongDanEtabs: String(state.etabs.duongDan || '').trim(),
+        thoiGianToiDa: lenh === 'dung-mo-hinh' ? 10 * 60 * 1000 : 90000, duLieu: duLieu });
     }).then(function (kq) {
       return kq || { ok: false, lenh: lenh, loi: 'Không nhận được kết quả.', buoc: [] };
     }, function (e) {
       return { ok: false, lenh: lenh, loi: e && e.message ? e.message : String(e), buoc: [] };
     }).then(function (kq) {
       kq.lenh = kq.lenh || lenh;
-      if (lenh === 'kiem-tra') { etabsKq = kq; etabsDangKyKq = null; } else etabsDangKyKq = kq;
+      if (lenh === 'kiem-tra') { etabsKq = kq; etabsDangKyKq = null; }
+      else if (lenh === 'dung-mo-hinh') etabsDungKq = kq;
+      else etabsDangKyKq = kq;
       etabsDangChay = false;
       datTrangThai(lenh === 'kiem-tra' ? (kq.ok ? 'Đã kết nối ETABS' : 'Chưa kết nối được ETABS')
+        : lenh === 'dung-mo-hinh' ? (kq.ok ? 'Đã dựng mô hình trong ETABS' : 'Chưa dựng được mô hình')
         : (kq.ok ? 'Đã xử lý đăng ký giao diện ETABS' : 'Chưa đăng ký được giao diện ETABS'));
-      if (trangHienTai === 'etabs') veTrang(); else veDanhMuc();
+      if (trangHienTai === 'etabs' || trangHienTai === 'etabs-mo-hinh') veTrang(); else veDanhMuc();
     });
   }
 
@@ -1445,6 +1577,7 @@
       case 'tai-ngang': return tatCa && tatCa.TN && tatCa.TN.hopLe ? tatCa.TN.tatCaOk : null;
       case 'lun': return tatCa && tatCa.LUN && tatCa.LUN.hopLe ? tatCa.LUN.tatCaOk : null;
       case 'etabs': return etabsKq ? !!etabsKq.ok : null;
+      case 'etabs-mo-hinh': return etabsDungKq ? !!etabsDungKq.ok : null;
       case 'tuong-tac': return tatCa && tatCa.TT && tatCa.TT.hopLe && tatCa.TT.diemNoiLuc.length ? tatCa.TT.tatCaOk : null;
       default: return undefined;
     }
@@ -1550,6 +1683,7 @@
       if (e.target.closest('[data-action="etabs-kiem-tra"]')) etabsChay('kiem-tra');
       if (e.target.closest('[data-action="etabs-dang-ky"]')) etabsChay('dang-ky-giao-dien');
       if (e.target.closest('[data-action="etabs-go-dang-ky"]')) etabsChay('go-dang-ky-giao-dien');
+      if (e.target.closest('[data-action="etabs-dung-mo-hinh"]')) etabsChay('dung-mo-hinh');
       var themDong = e.target.closest('[data-action="them-dong"]');
       var xoaDong = e.target.closest('[data-action="xoa-dong"]');
       if ((themDong && !themDong.disabled) || (xoaDong && !xoaDong.disabled)) {
