@@ -21,6 +21,7 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | GĐ7 | Biểu đồ tương tác, biểu đồ SPT | ✔ |
 | GĐ8 | Thuyết minh toàn bộ: Phần 1 SCT cọc, Phần 2 A → F, Phần 3 tải ngang, Phần 4 tương tác, Phần 5 ổn định – lún (kèm biểu đồ) | ✔ |
 | GĐ9 | Đóng gói chương trình Windows (.exe) bằng Electron | ✔ |
+| GĐ10 | Tính bằng ETABS v22/v23 (xem [docs/02-etabs.md](docs/02-etabs.md)) – bước 1 kết nối | đang làm |
 
 ## Cấu trúc
 ```
@@ -55,7 +56,7 @@ Ghi chú:
   bấm **More info → Run anyway** (Thông tin thêm → Vẫn chạy).
 - Số liệu nhập lưu tại `%APPDATA%\MongCauThap`, riêng với số liệu khi mở `index.html` bằng trình duyệt.
 - Khi sửa code app (`index.html`, `css`, `js`) cần chạy lại lệnh đóng gói để cập nhật file .exe.
-- Mã nguồn vỏ chương trình ở `desktop/` (`main.js`: cửa sổ, menu, hộp thoại lưu thuyết minh; `dong-goi.js`: lệnh đóng gói; `icon.svg`: biểu tượng).
+- Mã nguồn vỏ chương trình ở `desktop/` (`main.js`: cửa sổ, menu, hộp thoại lưu thuyết minh, kết nối ETABS; `preload.js`: cầu nối trang app; `etabs/cau-noi-etabs.ps1`: gọi API ETABS; `dong-goi.js`: lệnh đóng gói; `icon.svg`: biểu tượng).
 
 ## Xuất thuyết minh
 Bấm **Xuất thuyết minh** ở góc trên. File .docx trình bày theo thuyết minh mẫu

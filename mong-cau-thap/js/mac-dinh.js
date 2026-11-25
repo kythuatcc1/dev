@@ -56,6 +56,10 @@
       L1L2: 1700, L2: 300, L3: 250, eta1: 1.5, eta2: 0.9, alpha1: 1, k0: 1.35, nv: 1
     },
     // Nội dung chữ của thuyết minh (mỗi dòng là một gạch đầu dòng)
+    // Kết nối ETABS (chỉ dùng trong chương trình Windows)
+    etabs: {
+      duongDan: ''          // thư mục cài ETABS; để trống thì tự tìm
+    },
     baoCao: {
       moTaThem: 'Cao độ đáy bê tông lót móng -2.600m so với cote MĐTN. ' +
         'Cọc khoan nhồi có cao độ mũi cọc là -34.600m so với cote MĐTN.',

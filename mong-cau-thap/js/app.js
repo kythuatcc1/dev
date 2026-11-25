@@ -24,7 +24,9 @@
     { id: 'sct', ma: '', ten: 'Sức chịu tải cọc' },
     { id: 'tai-ngang', ma: '', ten: 'Cọc chịu tải ngang' },
     { id: 'lun', ma: '', ten: 'Ổn định – lún' },
-    { id: 'tuong-tac', ma: '', ten: 'Biểu đồ tương tác' }
+    { id: 'tuong-tac', ma: '', ten: 'Biểu đồ tương tác' },
+    { nhom: 'Tính bằng ETABS' },
+    { id: 'etabs', ma: '', ten: 'Kết nối ETABS' }
   ];
 
   // ---------------- Trạng thái ----------------
@@ -1257,6 +1259,85 @@
 
   // ---------------- Khung điều hướng ----------------
   // Trạng thái đạt/không đạt của từng mục để hiện ở thanh danh mục
+  // ---------------- Tính bằng ETABS (chỉ có trong chương trình Windows MongCauThap.exe) ----------------
+  var etabsKq = null;          // kết quả lệnh gần nhất
+  var etabsDangChay = false;
+
+  function coChuongTrinh() { return !!(window.mctDesktop && window.mctDesktop.etabs); }
+
+  var TEN_BUOC_ETABS = {
+    'doc-yeu-cau': 'Đọc yêu cầu', 'tim-etabs': 'Tìm ETABS đang mở', 'tim-dll': 'Tìm thư viện API (ETABSv1.dll)',
+    'nap-dll': 'Nạp thư viện API', 'ket-noi': 'Gắn vào phiên ETABS', 'doc-mo-hinh': 'Đọc mô hình đang mở',
+    'he-dieu-hanh': 'Hệ điều hành', 'script': 'Script kết nối', 'powershell': 'PowerShell'
+  };
+
+  TRANG.etabs = {
+    tieuDe: 'Kết nối ETABS',
+    moTa: 'Bước 1 của chức năng tính bằng phần mềm ETABS: kiểm tra chương trình gắn được vào ETABS v22/v23 đang mở trên máy.',
+    nhap: function () {
+      if (!coChuongTrinh()) {
+        return '<section class="card"><h2>Chỉ có trong chương trình Windows</h2>' +
+          '<p>Kết nối ETABS cần chạy app bằng chương trình <strong>MongCauThap.exe</strong> trên máy Windows có cài ETABS v22 hoặc v23. ' +
+          'Khi mở <code>index.html</code> bằng trình duyệt, trang này chỉ để xem.</p></section>';
+      }
+      return '<section class="card"><h2>Cách kiểm tra</h2><ol>' +
+        '<li>Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới (File → New Model).</li>' +
+        '<li>Bấm <strong>Kiểm tra kết nối</strong>. Lần đầu có thể mất 5–15 giây.</li></ol>' +
+        '<div class="field field-wide"><label for="in-etabs.duongDan">Thư mục cài ETABS (để trống để tự tìm)</label>' +
+        '<input class="in wide" type="text" id="in-etabs.duongDan" data-bind="etabs.duongDan" ' +
+        'placeholder="C:\\Program Files\\Computers and Structures\\ETABS 23" value="' + esc(layGiaTri('etabs.duongDan')) + '"></div>' +
+        '<p><button type="button" class="btn" data-action="etabs-kiem-tra"' + (etabsDangChay ? ' disabled' : '') + '>' +
+        (etabsDangChay ? 'Đang kết nối…' : 'Kiểm tra kết nối') + '</button></p></section>';
+    },
+    ketQua: function () {
+      if (!etabsKq) return '';
+      var r = etabsKq, t = r.thongTin || {};
+      function dongTT(nhan, v) {
+        if (v === undefined || v === null || v === '') return '';
+        var hien = Array.isArray(v) ? (v.length ? v.join(', ') : '(không có)') : String(v);
+        return '<tr><td>' + nhan + '</td><td>' + esc(hien) + '</td></tr>';
+      }
+      var buoc = (r.buoc || []).map(function (b) {
+        return '<tr><td class="c">' + (b.ok ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-fail">Lỗi</span>') +
+          '</td><td>' + esc(TEN_BUOC_ETABS[b.ten] || b.ten) + '</td><td>' + esc(b.chiTiet) + '</td></tr>';
+      }).join('');
+      return '<section class="card"><h2>Kết quả</h2>' +
+        '<div class="ket-luan-lon ' + (r.ok ? 'ok' : 'fail') + '">' +
+        (r.ok ? 'Đã kết nối được ETABS' : 'Chưa kết nối được: ' + esc(r.loi || '')) + '</div>' +
+        (buoc ? '<div class="table-wrap"><table class="tbl compact"><thead><tr><th></th><th>Bước</th><th>Chi tiết</th></tr></thead><tbody>' +
+          buoc + '</tbody></table></div>' : '') +
+        '<div class="table-wrap"><table class="tbl compact"><tbody>' +
+        dongTT('Phiên bản ETABS', t.etabsPhienBan) + dongTT('Phiên bản API', t.apiPhienBan) +
+        dongTT('File mô hình đang mở', t.fileMoHinh || (r.ok ? '(mô hình chưa lưu)' : null)) +
+        dongTT('Đơn vị hiện tại', t.donVi) +
+        dongTT('Mô hình đang khóa (đã chạy phân tích)', t.moHinhKhoa === undefined ? null : (t.moHinhKhoa ? 'Có' : 'Không')) +
+        dongTT('Số điểm / thanh / vùng', t.soDiem == null ? null : t.soDiem + ' / ' + t.soThanh + ' / ' + t.soVung) +
+        dongTT('Load pattern', t.loadPatterns) + dongTT('Thư viện API', t.dll) + dongTT('Cách gắn', t.cachKetNoi) +
+        dongTT('PowerShell / .NET', t.powershell ? t.powershell + ' / ' + t.clr : null) +
+        '</tbody></table></div>' +
+        '<details class="more"><summary>Chi tiết kỹ thuật (gửi lại khi cần hỗ trợ)</summary>' +
+        '<textarea class="in wide" rows="8" readonly>' + esc(JSON.stringify(r, null, 2)) + '</textarea></details></section>';
+    }
+  };
+
+  function etabsKiemTra() {
+    if (!coChuongTrinh() || etabsDangChay) return;
+    etabsDangChay = true;
+    if (trangHienTai === 'etabs') veTrang();
+    datTrangThai('Đang kết nối ETABS…');
+    Promise.resolve().then(function () {
+      return window.mctDesktop.etabs({ lenh: 'kiem-tra', duongDanEtabs: String(state.etabs.duongDan || '').trim() });
+    }).then(function (kq) {
+      etabsKq = kq || { ok: false, loi: 'Không nhận được kết quả.', buoc: [] };
+    }, function (e) {
+      etabsKq = { ok: false, loi: e && e.message ? e.message : String(e), buoc: [] };
+    }).then(function () {
+      etabsDangChay = false;
+      datTrangThai(etabsKq.ok ? 'Đã kết nối ETABS' : 'Chưa kết nối được ETABS');
+      if (trangHienTai === 'etabs') veTrang(); else veDanhMuc();
+    });
+  }
+
   function trangThaiMuc(id) {
     switch (id) {
       case 'coc': return kqB && kqB.hopLe ? kqB.kiemTraNen.ok && kqB.kiemTraKeo.ok : null;
@@ -1268,6 +1349,7 @@
       case 'dia-chat': return tatCa && tatCa.DC && tatCa.DC.hopLe ? true : null;
       case 'tai-ngang': return tatCa && tatCa.TN && tatCa.TN.hopLe ? tatCa.TN.tatCaOk : null;
       case 'lun': return tatCa && tatCa.LUN && tatCa.LUN.hopLe ? tatCa.LUN.tatCaOk : null;
+      case 'etabs': return etabsKq ? !!etabsKq.ok : null;
       case 'tuong-tac': return tatCa && tatCa.TT && tatCa.TT.hopLe && tatCa.TT.diemNoiLuc.length ? tatCa.TT.tatCaOk : null;
       default: return undefined;
     }
@@ -1370,6 +1452,7 @@
       if (nut && !nut.disabled) chuyenTrang(nut.getAttribute('data-trang'));
       if (e.target.closest('[data-action="toggle-nav"]')) document.body.classList.toggle('nav-open');
       if (e.target.closest('[data-action="xuat-tm"]')) xuatThuyetMinh();
+      if (e.target.closest('[data-action="etabs-kiem-tra"]')) etabsKiemTra();
       var themDong = e.target.closest('[data-action="them-dong"]');
       var xoaDong = e.target.closest('[data-action="xoa-dong"]');
       if ((themDong && !themDong.disabled) || (xoaDong && !xoaDong.disabled)) {
