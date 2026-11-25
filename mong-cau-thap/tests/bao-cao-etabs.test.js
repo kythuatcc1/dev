@@ -7,7 +7,7 @@ globalThis.docx = require('../vendor/docx-9.15.3.umd.js');
 ['cau-thap', 'vat-lieu', 'bang-tra', 'mau-dia-chat', 'he-so-tai-ngang'].forEach((f) => require(`../js/data/${f}.js`));
 require('../js/mac-dinh.js');
 ['dia-chat', 'sct-coc', 'phan-a-tai-trong', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong',
-  'phan-f-ket-luan', 'tai-ngang', 'tuong-tac', 'lun', 'tinh-tat-ca', 'etabs-mo-hinh', 'etabs-tai-trong', 'etabs-ket-qua'].forEach((f) => require(`../js/calc/${f}.js`));
+  'phan-f-ket-luan', 'tai-ngang', 'tuong-tac', 'lun', 'tinh-tat-ca', 'etabs-mo-hinh', 'etabs-tai-trong', 'etabs-ket-qua', 'dam-giang'].forEach((f) => require(`../js/calc/${f}.js`));
 require('../js/bao-cao/thuyet-minh.js');
 const MCT = globalThis.MCT;
 
@@ -30,9 +30,10 @@ function docTrongZip(buf, ten) {
 }
 
 // Số liệu mặc định + kết quả ETABS giả lập (cùng quy luật với ETABSv1 giả lập của cầu nối)
-function soLieuEtabs() {
+function soLieuEtabs(dsDam) {
   const s = JSON.parse(JSON.stringify(MCT.macDinh));
   s.tinhToan.phuongPhap = 'etabs';
+  s.damGiang.ds = (dsDam || []).map((d) => Object.assign(JSON.parse(JSON.stringify(s.damGiang.mau)), d));
   const kq = MCT.calc.tinhTatCa(s);
   const m = MCT.calc.taoMoHinhEtabs(s, kq);
   const t = MCT.calc.taiTrongEtabs(s, kq, m);
@@ -56,6 +57,8 @@ function soLieuEtabs() {
       return { nut, dong };
     })()
   };
+  raw.dam = (m.dam || []).map((d) => ({ ten: d.ten, dong: [].concat(...gui.toHop.map((ten, j) => [0, d.L].map((x) =>
+    [x, j, 50 + 5 * j, 20 + j, 5, 1, 10 + j, x === 0 ? -(40 + 2 * j) : 30 + j]))) }));
   const kE = MCT.calc.ketQuaEtabs(raw, m, t, s, kq);
   const F = MCT.calc.ketLuanEtabs(kq.F, kE);
   return { s, kq, m, t, kE, F, tatCa: Object.assign({}, kq, { etabs: { m, t, kE, F } }) };
@@ -122,6 +125,20 @@ test('Thuyết minh ETABS: biểu đồ app vẽ được chèn, các ô dán h�
   assert.ok(chu.includes('Dán hình chụp từ ETABS'));
   assert.ok(chu.includes('Hình 4.1 Bao lực dọc nén, mômen, lực cắt cọc'));
   assert.ok(chu.includes('Hình 5.1 Biểu đồ chỉ số SPT'), 'đánh số lại hình SPT trong mục 5');
+});
+
+test('Thuyết minh ETABS có dầm giằng: mục 6.4 kiểm tra dầm, ổn định – lún thành 6.5, kết luận có dầm', async () => {
+  const L = soLieuEtabs([{ tuCoc: 1, denCoc: 2, tren: { n: 4, d: 22 } }, { tuCoc: 2, denCoc: 3, tren: { n: 2, d: 10 } }]);
+  assert.equal(L.kE.damGiang.length, 2);
+  const buf = await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(L.s, L.tatCa));
+  const xml = docTrongZip(buf, 'word/document.xml'), chu = chuCua(xml);
+  const h3 = tieuDe(xml, 'Heading3');
+  assert.ok(h3.includes('6.4. Kiểm tra dầm giằng cọc'));
+  assert.ok(h3.includes('6.5. Kiểm tra ổn định đất nền và độ lún móng khối quy ước'));
+  ['Bảng 6.8 Thông số dầm giằng', 'Dầm DG1 (C1 – C2, z = -8.00 m)', 'Dầm DG2', 'Bảng 6.9 Kiểm tra dầm DG1', 'Bảng 6.10 Kiểm tra dầm DG2',
+    'Thép dưới (M3 &gt; 0)', 'Kéo dọc trục', 'Cắt ngang', 'dầm DG1 đảm bảo khả năng chịu lực', 'dầm DG2 KHÔNG đảm bảo', 'Dầm giằng DG1',
+    'Dầm giằng cọc KHÔNG đảm bảo'].forEach((t) => assert.ok(chu.includes(t), 'thiếu: ' + t));
+  assert.equal((xml.match(/<\/w:tbl><w:tbl>/g) || []).length, 0, 'hai bảng liền nhau');
 });
 
 test('Chọn ETABS mà chưa có kết quả ETABS: báo lỗi rõ ràng, không xuất nhầm bản giải tích', () => {

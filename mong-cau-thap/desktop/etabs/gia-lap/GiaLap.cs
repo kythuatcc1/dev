@@ -288,7 +288,8 @@ namespace ETABSv1
             var t = M.Thanh.FirstOrDefault(x => x[0] == Name);
             if (!M.DaPhanTich || t == null || ItemTypeElm != eItemTypeElm.ObjectElm) return 1;
             double[] a = M.Diem[t[1]], b = M.Diem[t[2]];
-            double L = Math.Abs(a[2] - b[2]);
+            double L = Math.Sqrt(Math.Pow(b[0] - a[0], 2) + Math.Pow(b[1] - a[1], 2) + Math.Pow(b[2] - a[2], 2));
+            bool laDam = Name.StartsWith("DG", StringComparison.Ordinal);   // dầm giằng: nội lực riêng, có quy luật
             int p = ChiSo(Name), k = Doan(Name), n = M.ToHopXuat.Count * 2;
             NumberResults = n; Obj = new string[n]; ObjSta = new double[n]; Elm = new string[n]; ElmSta = new double[n]; LoadCase = new string[n];
             StepType = new string[n]; StepNum = new double[n]; P = new double[n]; V2 = new double[n]; V3 = new double[n]; T = new double[n]; M2 = new double[n]; M3 = new double[n];
@@ -296,7 +297,11 @@ namespace ETABSv1
                 foreach (double sta in new[] { 0, L })
                 {
                     Obj[i] = Name; ObjSta[i] = sta; Elm[i] = Name; ElmSta[i] = sta; LoadCase[i] = M.ToHopXuat[j]; StepType[i] = "";
-                    P[i] = -(1000 + 100 * p + 10 * j + k) - 0.5 * sta; V2[i] = 10 + j; V3[i] = 0; T[i] = 0; M2[i] = 100 + 2 * j - k; M3[i] = j;
+                    if (laDam)
+                    {   // kéo 50 + 5j; mômen đứng −(40 + 2j) ở đầu, 30 + j ở cuối; mômen ngang 10 + j; cắt 20 + j, 5; xoắn 1
+                        P[i] = 50 + 5 * j; V2[i] = 20 + j; V3[i] = 5; T[i] = 1; M2[i] = 10 + j; M3[i] = sta == 0 ? -(40 + 2 * j) : 30 + j;
+                    }
+                    else { P[i] = -(1000 + 100 * p + 10 * j + k) - 0.5 * sta; V2[i] = 10 + j; V3[i] = 0; T[i] = 0; M2[i] = 100 + 2 * j - k; M3[i] = j; }
                     i++;
                 }
             return 0;

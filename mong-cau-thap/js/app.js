@@ -1710,12 +1710,79 @@
       g.push('<circle cx="' + f(px(c.x)) + '" cy="' + f(py(c.y)) + '" r="' + f(t.D / 2 * sc) + '" fill="#dbe8f5" stroke="#1f4e79" stroke-width="1.4"/>' +
         '<text x="' + f(px(c.x)) + '" y="' + f(py(c.y) + 4) + '" text-anchor="middle" font-size="12" fill="#1f4e79">' + c.ten + '</text>');
     });
+    (m.dam || []).forEach(function (d) {   // dầm giằng (nét đứt nâu, khác cao độ đài)
+      var c1 = m.coc.filter(function (c) { return c.ten === d.tuCoc; })[0], c2 = m.coc.filter(function (c) { return c.ten === d.denCoc; })[0];
+      if (!c1 || !c2) return;
+      g.push('<line x1="' + f(px(c1.x)) + '" y1="' + f(py(c1.y)) + '" x2="' + f(px(c2.x)) + '" y2="' + f(py(c2.y)) + '" stroke="#8b5a2b" stroke-width="' +
+        f(Math.max(d.b * sc, 3)) + '" stroke-opacity="0.35"/><text x="' + f((px(c1.x) + px(c2.x)) / 2 + 4) + '" y="' + f((py(c1.y) + py(c2.y)) / 2 - 4) +
+        '" font-size="11" fill="#8b5a2b">' + d.ten + ' (z ' + so(d.z, 1) + ')</text>');
+    });
     g.push('<circle cx="' + f(px(0)) + '" cy="' + f(py(0)) + '" r="6" fill="#c0504d"/>' +
       '<text x="' + f(px(0) + 10) + '" y="' + f(py(0) - 8) + '" font-size="12" fill="#c0504d">Điểm đặt tải (tâm đài)</text>');
     g.push('<text x="' + f(px(0)) + '" y="' + f(py(t.Y / 2) - 10) + '" text-anchor="middle" font-size="12" fill="#333">X = ' + so(t.X, 3) + ' m</text>');
     g.push('<text x="' + f(px(t.X / 2) + 10) + '" y="' + f(py(0)) + '" font-size="12" fill="#333" transform="rotate(90 ' + f(px(t.X / 2) + 10) + ' ' + f(py(0)) + ')" text-anchor="middle">Y = ' + so(t.Y, 3) + ' m</text>');
     return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + Hh + '" viewBox="0 0 ' + W + ' ' + Hh + '" font-family="Arial, Helvetica, sans-serif" role="img" aria-label="Mặt bằng đài trong mô hình ETABS">' +
       '<rect width="' + W + '" height="' + Hh + '" fill="#fff"/>' + g.join('') + '</svg>';
+  }
+
+  // ---------------- Dầm giằng cọc (chỉ dùng trong mô hình ETABS) ----------------
+  function oChonCoc(path, nhan) {
+    var v = String(layGiaTri(path)), n = state.coc.toaDo.length, opts = '';
+    for (var i = 1; i <= n; i++) opts += '<option value="' + i + '"' + (String(i) === v ? ' selected' : '') + '>C' + i + '</option>';
+    return '<select class="in" aria-label="' + esc(nhan) + '" id="in-' + path + '" data-bind="' + path + '" data-kieu="so-chon">' + opts + '</select>';
+  }
+  function oNd(path, nhan) {   // n thanh × đường kính
+    return '<span class="nd">' + oSoBang(path + '.n', nhan + ' – số thanh') + '<span>Ø</span>' + oSoBang(path + '.d', nhan + ' – đường kính') + '</span>';
+  }
+  function nhapDamGiang() {
+    var ds = state.damGiang.ds;
+    var BT = MCT.data.vatLieu.beTong.map(function (b) { return b.cap; }), CT = MCT.data.vatLieu.cotThep.map(function (c) { return c.nhom; });
+    var hang = ds.map(function (d, i) {
+      var p = 'damGiang.ds.' + i + '.', ten = 'DG' + (i + 1);
+      return '<tr><td class="c"><b>' + ten + '</b></td><td>' + oChonCoc(p + 'tuCoc', ten + ' từ cọc') + '</td><td>' + oChonCoc(p + 'denCoc', ten + ' đến cọc') + '</td>' +
+        '<td>' + oSoBang(p + 'z', ten + ' cao độ tim') + '</td><td>' + oSoBang(p + 'b', ten + ' bề rộng') + '</td><td>' + oSoBang(p + 'h', ten + ' chiều cao') + '</td>' +
+        '<td>' + oChonBang(p + 'beTong', BT, ten + ' bê tông') + '</td><td>' + oChonBang(p + 'cotThep', CT, ten + ' thép dọc') + '</td>' +
+        '<td>' + oSoBang(p + 'a', ten + ' a') + '</td><td>' + oNd(p + 'tren', ten + ' thép trên') + '</td><td>' + oNd(p + 'duoi', ten + ' thép dưới') + '</td>' +
+        '<td>' + oNd(p + 'hong', ten + ' thép hông') + '</td><td>' + oSoBang(p + 'dai.d', ten + ' đai d') + '</td><td>' + oSoBang(p + 'dai.s', ten + ' bước đai') + '</td>' +
+        '<td>' + oSoBang(p + 'dai.nhanh', ten + ' số nhánh đai') + '</td><td>' + oChonBang(p + 'cotThepDai', CT, ten + ' thép đai') + '</td>' +
+        '<td class="c"><button type="button" class="btn-x" data-action="xoa-dong" data-ds="damGiang.ds" data-i="' + i + '" aria-label="Xoá dầm ' + ten + '">✕</button></td></tr>';
+    }).join('');
+    return '<section class="card"><h2>Dầm giằng cọc (tuỳ chọn)</h2>' +
+      '<p class="hint">Dầm bê tông cốt thép nối hai cọc tại cao độ tim dầm z (giữa đáy đài và mũi cọc), ví dụ để giằng cọc trong giai đoạn đào đất. ' +
+      'App chèn nút cao độ z vào các cọc, dựng dầm tiết diện b×h trong ETABS (trọng lượng bản thân trong DEAD), lấy nội lực dầm và kiểm tra uốn, ' +
+      'kéo/nén, cắt, thép dầm theo TCVN 5574:2018 (trang Kết quả ETABS, thuyết minh mục 6.4). Thêm, sửa, xoá dầm thì phải dựng lại mô hình.</p>' +
+      (ds.length ? '<div class="table-wrap"><table class="tbl tbl-nhap tbl-dam"><thead><tr><th>Dầm</th><th>Từ cọc</th><th>Đến cọc</th><th>z tim (m)</th>' +
+        '<th>b (m)</th><th>h (m)</th><th>Bê tông</th><th>Thép dọc</th><th>a (cm)</th><th>Thép trên n × Ø</th><th>Thép dưới n × Ø</th>' +
+        '<th>Thép hông mỗi mặt n × Ø</th><th>Đai Ø</th><th>Bước đai (mm)</th><th>Số nhánh</th><th>Thép đai</th><th></th></tr></thead><tbody>' + hang +
+        '</tbody></table></div>' : '<p>Chưa có dầm giằng.</p>') +
+      '<h3>Thêm dầm</h3><div class="params">' +
+      oNhapSo('damGiang.mau.z', 'Cao độ tim dầm mặc định', 'z =', 'm') + oNhapSo('damGiang.mau.b', 'Bề rộng mặc định', 'b =', 'm') +
+      oNhapSo('damGiang.mau.h', 'Chiều cao mặc định', 'h =', 'm') + '</div>' +
+      '<p class="hang-nut"><button type="button" class="btn btn-ghost" data-action="dam-them">+ Thêm một dầm</button>' +
+      '<button type="button" class="btn btn-ghost" data-action="dam-giang-tat-ca">Giằng tất cả các cặp cọc tại cao độ mặc định</button>' +
+      (ds.length ? '<button type="button" class="btn btn-ghost" data-action="dam-xoa-het">Xoá hết dầm</button>' : '') + '</p></section>';
+  }
+
+  function xuLyDam(hd) {
+    var ds = state.damGiang.ds, mau = state.damGiang.mau, n = state.coc.toaDo.length;
+    var co = function (i, j, z) { return ds.some(function (d) { return Number(d.z) === Number(z) && ((d.tuCoc === i && d.denCoc === j) || (d.tuCoc === j && d.denCoc === i)); }); };
+    var moi = function (i, j) { return Object.assign(sao(mau), { tuCoc: i, denCoc: j }); };
+    if (hd === 'dam-them') {
+      for (var i = 1; i <= n; i++) for (var j = i + 1; j <= n; j++) if (!co(i, j, mau.z)) { ds.push(moi(i, j)); i = j = n + 1; }
+      if (i === n + 1) ds.push(moi(1, Math.min(2, n)));
+    } else if (hd === 'dam-giang-tat-ca') {
+      var them = 0;
+      for (var a = 1; a <= n; a++) for (var b = a + 1; b <= n; b++) if (!co(a, b, mau.z)) { ds.push(moi(a, b)); them++; }
+      var thongBao = them ? 'Đã thêm ' + them + ' dầm giằng tại cao độ ' + mau.z + ' m' : 'Các cặp cọc đã có dầm tại cao độ này';
+    } else if (hd === 'dam-xoa-het') {
+      if (!window.confirm('Xoá hết ' + ds.length + ' dầm giằng?')) return;
+      state.damGiang.ds = [];
+    } else return;
+    tinh();
+    $('#vung-nhap').innerHTML = TRANG[trangHienTai].nhap();
+    veKetQua();
+    luu();
+    if (thongBao) datTrangThai(thongBao);
   }
 
   function nutDungMoHinh() {
@@ -1752,7 +1819,7 @@
         '<div class="field field-wide" style="margin-top:12px"><label for="in-etabs.fileMoHinh">Lưu mô hình vào (để trống: Documents\\MongCauThap\\' +
         esc(tenFileMoHinh()) + '.EDB)</label><input class="in wide" type="text" id="in-etabs.fileMoHinh" data-bind="etabs.fileMoHinh" value="' +
         esc(layGiaTri('etabs.fileMoHinh')) + '"></div>' +
-        nutDungMoHinh() + '</section>';
+        nutDungMoHinh() + '</section>' + nhapDamGiang();
     },
     ketQua: function () {
       var m = moHinhEtabs();
@@ -1774,6 +1841,7 @@
         dong('Số tầng ETABS', '', String(tk.soTang), '') +
         dong('Điểm / thanh / ô vỏ', '', tk.soDiem + ' / ' + tk.soThanh + ' / ' + tk.soVo, '') +
         dong('Lò xo đất', '', tk.soLoXo + ' (' + m.bangLoXo.length + ' nút × ' + t.soCoc + ' cọc)', '') +
+        (tk.soDam ? dong('Dầm giằng', '', tk.soDam + ' dầm: ' + m.dam.map(function (d) { return d.ten + ' ' + d.tuCoc + '–' + d.denCoc + ' (z ' + so(d.z, 2) + ')'; }).join(', '), '') : '') +
         '</div></div></section>';
       var matBang = '<section class="card"><h2>Mặt bằng đài trong mô hình</h2>' + svgMatBangEtabs(m) + '</section>';
       var bang = '<section class="card"><h2>Lò xo đất ngang tại nút cọc</h2>' +
@@ -2065,9 +2133,45 @@
               return '<tr><td class="r">' + so(c.viTri, 3) + '</td><td class="r">' + so(c.Mmax.gt) + '</td><td class="r">' + so(c.Mmin.gt) + '</td><td class="r">' + so(c.Vmax.gt) + '</td></tr>';
             }).join('') + '</tbody></table></div>';
         }).join('') + '</div></details></section>';
+      html += veDamGiang(r.damGiang);
       return html;
     }
   };
+
+  // Kết quả kiểm tra dầm giằng (TCVN 5574:2018) – nội lực bao ETABS và từng điều kiện
+  function veDamGiang(ds) {
+    if (!ds || !ds.length) return '';
+    function o(v, d) { return '<td class="r">' + (v === null || v === undefined || !isFinite(v) ? '–' : so(v, d === undefined ? 1 : d)) + '</td>'; }
+    function th(b) { return b ? ' <span class="muted">(' + esc(b.toHop) + ')</span>' : ''; }
+    return '<section class="card"><h2>Dầm giằng cọc</h2><p class="hint">Nội lực ETABS bao mọi tổ hợp. M3, V2: uốn, cắt trong mặt phẳng đứng (M3 &gt; 0 thớ dưới kéo); ' +
+      'M2, V3: trong mặt phẳng ngang; P &gt; 0: kéo. Thép trên/dưới cộng thêm N<sub>t</sub>/2R<sub>s</sub> do lực kéo dọc (thiên về an toàn).</p>' +
+      ds.map(function (d) {
+        if (!d.hopLe) return '<div class="alert alert-fail">' + esc(d.ten) + ': ' + esc(d.loi.join(' ')) + '</div>';
+        var B = d.bao, u = d.uon;
+        function dongUon(l) {
+          return '<tr><td>' + esc(l.ten) + '</td>' + o(l.M) + '<td class="r">' + (l.duTietDien ? so(l.am, 4) : '&gt; α<sub>R</sub>') + '</td>' + o(l.AsCan, 0) + o(l.AsChon, 0) +
+            o(l.tiSo, 3) + '<td class="c">' + nhanOk(l.ok) + '</td></tr>';
+        }
+        function dongKT(ten, can, gh, k) { return '<tr><td>' + ten + '</td>' + o(can) + '<td></td><td class="r">' + so(gh, 1) + '</td><td></td>' + o(k.tiSo, 3) + '<td class="c">' + nhanOk(k.ok) + '</td></tr>'; }
+        return '<h3>' + esc(d.ten) + ': C' + d.tuCoc + ' – C' + d.denCoc + ', tim dầm z = ' + so(d.z, 2) + ' m, ' + so(d.b * 1000, 0) + '×' + so(d.h * 1000, 0) +
+          ' mm, ' + esc(d.beTong) + ', L = ' + so(d.L, 2) + ' m <span class="badge ' + (d.ok ? 'badge-ok">Đạt' : 'badge-fail">Không đạt') + '</span></h3>' +
+          '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Nội lực ETABS</th><th>Lớn nhất</th><th>Nhỏ nhất</th></tr></thead><tbody>' +
+          [['P (kN)', 'P'], ['M3 (kNm)', 'M3'], ['M2 (kNm)', 'M2'], ['V2 (kN)', 'V2'], ['V3 (kN)', 'V3'], ['T (kNm)', 'T']].map(function (k) {
+            return '<tr><td>' + k[0] + '</td><td class="r">' + so(B[k[1] + 'max'].gt, 1) + th(B[k[1] + 'max']) + '</td><td class="r">' + so(B[k[1] + 'min'].gt, 1) + th(B[k[1] + 'min']) + '</td></tr>';
+          }).join('') + '</tbody></table></div>' +
+          '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Kiểm tra</th><th>M (kNm) / N, Q (kN)</th><th>α<sub>m</sub></th>' +
+          '<th>A<sub>s</sub> cần (mm²) / khả năng (kN)</th><th>A<sub>s</sub> chọn (mm²)</th><th>Tỉ số</th><th></th></tr></thead><tbody>' +
+          dongUon(u.duoi) + dongUon(u.tren) + dongUon(u.ngang) +
+          dongKT('Kéo dọc trục N<sub>t</sub> ≤ R<sub>s</sub>A<sub>s,tot</sub>', d.keo.N, d.keo.Ngh, d.keo) +
+          dongKT('Nén N<sub>c</sub> ≤ φ(R<sub>b</sub>A + R<sub>sc</sub>A<sub>s,tot</sub>), φ = ' + so(d.nen.phi, 3), d.nen.N, d.nen.Ngh, d.nen) +
+          dongKT('Cắt đứng V2 ≤ Q<sub>b</sub> + Q<sub>sw</sub>', d.cat.dung.Q, d.cat.dung.Qgh, d.cat.dung) +
+          dongKT('Cắt ngang V3 ≤ Q<sub>b</sub> + Q<sub>sw</sub>', d.cat.ngang.Q, d.cat.ngang.Qgh, d.cat.ngang) +
+          '</tbody></table></div><p class="hint">Thép: trên ' + d.thep.tren.n + 'Ø' + d.thep.tren.d + ', dưới ' + d.thep.duoi.n + 'Ø' + d.thep.duoi.d +
+          ', hông ' + d.thep.hong.n + 'Ø' + d.thep.hong.d + ' mỗi mặt, đai Ø' + d.thep.dai.d + 'a' + d.thep.dai.s + ' (' + d.thep.dai.nhanh + ' nhánh); μ = ' +
+          so(d.thep.muy, 2) + '%. Mômen xoắn T = ' + so(d.T, 1) + ' kNm chỉ liệt kê, chưa kiểm tra.' + (d.nen.manhLon ? ' Độ mảnh l<sub>0</sub>/h = ' + so(d.nen.lamda, 1) +
+          ' &gt; 20: cần tính uốn dọc chi tiết.' : '') + '</p>';
+      }).join('') + '</section>';
+  }
 
   function etabsChay(lenh) {
     if (!coChuongTrinh() || etabsDangChay) return;
@@ -2308,6 +2412,8 @@
           datTrangThai('Không đọc được số nào trong ô dán SPT');
         }
       }
+      var nutDam = e.target.closest('[data-action^="dam-"]');
+      if (nutDam && !nutDam.disabled) xuLyDam(nutDam.getAttribute('data-action'));
       var nutCau = e.target.closest('[data-action$="-cau"]');
       if (nutCau && !nutCau.disabled) xuLyCau(nutCau.getAttribute('data-action'), nutCau.getAttribute('data-ten'));
       var them = e.target.closest('[data-action="them-coc"]');

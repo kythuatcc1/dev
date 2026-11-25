@@ -265,3 +265,11 @@ td.nut-dong > * { margin-right: 6px; vertical-align: middle; }
 .tbl-cau td { padding: 3px 4px; }
 .tbl-cau input.in.so { width: 70px; padding-left: 4px; padding-right: 4px; }
 .ky-hieu { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+
+/* Dầm giằng */
+.tbl-dam input.in.so { width: 56px; }
+.tbl-dam select.in { width: auto; min-width: 64px; }
+.tbl-dam th { font-size: 12px; }
+.tbl-dam .nd { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+.tbl-dam .nd input.in.so { width: 38px; }
+

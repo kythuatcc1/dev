@@ -80,6 +80,17 @@
       heSoFzKeo: 0.9,       // hệ số lực đứng của cẩu trong tổ hợp cọc kéo (PDF)
       vanTayDung: ''        // dấu vân tay mô hình + tải trọng của lần dựng gần nhất (app tự ghi)
     },
+    // Dầm giằng các cọc (chỉ dùng trong mô hình ETABS). ds: danh sách dầm; mau: thông số mặc định khi thêm dầm.
+    //   tuCoc, denCoc: số thứ tự cọc (1, 2…); z: cao độ tim dầm (m, so với MĐTN); b, h: bề rộng, chiều cao (m);
+    //   a: khoảng cách từ mép tới trọng tâm thép dọc (cm); thép trên / dưới / hông (mỗi mặt bên): n thanh, đường kính d (mm);
+    //   đai: đường kính d (mm), bước s (mm), số nhánh đứng.
+    damGiang: {
+      ds: [],
+      mau: {
+        z: -8, b: 0.4, h: 0.6, beTong: 'B30', cotThep: 'CB400-V', cotThepDai: 'CB400-V', a: 5,
+        tren: { n: 3, d: 20 }, duoi: { n: 3, d: 20 }, hong: { n: 1, d: 14 }, dai: { d: 10, s: 150, nhanh: 2 }
+      }
+    },
     baoCao: {
       // Kiến nghị (mục 7.2 thuyết minh ETABS) – để trống: dùng mặc định; {tenMong}, {cau}, {chieuCao} được thay số liệu
       kienNghi: '',

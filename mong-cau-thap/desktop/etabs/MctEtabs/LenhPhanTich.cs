@@ -1,5 +1,6 @@
 // Lệnh "phan-tich" (bước 4): chạy phân tích mô hình app đã dựng rồi lấy nội lực theo từng tổ hợp
 //   - cọc   : FrameForce mỗi đoạn cọc → [z, tổ hợp, P, V2, V3, T, M2, M3] (z tính từ toạ độ 2 đầu đoạn)
+//   - dầm giằng: FrameForce mỗi dầm → [x, tổ hợp, P, V2, V3, T, M2, M3] (x tính từ đầu dầm dọc theo dầm)
 //   - chuyển vị: JointDispl tại tâm đài và đầu cọc → [nút, tổ hợp, U1, U2, U3, R1, R2, R3]
 //   - đài   : AreaForceShell mỗi ô vỏ, lấy trung bình tại nút → [nút, tổ hợp, M11, M22, M12, V13, V23]
 // Đơn vị kN, m. App (js/calc/etabs-ket-qua.js) tính bao nội lực, mặt cắt đài và kiểm tra.
@@ -115,6 +116,42 @@ namespace MctEtabs
                 kq.GhiBuoc(buoc, soDongCoc > 0, soDongCoc + " dong noi luc cho " + dsCoc.Count + " coc");
                 if (soDongCoc == 0) throw new LoiEtabs("FrameForce khong tra ket qua nao cho cac to hop da chon.");
 
+                // 4b. Nội lực dầm giằng (nếu có)
+                var damRa = new JsonArray();
+                if (d["dam"] is JsonArray dsDam && dsDam.Count > 0)
+                {
+                    buoc = "noi-luc-dam";
+                    int soDongDam = 0;
+                    foreach (JsonNode dm in dsDam)
+                    {
+                        var dong = new JsonArray();
+                        double x0 = 0;
+                        foreach (JsonNode tn in (JsonArray)dm["thanh"])
+                        {
+                            string ten = (string)tn;
+                            var p = new object[] { ten, "", "" };
+                            e.Goi("FrameObj", "cFrameObj", "GetPoints", p, true);
+                            double[] a = ToaDo((string)p[1]), b = ToaDo((string)p[2]);
+                            double L = Math.Sqrt(Math.Pow(b[0] - a[0], 2) + Math.Pow(b[1] - a[1], 2) + Math.Pow(b[2] - a[2], 2));
+                            var r = new object[] { ten, "ObjectElm", 0, null, null, null, null, null, null, null, null, null, null, null, null, null };
+                            e.Goi("Results", "cAnalysisResults", "FrameForce", r, true);
+                            int n = Convert.ToInt32(r[2]);
+                            double[] sta = So(r[4]), P = So(r[10]), V2 = So(r[11]), V3 = So(r[12]), T = So(r[13]), M2 = So(r[14]), M3 = So(r[15]);
+                            string[] ca = Chu(r[7]);
+                            for (int k = 0; k < n; k++)
+                            {
+                                if (!chiSo.TryGetValue(ca[k], out int ci)) continue;
+                                dong.Add(new JsonArray(Tron(x0 + sta[k], 4), ci, Tron(P[k]), Tron(V2[k]), Tron(V3[k]), Tron(T[k]), Tron(M2[k]), Tron(M3[k])));
+                                soDongDam++;
+                            }
+                            x0 += L;
+                        }
+                        damRa.Add(new JsonObject { ["ten"] = (string)dm["ten"], ["dong"] = dong });
+                    }
+                    kq.GhiBuoc(buoc, soDongDam > 0, soDongDam + " dong noi luc cho " + dsDam.Count + " dam giang");
+                    if (soDongDam == 0) throw new LoiEtabs("FrameForce khong tra ket qua nao cho dam giang.");
+                }
+
                 // 5. Chuyển vị tâm đài và đầu cọc
                 buoc = "chuyen-vi";
                 string[] nutCv = ((JsonArray)d["nutChuyenVi"]).Select(x => (string)x).ToArray();
@@ -173,6 +210,7 @@ namespace MctEtabs
                 {
                     ["toHop"] = new JsonArray(toHop.Select(x => (JsonNode)JsonValue.Create(x)).ToArray()),
                     ["coc"] = cocRa,
+                    ["dam"] = damRa,
                     ["chuyenVi"] = new JsonObject { ["nut"] = new JsonArray(nutCv.Select(x => (JsonNode)JsonValue.Create(x)).ToArray()), ["dong"] = cvDong },
                     ["dai"] = new JsonObject { ["nut"] = nutRa, ["dong"] = daiDong }
                 };

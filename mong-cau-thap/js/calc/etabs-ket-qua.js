@@ -18,6 +18,7 @@
     m.diem.forEach(function (d) { diem[d.ten] = [d.x, d.y, d.z]; });
     return {
       coc: m.coc.map(function (c) { return { ten: c.ten, thanh: c.thanh }; }),
+      dam: (m.dam || []).map(function (d) { return { ten: d.ten, thanh: [d.ten] }; }),
       toHop: t.toHop.filter(function (c) { return c.loai === 0; }).map(function (c) { return c.ten; }),
       diem: diem,
       vo: m.vo.map(function (v) { return v.ten; }),
@@ -44,7 +45,28 @@
 
   // Phiên bản cách tóm tắt kết quả (đổi khi cách lấy nội lực thay đổi; kết quả lưu theo phiên bản khác phải chạy lại phân tích)
   //   2: bỏ đoạn cọc nằm trong đài khỏi nội lực cọc
-  var PHIEN_BAN = 2;
+  //   3: thêm bao từng thành phần nội lực cọc (P, V2, V3, M2, M3), bao nội lực tại nút đài, nội lực dầm giằng (vẽ hình thuyết minh)
+  var PHIEN_BAN = 3;
+
+  // Bao [min, max] từng thành phần; cot: tên → chỉ số cột trong dòng kết quả
+  function baoThanhPhan(dsDong, khoaTram, cot) {
+    var tram = {};
+    dsDong.forEach(function (r) {
+      var k = khoaTram(r);
+      if (k === null) return;
+      var t = tram[k.khoa] || (tram[k.khoa] = Object.assign({}, k.gt));
+      Object.keys(cot).forEach(function (ten) {
+        var v = r[cot[ten]], b = t[ten] || (t[ten] = [Infinity, -Infinity]);
+        if (v < b[0]) b[0] = v;
+        if (v > b[1]) b[1] = v;
+      });
+    });
+    return Object.keys(tram).map(function (k) {
+      var t = tram[k];
+      Object.keys(cot).forEach(function (ten) { t[ten] = [tron(t[ten][0], 2), tron(t[ten][1], 2)]; });
+      return t;
+    });
+  }
 
   function thepCanThiet(M, b, h0, Rb, Rs) {
     var Mabs = Math.abs(M), am = Mabs / (Rb * 1000 * b * h0 * h0);
@@ -129,7 +151,10 @@
         if (Vmax === null || V > Vmax.gt) Vmax = { gt: V, z: z, toHop: tenTH(ci) };
       });
       var doc = Object.keys(tram).map(function (k) { return tram[k]; }).sort(function (a, b) { return b.z - a.z; });
-      return { ten: c.ten, dauNen: dauNen, dauKeo: dauKeo, Mmax: Mmax, Vmax: Vmax, doc: doc, capNM: capNM };
+      // bao từng thành phần theo chiều sâu (quy ước ETABS: P kéo dương) – hình BAO-MIN / BAO-MAX như báo cáo thẩm tra
+      var tp = baoThanhPhan(c.dong, function (r) { return r[0] > zDau + 1e-3 ? null : { khoa: r[0].toFixed(3), gt: { z: tron(r[0], 3) } }; },
+        { P: 2, V2: 3, V3: 4, M2: 6, M3: 7 }).sort(function (a, b) { return b.z - a.z; });
+      return { ten: c.ten, dauNen: dauNen, dauKeo: dauKeo, Mmax: Mmax, Vmax: Vmax, doc: doc, tp: tp, capNM: capNM };
     });
 
     var cv = (raw.chuyenVi && raw.chuyenVi.nut || []).map(function (ten, i) {
@@ -176,13 +201,35 @@
       });
       return cat.sort(function (a, b) { return a.viTri - b.viTri; });
     }
+    // Bao nội lực tại từng nút đài (vẽ mômen, lực cắt đài)
+    var nutBao = baoThanhPhan((raw.dai && raw.dai.dong) || [], function (r) {
+      var p = nut[r[0]];
+      return p ? { khoa: String(r[0]), gt: { x: p[0], y: p[1] } } : null;
+    }, { M11: 2, M22: 3, V13: 5, V23: 6 });
+
+    // Dầm giằng: bao từng thành phần dọc dầm và giá trị lớn nhất / nhỏ nhất kèm tổ hợp
+    var dam = (raw.dam || []).map(function (d) {
+      var cot = { P: 2, V2: 3, V3: 4, T: 5, M2: 6, M3: 7 }, bao = {};
+      d.dong.forEach(function (r) {
+        Object.keys(cot).forEach(function (k) {
+          var v = r[cot[k]];
+          if (!bao[k + 'max'] || v > bao[k + 'max'].gt) bao[k + 'max'] = { gt: v, x: r[0], toHop: tenTH(r[1]) };
+          if (!bao[k + 'min'] || v < bao[k + 'min'].gt) bao[k + 'min'] = { gt: v, x: r[0], toHop: tenTH(r[1]) };
+        });
+      });
+      var tram = baoThanhPhan(d.dong, function (r) { return { khoa: r[0].toFixed(3), gt: { x: tron(r[0], 3) } }; }, cot)
+        .sort(function (a, b) { return a.x - b.x; });
+      return { ten: d.ten, bao: bao, tram: tram };
+    });
+
     return {
       hopLe: true, loi: [], phienBan: PHIEN_BAN,
+      dam: dam,
       toHop: raw.toHop.slice(),
       thongSo: { zDay: zDau, X: m.thongSo.X, Y: m.thongSo.Y, H: m.thongSo.H, soCoc: m.coc.length },
       coc: coc,
       chuyenVi: { nut: cv },
-      dai: { X: { cat: catTheo(0, { M: 0, V: 3 }) }, Y: { cat: catTheo(1, { M: 1, V: 4 }) } }
+      dai: { X: { cat: catTheo(0, { M: 0, V: 3 }) }, Y: { cat: catTheo(1, { M: 1, V: 4 }) }, nutBao: nutBao }
     };
   }
 
@@ -324,6 +371,14 @@
       bulong = { N1: E.Pt1, Ntb: E.Ntb, Q1: E.Ps1, Nvb: E.Nvb, tiSo: tiSoBl, ok: tiSoBl <= 1 };
     }
 
+    // Dầm giằng (nếu mô hình có): khớp số liệu nhập theo tên DG1, DG2…
+    var dsDamNhap = (s.damGiang && s.damGiang.ds) || [];
+    var damGiang = (tt.dam || []).map(function (r) {
+      var d = dsDamNhap[Number(String(r.ten).replace(/^DG/, '')) - 1];
+      if (!d || !MCT.calc.kiemTraDamGiang) return { ten: r.ten, hopLe: false, loi: ['Không còn số liệu dầm ' + r.ten + ' – dựng lại mô hình và chạy lại phân tích.'] };
+      return MCT.calc.kiemTraDamGiang(d, r, kq.SCT && kq.SCT.coc ? kq.SCT.coc.D : 0);
+    });
+
     var ketLuan = [
       { ten: 'Cọc chịu nén (đầu cọc)', ok: cocKiemTra.okNen },
       { ten: 'Cọc chịu kéo (đầu cọc)', ok: cocKiemTra.Pkeo ? cocKiemTra.okKeo : true },
@@ -336,10 +391,11 @@
       { ten: 'Nứt đài móng', ok: dai.nut.ok }
     ];
     if (bulong) ketLuan.push({ ten: 'Bulong chịu kéo + cắt đồng thời', ok: bulong.ok });
+    damGiang.forEach(function (d) { ketLuan.push({ ten: 'Dầm giằng ' + d.ten, ok: d.hopLe ? d.ok : null }); });
     return {
       hopLe: true, loi: [],
       toHop: tt.toHop, coc: tt.coc, cocKiemTra: cocKiemTra, diemTuongTac: diemTT,
-      chuyenVi: chuyenVi, dai: dai, bulong: bulong, ketLuan: ketLuan,
+      chuyenVi: chuyenVi, dai: dai, bulong: bulong, damGiang: damGiang, ketLuan: ketLuan,
       tatCaOk: ketLuan.every(function (k) { return k.ok !== false; })
     };
   }
@@ -390,8 +446,12 @@
     }
     var bl = kE.bulong ? [muc('E', 'etabs-ket-qua', 'Bulong chịu kéo + cắt đồng thời', { v: kE.bulong.tiSo, k: '√((N/Ntb)²+(Q/Nvb)²)', dv: '' }, '≤',
       { v: 1, k: 'giới hạn', dv: '' }, kE.bulong.ok)] : [];
+    var dg = (kE.damGiang || []).map(function (x) {
+      return muc('DG', 'etabs-ket-qua', 'Dầm giằng ' + x.ten + (x.hopLe ? ' (' + x.b + '×' + x.h + ' m, z = ' + x.z + ' m)' : ''),
+        { v: x.hopLe ? x.tiSo : null, k: 'tỉ số', dv: '' }, '≤', { v: 1, k: 'giới hạn', dv: '' }, x.hopLe && x.ok);
+    });
     var giu = F.ds.filter(function (m) { return m.ma === 'C' || m.ma === 'E'; });
-    var ds = B.concat(giu.filter(function (m) { return m.ma === 'C'; }), D, giu.filter(function (m) { return m.ma === 'E'; }), bl, ngang);
+    var ds = B.concat(giu.filter(function (m) { return m.ma === 'C'; }), D, giu.filter(function (m) { return m.ma === 'E'; }), bl, dg, ngang);
     var ok = ds.every(function (m) { return m.ok; });
     return {
       hopLe: true, loi: [], phuongPhap: 'etabs', ds: ds, ok: ok,

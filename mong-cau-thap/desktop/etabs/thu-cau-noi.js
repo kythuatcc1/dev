@@ -24,6 +24,11 @@ const ketQuaTinh = globalThis.MCT.calc.tinhTatCa(trangThai);
 const moHinh = globalThis.MCT.calc.taoMoHinhEtabs(trangThai, ketQuaTinh);
 const taiTrong = globalThis.MCT.calc.taiTrongEtabs(trangThai, ketQuaTinh, moHinh);
 const duLieuMoHinh = globalThis.MCT.calc.duLieuGuiEtabs(moHinh, taiTrong);
+// Mô hình có dầm giằng các cặp cọc tại cao độ −8 m
+const trangThaiDam = JSON.parse(JSON.stringify(trangThai));
+trangThaiDam.damGiang.ds = [[1, 2], [2, 3], [3, 1]].map((c) => Object.assign({}, trangThaiDam.damGiang.mau, { tuCoc: c[0], denCoc: c[1] }));
+const moHinhDam = globalThis.MCT.calc.taoMoHinhEtabs(trangThaiDam, ketQuaTinh);
+const taiTrongDam = globalThis.MCT.calc.taiTrongEtabs(trangThaiDam, ketQuaTinh, moHinhDam);
 const fileGhi = path.join(tam, 'mo-hinh-gia-lap.json');
 const fileEdb = path.join(tam, 'Mô hình', 'CT1 thử.EDB');
 
@@ -134,6 +139,23 @@ const ca = [
     assert.ok(Math.abs(r.dai.X.Mduong.gt - (10 + n - 1) * moHinh.thongSo.Y) < 1e-6, 'M đài theo X ' + r.dai.X.Mduong.gt);
     assert.ok(k.buoc.some(function (b) { return b.ten === 'phan-tich' && b.ok; }));
   }, fileEdb],
+  ['dựng mô hình có dầm giằng', '', { lenh: 'dung-mo-hinh', duLieu: { moHinh: globalThis.MCT.calc.duLieuGuiEtabs(moHinhDam, taiTrongDam), fileMoHinh: fileEdb + '.dam.EDB' } }, function (k) {
+    assert.strictEqual(moHinhDam.hopLe, true, (moHinhDam.loi || []).join('; '));
+    assert.strictEqual(k.ok, true, k.loi);
+    const g = JSON.parse(fs.readFileSync(fileGhi, 'utf8'));
+    assert.strictEqual(g.soThanh, moHinhDam.thanh.length);
+    assert.strictEqual(moHinhDam.thanh.length, moHinh.thanh.length + 3 + 3, '3 dầm + mỗi cọc thêm 1 đoạn (nút −8 m)');
+    assert.ok(g.tietDienThanh.includes('DAM_DG1'));
+  }],
+  ['phân tích mô hình có dầm giằng: nội lực dầm', '', { lenh: 'phan-tich', duLieu: globalThis.MCT.calc.duLieuPhanTich(moHinhDam, taiTrongDam) }, function (k) {
+    assert.strictEqual(k.ok, true, k.loi);
+    const n = taiTrongDam.toHop.length - 1;
+    assert.strictEqual(k.ketQua.dam.length, 3);
+    assert.strictEqual(k.ketQua.dam[0].dong.length, 2 * n, '2 trạm × mọi tổ hợp');
+    const L = moHinhDam.dam[0].L, cuoi = k.ketQua.dam[0].dong.find((r) => r[0] > 0);
+    assert.ok(Math.abs(cuoi[0] - L) < 1e-3, 'vị trí cuối dầm = chiều dài dầm ' + cuoi[0] + ' / ' + L);
+    assert.ok(k.buoc.some(function (b) { return b.ten === 'noi-luc-dam' && b.ok; }));
+  }, fileEdb + '.dam.EDB'],
   ['phân tích khi ETABS đang mở mô hình khác', '', { lenh: 'phan-tich', duLieu: globalThis.MCT.calc.duLieuPhanTich(moHinh, taiTrong) }, function (k) {
     assert.strictEqual(k.ok, false);
     assert.strictEqual(k.buocLoi, 'kiem-tra-mo-hinh');

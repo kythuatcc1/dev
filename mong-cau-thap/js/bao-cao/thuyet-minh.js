@@ -1558,9 +1558,13 @@
     out.push(p('Kết luận: ' + (okBl ? 'Liên kết bu lông móng cẩu đảm bảo chịu lực.' : 'Liên kết bu lông móng cẩu KHÔNG đảm bảo chịu lực.'),
       { bold: true, color: okBl ? MAU.ok : MAU.fail }));
 
-    // 6.4 Ổn định – lún (form CC1)
+    // 6.4 Dầm giằng cọc (nếu có)
+    var coDam = (kE.damGiang || []).length > 0;
+    if (coDam) out = out.concat(kiemTraDamBC(s, E, hinh));
+
+    // 6.4 / 6.5 Ổn định – lún (form CC1)
     out = out.concat(voiTen({
-      'PHẦN 5. KIỂM TRA ỔN ĐỊNH ĐẤT NỀN VÀ KIỂM TRA LÚN': { t: '6.4. Kiểm tra ổn định đất nền và độ lún móng khối quy ước', cap: 3, moi: false },
+      'PHẦN 5. KIỂM TRA ỔN ĐỊNH ĐẤT NỀN VÀ KIỂM TRA LÚN': { t: (coDam ? '6.5' : '6.4') + '. Kiểm tra ổn định đất nền và độ lún móng khối quy ước', cap: 3, moi: false },
       'A. XÁC ĐỊNH KÍCH THƯỚC CỦA MÓNG KHỐI QUY ƯỚC': { t: 'a) Kích thước móng khối quy ước', cap: 'tm' },
       'B. XÁC ĐỊNH TRỌNG LƯỢNG CỦA MÓNG KHỐI QUY ƯỚC': { t: 'b) Trọng lượng móng khối quy ước', cap: 'tm' },
       'C. ÁP LỰC TIÊU CHUẨN TẠI ĐÁY MÓNG KHỐI QUY ƯỚC': { t: 'c) Áp lực tiêu chuẩn tại đáy móng khối quy ước', cap: 'tm' },
@@ -1605,6 +1609,62 @@
       ? 'Kết luận: ' + ck.soCapNM + ' cặp nội lực (N, M) đều nằm trong biểu đồ tương tác, tỉ số lớn nhất ' + f(ck.tuongTac.tiSo, 3) + ' ≤ 1: cọc đủ khả năng chịu lực.'
       : 'Kết luận: có ' + vuot + '/' + ck.soCapNM + ' cặp nội lực (N, M) nằm ngoài biểu đồ tương tác: cọc KHÔNG đủ khả năng chịu lực.',
       { bold: true, color: ck.okTuongTac ? MAU.ok : MAU.fail, spacing: { before: 80 } }));
+    return out;
+  }
+
+  // 6.4 Kiểm tra dầm giằng cọc (TCVN 5574:2018) bằng nội lực ETABS
+  function kiemTraDamBC(s, E, hinh) {
+    var x = D(), ds = E.kE.damGiang, out = [tieuDe('6.4. Kiểm tra dầm giằng cọc', 3)];
+    out.push(doan('Dầm bê tông cốt thép giằng các cọc, mô hình là phần tử thanh trong ETABS (mục 3), nội lực bao mọi tổ hợp. Trục cục bộ: M3, V2 – uốn, cắt ' +
+      'trong mặt phẳng đứng (M3 > 0: thớ dưới chịu kéo); M2, V3 – uốn, cắt trong mặt phẳng ngang; P > 0: kéo. Kiểm tra theo TCVN 5574:2018:'));
+    out.push(gach('Uốn: A_{s} = ξ·R_{b}·b·h_{0}/R_{s}, ξ = 1 − √(1 − 2α_{m}), α_{m} = M/(R_{b}·b·h_{0}^{2}) ≤ α_{R}; lực kéo dọc chia đều cho thép trên và dưới (+N_{t}/2R_{s} mỗi lớp, thiên về an toàn).'));
+    out.push(gach('Uốn ngang M2: thép mặt bên (thép hông + 2 thanh góc), tiết diện rộng h, cao b.'));
+    out.push(gach('Kéo: N_{t} ≤ R_{s}·A_{s,tot};  nén: N_{c} ≤ φ(R_{b}·A + R_{sc}·A_{s,tot}), φ theo l_{0}/h_{min}, l_{0} = nhịp thông thủy giữa hai cọc.'));
+    out.push(gach('Cắt (mục 8.1.3.3): Q ≤ 0,3·R_{b}·b·h_{0} và Q ≤ Q_{b} + Q_{sw}; Q_{b} = 1,5·R_{bt}·b·h_{0}^{2}/c (0,5…2,5·R_{bt}·b·h_{0}), Q_{sw} = 0,75·q_{sw}·c_{0}, ' +
+      'q_{sw} = R_{sw}·A_{sw}/s_{w}, c lấy bất lợi trong khoảng h_{0}…3h_{0}.'));
+    out.push(bangDayDu(['Dầm', 'Cọc', 'z tim (m)', 'b×h (mm)', 'L (m)', 'Bê tông', 'Thép trên / dưới / hông', 'Đai'],
+      ds.filter(function (d) { return d.hopLe; }).map(function (d) {
+        var t = d.thep;
+        return [d.ten, 'C' + d.tuCoc + ' – C' + d.denCoc, f(d.z, 2), f(d.b * 1000, 0) + '×' + f(d.h * 1000, 0), f(d.L, 2), d.beTong,
+          t.tren.n + 'Ø' + t.tren.d + ' / ' + t.duoi.n + 'Ø' + t.duoi.d + ' / ' + t.hong.n + 'Ø' + t.hong.d, 'Ø' + t.dai.d + 'a' + t.dai.s + ' (' + t.dai.nhanh + ' nh.)'];
+      }), [700, 1100, 900, 1200, 700, 900, 2400, 1738], { fillTieuDe: 'F2F2F2', co: 22 }));
+    out.push(chuThich('Bảng 6.8 Thông số dầm giằng'));
+    ds.forEach(function (d, i) {
+      out.push(tieuMuc('Dầm ' + d.ten + (d.hopLe ? ' (C' + d.tuCoc + ' – C' + d.denCoc + ', z = ' + f(d.z, 2) + ' m)' : '')));
+      if (!d.hopLe) { out.push(doan(d.loi.join(' '))); return; }
+      var hinhDam = hinh['dam_' + d.ten];
+      if (hinhDam) out = out.concat(hinhAnh(hinhDam, 560, 'Biểu đồ nội lực dầm', 'Hình 6.' + (5 + i) + ' Biểu đồ bao nội lực dầm ' + d.ten + ' (ETABS)'));
+      var B = d.bao, u = d.uon;
+      out.push(bangThongSo([
+        { nhan: 'Vật liệu: bê tông ' + d.beTong + ', thép ' + d.cotThep + ', đai ' + d.cotThepDai, dam: true, thut: 0 },
+        { nhan: 'Cường độ:', ky: 'R_{b} / R_{bt}=', gt: g(d.Rb) + ' / ' + g(d.Rbt), dv: 'MPa', gtRong: true, thut: 360 },
+        { nhan: '', ky: 'R_{s} / R_{sw}=', gt: g(d.Rs) + ' / ' + g(d.Rsw), dv: 'MPa', gtRong: true, thut: 360 },
+        { nhan: 'Nội lực ETABS (bao mọi tổ hợp)', dam: true, thut: 0 },
+        { nhan: 'Lực kéo / nén dọc trục lớn nhất:', ky: 'N_{t} / N_{c}=', gt: f(d.keo.N, 1) + ' / ' + f(d.nen.N, 1), dv: 'kN', gtRong: true, thut: 360 },
+        { nhan: 'Mômen M3 dương / âm (' + B.M3max.toHop + ' / ' + B.M3min.toHop + '):', ky: 'M_{3}=', gt: f(d.M3duong, 1) + ' / ' + f(-d.M3am, 1), dv: 'kNm', gtRong: true, thut: 360 },
+        { nhan: 'Mômen ngang lớn nhất:', ky: '|M_{2}|=', gt: f(d.M2, 1), dv: 'kNm', thut: 360 },
+        { nhan: 'Lực cắt đứng / ngang lớn nhất:', ky: '|V_{2}| / |V_{3}|=', gt: f(d.V2, 1) + ' / ' + f(d.V3, 1), dv: 'kN', gtRong: true, thut: 360 },
+        { nhan: 'Mômen xoắn (chỉ liệt kê):', ky: '|T|=', gt: f(d.T, 1), dv: 'kNm', thut: 360 }
+      ]));
+      function cot(l) {
+        return [f(l.M, 1), l.duTietDien ? f(l.am, 4) : '> α_{R}', l.duTietDien ? f(l.AsCan, 0) : '-', f(l.AsChon, 0), isFinite(l.tiSo) ? f(l.tiSo, 3) : '> 1', okKl(l.ok)];
+      }
+      var a = cot(u.duoi), b2 = cot(u.tren), c = cot(u.ngang);
+      var nhan = ['M (kNm)', 'α_{m}', 'A_{s} cần (mm^{2})', 'A_{s} chọn (mm^{2})', 'Tỉ số', 'Kết quả'];
+      out.push(bangDayDu(['Uốn', 'Thép dưới (M3 > 0)', 'Thép trên (M3 < 0)', 'Thép hông (M2)'],
+        nhan.map(function (n, k) { return [n, a[k], b2[k], c[k]]; }), [2600, 2350, 2350, 2338], { fillTieuDe: 'F2F2F2', co: 22 }));
+      out.push(p('A_{s} cần của thép trên, dưới gồm phần do lực kéo dọc N_{t}/2R_{s} = ' + f(u.duoi.AsKeo, 0) + ' mm^{2}; h_{0} = ' + f(d.h0 * 1000, 0) +
+        ' mm (uốn đứng), ' + f(d.h0n * 1000, 0) + ' mm (uốn ngang).', { italics: true, size: 22 }));
+      out.push(bangDayDu(['Kiểm tra', 'Tác dụng', 'Khả năng', 'Tỉ số', 'Kết quả'], [
+        ['Kéo dọc trục N_{t} ≤ R_{s}A_{s,tot}', f(d.keo.N, 1) + ' kN', f(d.keo.Ngh, 1) + ' kN', f(d.keo.tiSo, 3), okKl(d.keo.ok)],
+        ['Nén N_{c} ≤ φ(R_{b}A + R_{sc}A_{s,tot}); l_{0}/h = ' + f(d.nen.lamda, 1) + ', φ = ' + f(d.nen.phi, 3), f(d.nen.N, 1) + ' kN', f(d.nen.Ngh, 1) + ' kN', f(d.nen.tiSo, 3), okKl(d.nen.ok)],
+        ['Cắt đứng V_{2} ≤ Q_{b} + Q_{sw} (c = ' + f(d.cat.dung.c, 2) + ' m)', f(d.cat.dung.Q, 1) + ' kN', f(d.cat.dung.Qgh, 1) + ' kN', f(d.cat.dung.tiSo, 3), okKl(d.cat.dung.ok)],
+        ['Cắt ngang V_{3} ≤ Q_{b} + Q_{sw} (c = ' + f(d.cat.ngang.c, 2) + ' m)', f(d.cat.ngang.Q, 1) + ' kN', f(d.cat.ngang.Qgh, 1) + ' kN', f(d.cat.ngang.tiSo, 3), okKl(d.cat.ngang.ok)]
+      ], [4300, 1400, 1400, 1100, 1438], { canhTrai: [0], fillTieuDe: 'F2F2F2', co: 22 }));
+      out.push(chuThich('Bảng 6.' + (9 + i) + ' Kiểm tra dầm ' + d.ten));
+      out.push(p('Kết luận: dầm ' + d.ten + (d.ok ? ' đảm bảo khả năng chịu lực' : ' KHÔNG đảm bảo khả năng chịu lực') + ' (tỉ số lớn nhất ' +
+        (isFinite(d.tiSo) ? f(d.tiSo, 3) : '> 1') + ').', { bold: true, color: d.ok ? MAU.ok : MAU.fail }));
+    });
     return out;
   }
 
@@ -1707,7 +1767,7 @@
       var so = typeof v.v === 'number' ? f(v.v, Math.abs(v.v) < 10 ? 3 : 1) : String(v.v);
       return (v.k && v.k !== 'giới hạn' ? v.k + ' = ' : '') + so + (v.dv ? ' ' + v.dv : '');
     }
-    var MUC = { B: '6.1', C: '6.2', D: '6.2', E: '6.3' };
+    var MUC = { B: '6.1', C: '6.2', D: '6.2', E: '6.3', DG: '6.4' };
     function mucCua(m2) {
       if (m2.ma !== 'ETABS') return MUC[m2.ma] || m2.ma;
       return /^Đài/.test(m2.ten) ? '6.2' : '6.1';
@@ -1720,11 +1780,13 @@
     var okCoc = ok('B') && ok('ETABS', function (m2) { return !/^Đài/.test(m2.ten); });
     var okDai = ok('C') && ok('D') && ok('ETABS', function (m2) { return /^Đài/.test(m2.ten); });
     var okBl = ok('E');
+    var coDam = F.ds.some(function (m2) { return m2.ma === 'DG'; }), okDam = ok('DG');
     var D_ = g(Number(s.sct.D) * 1000);
     out.push(gach((okCoc ? 'Hệ cọc khoan nhồi D' + D_ + ' đảm bảo đủ sức chịu tải và đủ khả năng chịu lực.' :
       'Hệ cọc khoan nhồi D' + D_ + ' KHÔNG đảm bảo – xem Bảng 7.1.')));
     out.push(gach(okDai ? 'Đài móng cẩu tháp ' + s.duAn.tenMong + ' đảm bảo đủ khả năng chịu lực.' : 'Đài móng cẩu tháp ' + s.duAn.tenMong + ' KHÔNG đảm bảo – xem Bảng 7.1.'));
     out.push(gach(okBl ? 'Bu lông neo móng cẩu đảm bảo khả năng chịu lực.' : 'Bu lông neo móng cẩu KHÔNG đảm bảo – xem Bảng 7.1.'));
+    if (coDam) out.push(gach(okDam ? 'Dầm giằng cọc đảm bảo khả năng chịu lực.' : 'Dầm giằng cọc KHÔNG đảm bảo – xem Bảng 7.1.'));
     out.push(p(F.ketLuan, { bold: true, color: F.ok ? MAU.ok : MAU.fail, indent: { left: 360 }, spacing: { before: 60 } }));
 
     out.push(tieuDe('7.2. Kiến nghị', 3));
