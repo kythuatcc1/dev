@@ -5,6 +5,7 @@
 //   boc-rong-het  cả hai cách đều trả lớp bọc rỗng
 //   chua-mo       gắn được, GetOAPIVersionNumber được, nhưng chưa mở mô hình (SapModel.* lỗi NullReference)
 //   treo          GetObject không trả lời (giống ETABS đang mở hộp thoại)
+//   thieu-giao-dien  giống máy thật thiếu đăng ký type library: GetOAPIVersionNumber được, lấy SapModel báo E_NOINTERFACE
 using System;
 
 namespace ETABSv1
@@ -61,7 +62,8 @@ namespace ETABSv1
     {
         private readonly MoHinh _goc;
         internal wOAPI(MoHinh goc) { _goc = goc; }
-        public cSapModel SapModel => new wSapModel(_goc);
+        public cSapModel SapModel => Environment.GetEnvironmentVariable("MCT_GIA_LAP") == "thieu-giao-dien"
+            ? throw new InvalidCastException("Specified cast is not valid.") : new wSapModel(_goc);
         public double GetOAPIVersionNumber() => _goc == null ? throw new NullReferenceException() : 2.14;
     }
 

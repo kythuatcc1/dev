@@ -34,6 +34,13 @@ Trang app (js/app.js) ──window.mctDesktop.etabs(yêu cầu)──► desktop
   máy thiếu Desktop Runtime thì chương trình tự chạy lại bằng `MctEtabs.coban.runtimeconfig.json` (chỉ .NET cơ bản).
 - Gắn vào phiên ETABS theo thứ tự, **cách nào cũng phải gọi được hàm thật mới nhận**:
   `Helper.GetObject` → `Helper.GetObjectProcess(PID)` → đối tượng COM lấy thẳng từ bảng ROT (gọi theo tên hàm qua IDispatch).
+- **Lỗi đã gặp trên máy thật (ETABS 23, API 2.14), cả .NET Framework lẫn .NET 10:** gọi thẳng COM thì `GetOAPIVersionNumber`
+  được (2.014), nhưng lấy `SapModel` báo `E_NOINTERFACE (0x80004002)`; lớp bọc của ETABSv1.dll có `m_objInner (cOAPI) = null`.
+  Nghĩa là Windows thiếu đăng ký giao diện API (type library) nên không chuyển được đối tượng API giữa ETABS và chương trình khác.
+  Cách sửa: chạy `RegisterETABS.exe` bằng quyền Administrator, hoặc nút **Đăng ký giao diện ETABS cho tài khoản này**
+  (lệnh `dang-ky-giao-dien`: `RegisterTypeLibForUser` với file .tlb trong thư mục ETABS, ghi vào HKCU, gỡ được bằng `go-dang-ky-giao-dien`).
+  Cầu nối ghi chẩn đoán chi tiết (`chanDoanCom`): giao diện cOAPI/cSapModel trong registry, QueryInterface trên đối tượng ETABS,
+  ETABS tự mô tả qua IDispatch, LIBID và trạng thái đăng ký của file .tlb, IID trong .tlb có khớp ETABSv1.dll không.
 - Khi không gắn được, cầu nối tự chẩn đoán và app hiện lời khuyên: ETABS chưa mở, khác quyền Administrator,
   ProgID chưa đăng ký (chạy `RegisterETABS.exe`), ETABS không có trong bảng ROT, thiếu .NET 8, chưa mở mô hình.
 - Trao đổi qua file JSON tạm (UTF-8) nên đường dẫn tiếng Việt giữ nguyên.
@@ -52,7 +59,7 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 ## Các bước
 | Bước | Nội dung | Trạng thái |
 |---|---|---|
-| 1 | Kết nối: trang "Kết nối ETABS", lệnh `kiem-tra` (phiên bản, file mô hình, đơn vị, số phần tử, load pattern) | Bản PowerShell lỗi lớp bọc rỗng trên ETABS 23 → đổi sang cầu nối .NET 8, chờ chạy thử trên máy thật |
+| 1 | Kết nối: trang "Kết nối ETABS", lệnh `kiem-tra` (phiên bản, file mô hình, đơn vị, số phần tử, load pattern) | Gắn được ETABS 23 qua COM; thiếu đăng ký type library (E_NOINTERFACE) → thêm chẩn đoán + đăng ký giao diện, chờ chạy thử |
 | 2 | Dựng mô hình: vật liệu B35, cọc tròn D chia 1 m, đài shell X×Y×H, lò xo ngang, mũi cọc, điểm đặt tải | Chờ |
 | 3 | Tải trọng & tổ hợp: Dead, Fx/Fy/Fz/Mx/My/Mz làm việc và không làm việc, 32 tổ hợp + hướng bất lợi, BAO | Chờ |
 | 4 | Chạy phân tích, lấy nội lực cọc theo chiều sâu, chuyển vị và góc xoay đài, mô men và lực cắt đài | Chờ |

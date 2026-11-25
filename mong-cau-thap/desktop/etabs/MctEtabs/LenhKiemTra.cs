@@ -9,6 +9,23 @@ namespace MctEtabs
         static readonly string[] HamDocMoHinh =
             { "SapModel.GetModelFilename", "SapModel.GetPresentUnits", "SapModel.GetModelIsLocked", "SapModel.GetVersion" };
 
+        /// <summary>
+        /// Vì sao gắn được nhưng không lấy được mô hình:
+        ///  - có lỗi E_NOINTERFACE (0x80004002) hoặc lớp bọc ETABSv1 rỗng (m_objInner = null) trong khi gọi thẳng COM vẫn được
+        ///    → Windows thiếu đăng ký giao diện API (type library) của ETABS
+        ///  - còn lại (NullReference khi lớp bọc có đối tượng bên trong) → ETABS chưa mở mô hình
+        /// </summary>
+        static string NguyenNhan(KetQua kq)
+        {
+            bool noInterface = kq.ThuHam.Any(h => (string)h["hresult"] == "0x80004002");
+            bool bocRong = kq.ThongTin.Any(c => c.Key.StartsWith("lopBoc ", StringComparison.Ordinal) &&
+                                                c.Value is System.Text.Json.Nodes.JsonArray a &&
+                                                a.Any(x => ((string)x ?? "").Contains("m_objInner") && ((string)x ?? "").EndsWith("= null", StringComparison.Ordinal)));
+            bool comTrucTiepDuoc = kq.ThuHam.Any(h => (string)h["ten"] == "COM truc tiep (ROT) > GetOAPIVersionNumber" && (bool)h["ok"]);
+            if (noInterface || (bocRong && comTrucTiepDuoc)) return "dang-ky-giao-dien";
+            return "mo-mo-hinh";
+        }
+
         public static void Chay(KetQua kq, YeuCau yc)
         {
             PhienEtabs ph = KetNoi.Mo(kq, yc);
@@ -16,9 +33,9 @@ namespace MctEtabs
 
             IBoGoi g = ph.G;
             object sap = ph.SapModel ?? kq.Thu("cOAPI.SapModel", () => g.Lay(ph.OAPI, "cOAPI", "SapModel"));
-            if (sap == null)
+            if (sap == null || ph.ChiGanMotPhan)
             {
-                kq.Dung("doc-mo-hinh", "Khong lay duoc SapModel tu ETABS.", "mo-mo-hinh");
+                kq.Dung("doc-mo-hinh", "Gan duoc ETABS (goi duoc ham don gian) nhung khong lay duoc mo hinh.", NguyenNhan(kq));
                 return;
             }
             kq.Dat("kieuSapModel", sap.GetType().FullName);
@@ -45,9 +62,7 @@ namespace MctEtabs
             bool DocDuoc(System.Text.Json.Nodes.JsonNode h) => HamDocMoHinh.Contains((string)h["ten"]) && (bool)h["ok"];
             if (!kq.ThuHam.Any(DocDuoc))
             {
-                bool nre = kq.ThuHam.Any(h => HamDocMoHinh.Contains((string)h["ten"]) &&
-                                              ((string)h["loi"] ?? "").StartsWith("System.NullReferenceException", StringComparison.Ordinal));
-                kq.Dung("doc-mo-hinh", "Gan duoc ETABS nhung khong doc duoc mo hinh (xem bang thu tung ham).", nre ? "mo-mo-hinh" : null);
+                kq.Dung("doc-mo-hinh", "Gan duoc ETABS nhung khong doc duoc mo hinh (xem bang thu tung ham).", NguyenNhan(kq));
                 return;
             }
             kq.GhiBuoc("doc-mo-hinh", true, "ETABS " + KetQua.HienThi(kq.ThongTin["etabsPhienBan"]) +

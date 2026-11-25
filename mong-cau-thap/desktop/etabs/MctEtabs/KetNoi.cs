@@ -19,12 +19,26 @@ namespace MctEtabs
         public object SapModel;
         public string Cach;
         public IBoGoi G;
+        public string ThuMucEtabs;
+        /// <summary>Gắn được (gọi được hàm đơn giản) nhưng chưa lấy được mô hình qua cách này.</summary>
+        public bool ChiGanMotPhan;
         public Type T(string ten) => Asm.GetType("ETABSv1." + ten, true);
     }
 
     internal static class KetNoi
     {
         public const string ProgId = "CSI.ETABS.API.ETABSObject";
+
+        /// <summary>Thư mục của tiến trình ETABS đang chạy (nếu có).</summary>
+        internal static string ThuMucTienTrinh()
+        {
+            foreach (Process p in Process.GetProcessesByName("ETABS"))
+            {
+                string duong = HeThong.DuongDanTienTrinh(p, out _);
+                if (duong != null) return Path.GetDirectoryName(duong);
+            }
+            return null;
+        }
 
         public static PhienEtabs Mo(KetQua kq, YeuCau yc)
         {
@@ -151,6 +165,7 @@ namespace MctEtabs
                 cach.Add(("COM truc tiep (ROT)", () => HeThong.LayDoiTuongRot(ProgId), new GoiQuaIDispatch()));
 
             var moTaLoi = new List<string>();
+            (object o, object sap, string ten, IBoGoi g)? motPhan = null;
             foreach (var (ten, lay, g) in cach)
             {
                 object o = kq.Thu(ten, lay);
@@ -159,17 +174,32 @@ namespace MctEtabs
                 object sap = kq.Thu(ten + " > SapModel", () => g.Lay(o, "cOAPI", "SapModel"));
                 object file = sap == null ? null
                     : kq.Thu(ten + " > SapModel.GetModelFilename", () => g.Goi(sap, "cSapModel", "GetModelFilename", new object[] { true }));
-                if (ver != null || file != null)
+                if (ver != null) kq.Dat("apiPhienBan", ver);
+                if (file != null)
                 {
-                    ph.OAPI = o;
-                    ph.SapModel = sap;
-                    ph.Cach = ten;
-                    ph.G = g;
-                    if (ver != null) kq.Dat("apiPhienBan", ver);
+                    ph.OAPI = o; ph.SapModel = sap; ph.Cach = ten; ph.G = g;
                     break;
                 }
+                if (ver != null && motPhan == null) motPhan = (o, sap, ten, g);
                 if (!System.Runtime.InteropServices.Marshal.IsComObject(o)) kq.Dat("lopBoc " + ten, MoTaTruong(o));
-                moTaLoi.Add(ten + ": nhan " + o.GetType().FullName + " nhung goi ham nao cung loi");
+                moTaLoi.Add(ten + ": nhan " + o.GetType().FullName + " nhung khong doc duoc mo hinh");
+            }
+            ph.ThuMucEtabs = thuMucEtabs;
+            if (ph.OAPI == null && win)
+            {
+                // Không cách nào đọc được mô hình: chẩn đoán giao diện API (type library) với Windows
+                try
+                {
+                    kq.ThongTin["chanDoanCom"] = ThuVienKieu.ChanDoan(ProgId, new[] { tOAPI, tSap, ph.T("cFrameObj") }, thuMucEtabs);
+                    kq.Dat("tlb", ThuVienKieu.TimTlb(thuMucEtabs, out _));
+                }
+                catch (Exception ex) { kq.Dat("chanDoanCom", "loi: " + Api.GocLoi(ex).Message); }
+            }
+            if (ph.OAPI == null && motPhan != null)
+            {
+                // Gắn được một phần (hàm đơn giản chạy) – để lệnh xác định nguyên nhân không lấy được mô hình
+                ph.OAPI = motPhan.Value.o; ph.SapModel = null; ph.Cach = motPhan.Value.ten; ph.G = motPhan.Value.g;
+                ph.ChiGanMotPhan = true;
             }
             if (ph.OAPI == null)
             {
@@ -182,11 +212,12 @@ namespace MctEtabs
             }
             kq.Dat("cachKetNoi", ph.Cach + " – " + ph.G.Ten);
             kq.Dat("kieuEtabs", ph.OAPI.GetType().FullName);
-            kq.GhiBuoc("ket-noi", true, ph.Cach + " (" + ph.OAPI.GetType().FullName + ")");
+            kq.GhiBuoc("ket-noi", true, ph.Cach + " (" + ph.OAPI.GetType().FullName + ")" +
+                       (ph.ChiGanMotPhan ? " – chi goi duoc ham don gian, chua lay duoc mo hinh" : ""));
             return ph;
         }
 
-        static string TimDll(string goiY, string thuMucTienTrinh)
+        internal static string TimDll(string goiY, string thuMucTienTrinh)
         {
             var ung = new List<string>();
             if (!string.IsNullOrWhiteSpace(goiY)) ung.Add(goiY.Trim().Trim('"'));

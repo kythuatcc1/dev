@@ -1260,7 +1260,8 @@
   // ---------------- Khung điều hướng ----------------
   // Trạng thái đạt/không đạt của từng mục để hiện ở thanh danh mục
   // ---------------- Tính bằng ETABS (chỉ có trong chương trình Windows MongCauThap.exe) ----------------
-  var etabsKq = null;          // kết quả lệnh gần nhất
+  var etabsKq = null;          // kết quả lệnh kiểm tra gần nhất
+  var etabsDangKyKq = null;    // kết quả lệnh đăng ký / gỡ đăng ký giao diện gần nhất
   var etabsDangChay = false;
 
   function coChuongTrinh() { return !!(window.mctDesktop && window.mctDesktop.etabs); }
@@ -1269,7 +1270,8 @@
     'doc-yeu-cau': 'Đọc yêu cầu', 'tim-etabs': 'Tìm ETABS đang mở', 'tim-dll': 'Tìm thư viện API (ETABSv1.dll)',
     'nap-dll': 'Nạp thư viện API', 'kiem-tra-com': 'Đăng ký COM của ETABS', 'ket-noi': 'Gắn vào phiên ETABS',
     'doc-mo-hinh': 'Đọc mô hình đang mở', 'he-dieu-hanh': 'Hệ điều hành', 'cau-noi': 'Chạy cầu nối',
-    'net8': '.NET 8', 'loi-chung': 'Lỗi khác'
+    'net8': '.NET 8', 'loi-chung': 'Lỗi khác', 'tim-tlb': 'Tìm type library (.tlb)', 'dang-ky': 'Đăng ký giao diện',
+    'go-dang-ky': 'Gỡ đăng ký giao diện', 'kiem-tra-dang-ky': 'Kiểm tra đăng ký'
   };
 
   // Lời khuyên theo mã gợi ý cầu nối trả về
@@ -1287,6 +1289,15 @@
       'rot': ['ETABS chưa đăng ký phiên làm việc', 'Windows không thấy phiên ETABS đang mở. Đóng ETABS, mở lại (không dùng Run as administrator) rồi thử lại. ' +
         'Nếu vẫn lỗi: chạy ' + dk + ' bằng Run as administrator.'],
       'net8': ['Thiếu .NET 8', 'Cầu nối chạy trên .NET 8 (ETABS 22+ thường đã cài sẵn). Cài <strong>.NET Desktop Runtime 8</strong> (x64) từ trang dotnet.microsoft.com rồi thử lại.'],
+      'dang-ky-giao-dien': ['Windows thiếu đăng ký giao diện API của ETABS',
+        'Chương trình đã gắn được vào ETABS và gọi được hàm đơn giản' + (t.apiPhienBan ? ' (phiên bản API ' + esc(t.apiPhienBan) + ')' : '') +
+        ', nhưng Windows không chuyển được đối tượng mô hình (SapModel) giữa ETABS và chương trình – lỗi E_NOINTERFACE, ' +
+        'do thiếu đăng ký type library của ETABS.</p><p><strong>Cách 1 (khuyên dùng):</strong> đóng ETABS, nhấp chuột phải ' + dk +
+        ' → <strong>Run as administrator</strong>, mở lại ETABS rồi bấm Kiểm tra kết nối.</p><p><strong>Cách 2 (không cần quyền Administrator):</strong> ' +
+        'bấm nút bên dưới để đăng ký cho riêng tài khoản Windows này, sau đó đóng ETABS, mở lại rồi bấm Kiểm tra kết nối.</p>' +
+        '<p><button type="button" class="btn" data-action="etabs-dang-ky">Đăng ký giao diện ETABS cho tài khoản này</button> ' +
+        '<button type="button" class="btn btn-ghost" data-action="etabs-go-dang-ky">Gỡ đăng ký</button>'],
+      'chay-register': ['Cần chạy RegisterETABS.exe', 'Đóng ETABS, nhấp chuột phải ' + dk + ' → <strong>Run as administrator</strong>, mở lại ETABS rồi bấm Kiểm tra kết nối.'],
       'het-gio': ['ETABS không phản hồi', 'Có thể ETABS đang mở một hộp thoại hoặc đang chạy phân tích. Đóng các hộp thoại trong ETABS, đợi ETABS rảnh rồi thử lại.'],
       'ket-noi': ['Không gắn được vào ETABS', 'Thử: đóng hết ETABS rồi mở lại một phiên; mở cả ETABS và MongCauThap.exe cùng quyền (cùng chạy bình thường). ' +
         'Nếu vẫn lỗi, mở Chi tiết kỹ thuật bên dưới và gửi lại nội dung.']
@@ -1315,6 +1326,26 @@
         (etabsDangChay ? 'Đang kết nối…' : 'Kiểm tra kết nối') + '</button></p></section>';
     },
     ketQua: function () {
+      return veKetQuaDangKy() + veKetQuaKiemTra();
+    }
+  };
+
+  function veKetQuaDangKy() {
+    var r = etabsDangKyKq;
+    if (!r) return '';
+    var go = r.lenh === 'go-dang-ky-giao-dien';
+    var buoc = (r.buoc || []).map(function (b) {
+      return '<tr><td class="c">' + (b.ok ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-fail">Lỗi</span>') +
+        '</td><td>' + esc(TEN_BUOC_ETABS[b.ten] || b.ten) + '</td><td>' + esc(b.chiTiet) + '</td></tr>';
+    }).join('');
+    return '<section class="card"><h2>' + (go ? 'Gỡ đăng ký giao diện ETABS' : 'Đăng ký giao diện ETABS') + '</h2>' +
+      '<div class="ket-luan-lon ' + (r.ok ? 'ok' : 'fail') + '">' +
+      (r.ok ? (go ? 'Đã gỡ đăng ký cho tài khoản này.' : 'Đã đăng ký. Đóng ETABS, mở lại, rồi bấm Kiểm tra kết nối.')
+        : 'Chưa làm được: ' + esc(r.loi || '')) + '</div>' + (r.ok ? '' : goiYEtabs(r)) +
+      (buoc ? '<div class="table-wrap"><table class="tbl compact"><tbody>' + buoc + '</tbody></table></div>' : '') + '</section>';
+  }
+
+  function veKetQuaKiemTra() {
       if (!etabsKq) return '';
       var r = etabsKq, t = r.thongTin || {};
       function dongTT(nhan, v) {
@@ -1332,6 +1363,18 @@
       }).join('');
       var goiY = r.ok ? '' : goiYEtabs(r);
       function coKhong(v) { return v === true ? 'Có' : v === false ? 'Không' : null; }
+      function ghep(o) { return o && typeof o === 'object' ? Object.keys(o).map(function (k) { return k + ': ' + o[k]; }).join('; ') : o; }
+      var cd = t.chanDoanCom || {}, dongCd = '';
+      if (cd.giaoDienTrongRegistry) Object.keys(cd.giaoDienTrongRegistry).forEach(function (k) { dongCd += dongTT('Đăng ký giao diện ' + k, cd.giaoDienTrongRegistry[k]); });
+      if (cd.doiTuongEtabs && typeof cd.doiTuongEtabs === 'object') {
+        dongCd += dongTT('QueryInterface trên đối tượng ETABS', ghep(cd.doiTuongEtabs.queryInterface));
+        dongCd += dongTT('ETABS tự mô tả (IDispatch)', cd.doiTuongEtabs.idispatchMoTa);
+      } else dongCd += dongTT('Đối tượng ETABS (COM)', cd.doiTuongEtabs);
+      if (cd.thuVienTlb && typeof cd.thuVienTlb === 'object') {
+        dongCd += dongTT('Type library', cd.thuVienTlb.libId + ' – ' + cd.thuVienTlb.dangKyWin64);
+        dongCd += dongTT('Giao diện trong .tlb', ghep(cd.thuVienTlb.giaoDien));
+      } else dongCd += dongTT('Type library', cd.thuVienTlb);
+      if (cd.fileTlb) dongCd += dongTT('File .tlb trong thư mục ETABS', cd.fileTlb);
       return '<section class="card"><h2>Kết quả</h2>' +
         '<div class="ket-luan-lon ' + (r.ok ? 'ok' : 'fail') + '">' +
         (r.ok ? 'Đã kết nối được ETABS' : 'Chưa kết nối được: ' + esc(r.loi || '')) + '</div>' + goiY +
@@ -1349,27 +1392,32 @@
         dongTT('Cách gắn', t.cachKetNoi) +
         dongTT('ProgID đã đăng ký với Windows', coKhong(t.progIdDangKy)) + dongTT('ETABS có trong bảng ROT', coKhong(t.coTrongRot)) +
         dongTT('ETABS chạy bằng quyền Administrator', coKhong(t.etabsAdmin)) + dongTT('Chương trình chạy bằng quyền Administrator', coKhong(t.chuongTrinhAdmin)) +
-        dongTT('Cầu nối', r.cauNoi ? r.cauNoi + (r.ghiChuChay ? ' – ' + r.ghiChuChay : '') : null) +
+        dongTT('Cầu nối', r.cauNoi ? r.cauNoi + (r.ghiChuChay ? ' – ' + r.ghiChuChay : '') : null) + dongCd +
         '</tbody></table></div>' +
         '<details class="more"><summary>Chi tiết kỹ thuật (gửi lại khi cần hỗ trợ)</summary>' +
         '<textarea class="in wide" rows="8" readonly>' + esc(JSON.stringify(r, null, 2)) + '</textarea></details></section>';
-    }
-  };
+  }
 
-  function etabsKiemTra() {
+  function etabsChay(lenh) {
     if (!coChuongTrinh() || etabsDangChay) return;
+    if (lenh === 'dang-ky-giao-dien' && !window.confirm('Đăng ký giao diện API (type library) của ETABS cho tài khoản Windows này?\n\n' +
+        'Chỉ ghi vào phần registry của tài khoản bạn, không cần quyền Administrator. Gỡ lại được bằng nút "Gỡ đăng ký".')) return;
+    if (lenh === 'go-dang-ky-giao-dien' && !window.confirm('Gỡ đăng ký giao diện API của ETABS cho tài khoản Windows này?')) return;
     etabsDangChay = true;
     if (trangHienTai === 'etabs') veTrang();
-    datTrangThai('Đang kết nối ETABS…');
+    datTrangThai(lenh === 'kiem-tra' ? 'Đang kết nối ETABS…' : 'Đang xử lý đăng ký giao diện ETABS…');
     Promise.resolve().then(function () {
-      return window.mctDesktop.etabs({ lenh: 'kiem-tra', duongDanEtabs: String(state.etabs.duongDan || '').trim(), thoiGianToiDa: 90000 });
+      return window.mctDesktop.etabs({ lenh: lenh, duongDanEtabs: String(state.etabs.duongDan || '').trim(), thoiGianToiDa: 90000 });
     }).then(function (kq) {
-      etabsKq = kq || { ok: false, loi: 'Không nhận được kết quả.', buoc: [] };
+      return kq || { ok: false, lenh: lenh, loi: 'Không nhận được kết quả.', buoc: [] };
     }, function (e) {
-      etabsKq = { ok: false, loi: e && e.message ? e.message : String(e), buoc: [] };
-    }).then(function () {
+      return { ok: false, lenh: lenh, loi: e && e.message ? e.message : String(e), buoc: [] };
+    }).then(function (kq) {
+      kq.lenh = kq.lenh || lenh;
+      if (lenh === 'kiem-tra') { etabsKq = kq; etabsDangKyKq = null; } else etabsDangKyKq = kq;
       etabsDangChay = false;
-      datTrangThai(etabsKq.ok ? 'Đã kết nối ETABS' : 'Chưa kết nối được ETABS');
+      datTrangThai(lenh === 'kiem-tra' ? (kq.ok ? 'Đã kết nối ETABS' : 'Chưa kết nối được ETABS')
+        : (kq.ok ? 'Đã xử lý đăng ký giao diện ETABS' : 'Chưa đăng ký được giao diện ETABS'));
       if (trangHienTai === 'etabs') veTrang(); else veDanhMuc();
     });
   }
@@ -1488,7 +1536,9 @@
       if (nut && !nut.disabled) chuyenTrang(nut.getAttribute('data-trang'));
       if (e.target.closest('[data-action="toggle-nav"]')) document.body.classList.toggle('nav-open');
       if (e.target.closest('[data-action="xuat-tm"]')) xuatThuyetMinh();
-      if (e.target.closest('[data-action="etabs-kiem-tra"]')) etabsKiemTra();
+      if (e.target.closest('[data-action="etabs-kiem-tra"]')) etabsChay('kiem-tra');
+      if (e.target.closest('[data-action="etabs-dang-ky"]')) etabsChay('dang-ky-giao-dien');
+      if (e.target.closest('[data-action="etabs-go-dang-ky"]')) etabsChay('go-dang-ky-giao-dien');
       var themDong = e.target.closest('[data-action="them-dong"]');
       var xoaDong = e.target.closest('[data-action="xoa-dong"]');
       if ((themDong && !themDong.disabled) || (xoaDong && !xoaDong.disabled)) {

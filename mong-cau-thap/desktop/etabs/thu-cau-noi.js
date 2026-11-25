@@ -53,6 +53,17 @@ const ca = [
     assert.strictEqual(k.goiY, 'mo-mo-hinh');
     assert.strictEqual(k.thongTin.apiPhienBan, 2.14);
   }],
+  ['thiếu đăng ký giao diện (E_NOINTERFACE)', 'thieu-giao-dien', {}, function (k) {
+    assert.strictEqual(k.ok, false);
+    assert.strictEqual(k.buocLoi, 'doc-mo-hinh');
+    assert.strictEqual(k.goiY, 'dang-ky-giao-dien');
+    assert.ok(k.thuHam.some(function (h) { return h.hresult === '0x80004002'; }));
+    assert.ok(k.buoc.some(function (b) { return b.ten === 'ket-noi' && b.ok && /chua lay duoc mo hinh/.test(b.chiTiet); }));
+  }],
+  ['lệnh đăng ký khi không phải Windows', '', { lenh: 'dang-ky-giao-dien' }, function (k) {
+    assert.strictEqual(k.ok, false);
+    assert.strictEqual(k.buocLoi, 'he-dieu-hanh');
+  }],
   ['sai thư mục ETABS', '', { duongDanEtabs: path.join(tam, 'không có') }, function (k) {
     // không có thư mục → tìm tiếp trong Program Files; trên máy build không có ETABS nên báo không thấy DLL
     if (process.platform !== 'win32') { assert.strictEqual(k.ok, false); assert.strictEqual(k.buocLoi, 'tim-dll'); }
