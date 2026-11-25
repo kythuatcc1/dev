@@ -9,6 +9,7 @@
 //   thieu-giao-dien  giống máy thật thiếu đăng ký type library: GetOAPIVersionNumber được, lấy SapModel báo E_NOINTERFACE
 //   tang-loi         SetStories_2 với SimilarToStory "" trả mã lỗi 1 (chỉ nhận "None")
 // MCT_GIA_LAP_GHI: file JSON ghi lại mô hình giả lập sau lệnh Save (để kiểm tra)
+// MCT_GIA_LAP_MO : file .EDB giả lập đã lưu – nạp lại khi gắn (giống ETABS thật vẫn mở mô hình giữa các lệnh)
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -23,6 +24,7 @@ namespace ETABSv1
     public enum eItemType { Objects = 0, Group = 1, SelectedObjects = 2 }
     public enum eLoadPatternType { Dead = 1, SuperDead = 2, Live = 3, ReduceLive = 4, Quake = 5, Wind = 6, Snow = 7, Other = 8 }
     public enum eCNameType { LoadCase = 0, LoadCombo = 1 }
+    public enum eItemTypeElm { ObjectElm = 0, Element = 1, GroupElm = 2, SelectionElm = 3 }
 
     public interface cHelper
     {
@@ -49,6 +51,10 @@ namespace ETABSv1
         cLoadPatterns LoadPatterns { get; }
         cCombo RespCombo { get; }
         cView View { get; }
+        cAnalyze Analyze { get; }
+        cAnalysisResults Results { get; }
+        cPointElm PointElm { get; }
+        int SetPresentUnits(eUnits Units);
         int InitializeNewModel(eUnits Units = eUnits.kip_in_F);
         int GetVersion(ref string Version, ref double MyVersionNumber);
         string GetModelFilename(bool IncludePath = true);
@@ -90,10 +96,35 @@ namespace ETABSv1
         int SetSpring(string Name, ref double[] k, eItemType ItemType = eItemType.Objects, bool IsLocalCSys = false, bool Replace = false);
         int SetRestraint(string Name, ref bool[] Value, eItemType ItemType = eItemType.Objects);
         int SetLoadForce(string Name, string LoadPat, ref double[] Value, bool Replace = false, string CSys = "Global", eItemType ItemType = eItemType.Objects);
+        int GetCoordCartesian(string Name, ref double X, ref double Y, ref double Z, string CSys = "Global");
+    }
+    public interface cPointElm { int GetCoordCartesian(string Name, ref double X, ref double Y, ref double Z, string CSys = "Global"); }
+    public interface cAnalyze
+    {
+        int RunAnalysis();
+        int SetRunCaseFlag(string Name, bool Run, bool All = false);
+    }
+    public interface cAnalysisResultsSetup
+    {
+        int DeselectAllCasesAndCombosForOutput();
+        int SetComboSelectedForOutput(string Name, bool Selected = true);
+    }
+    public interface cAnalysisResults
+    {
+        cAnalysisResultsSetup Setup { get; }
+        int FrameForce(string Name, eItemTypeElm ItemTypeElm, ref int NumberResults, ref string[] Obj, ref double[] ObjSta, ref string[] Elm, ref double[] ElmSta,
+                       ref string[] LoadCase, ref string[] StepType, ref double[] StepNum, ref double[] P, ref double[] V2, ref double[] V3, ref double[] T, ref double[] M2, ref double[] M3);
+        int JointDispl(string Name, eItemTypeElm ItemTypeElm, ref int NumberResults, ref string[] Obj, ref string[] Elm, ref string[] LoadCase, ref string[] StepType,
+                       ref double[] StepNum, ref double[] U1, ref double[] U2, ref double[] U3, ref double[] R1, ref double[] R2, ref double[] R3);
+        int AreaForceShell(string Name, eItemTypeElm ItemTypeElm, ref int NumberResults, ref string[] Obj, ref string[] Elm, ref string[] PointElm, ref string[] LoadCase,
+                           ref string[] StepType, ref double[] StepNum, ref double[] F11, ref double[] F22, ref double[] F12, ref double[] FMax, ref double[] FMin, ref double[] FAngle,
+                           ref double[] FVM, ref double[] M11, ref double[] M22, ref double[] M12, ref double[] MMax, ref double[] MMin, ref double[] MAngle, ref double[] V13,
+                           ref double[] V23, ref double[] VMax, ref double[] VAngle);
     }
     public interface cFrameObj
     {
         int Count(string MainName = "");
+        int GetPoints(string Name, ref string Point1, ref string Point2);
         int AddByPoint(string Point1, string Point2, ref string Name, string PropName = "Default", string UserName = "");
     }
     public interface cAreaObj
@@ -133,8 +164,44 @@ namespace ETABSv1
         public Dictionary<string, double> BanThan = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, double[]> TongLuc = new Dictionary<string, double[]>();   // tổng lực mỗi pattern
         public Dictionary<string, List<string>> ToHop = new Dictionary<string, List<string>>();
+        public bool DaPhanTich;
+        public Dictionary<string, int> TenVo = new Dictionary<string, int>();
+        public List<string> ToHopXuat = new List<string>();
+        public List<string> TatCaKhongChay = new List<string>();
         public int SoDiemCu = 12, SoThanhCu = 99, SoVoCu = 1;
         public bool MoiTao;
+
+        /// <summary>Ghi/nạp mô hình dạng văn bản (thay cho file .EDB thật).</summary>
+        public void Ghi(string file)
+        {
+            var d = new List<string> { "FILE|" + file, "DAY|" + CaoDoDay.ToString("R", System.Globalization.CultureInfo.InvariantCulture) };
+            foreach (var kv in Diem) d.Add("P|" + kv.Key + "|" + string.Join("|", kv.Value.Select(v => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture))));
+            foreach (var t in Thanh) d.Add("F|" + string.Join("|", t));
+            foreach (var kv in TenVo) d.Add("A|" + kv.Key + "|" + string.Join(",", Vo[kv.Value]));
+            foreach (string m in Mau) d.Add("L|" + m);
+            foreach (string c in ToHop.Keys) d.Add("C|" + c);
+            System.IO.File.WriteAllLines(file, d);
+        }
+        public static MoHinh Nap(string file)
+        {
+            var m = new MoHinh { DaMo = true, MoiTao = true, SoDiemCu = 0, SoThanhCu = 0, SoVoCu = 0 };
+            foreach (string dong in System.IO.File.ReadAllLines(file))
+            {
+                string[] x = dong.Split('|');
+                double so(string v) => double.Parse(v, System.Globalization.CultureInfo.InvariantCulture);
+                switch (x[0])
+                {
+                    case "FILE": m.File = x[1]; break;
+                    case "DAY": m.CaoDoDay = so(x[1]); break;
+                    case "P": m.Diem[x[1]] = new[] { so(x[2]), so(x[3]), so(x[4]) }; break;
+                    case "F": m.Thanh.Add(new[] { x[1], x[2], x[3], x[4] }); break;
+                    case "A": m.TenVo[x[1]] = m.Vo.Count; m.Vo.Add(x[2].Split(',')); break;
+                    case "L": m.Mau.Add(x[1]); break;
+                    case "C": m.ToHop[x[1]] = new List<string>(); break;
+                }
+            }
+            return m;
+        }
     }
 
     public class Helper : cHelper
@@ -143,7 +210,9 @@ namespace ETABSv1
         public cOAPI GetObject(string typeName)
         {
             if (TinhHuong == "treo") System.Threading.Thread.Sleep(600000);
-            return new wOAPI(TinhHuong.StartsWith("boc-rong") ? null : new MoHinh());
+            if (TinhHuong.StartsWith("boc-rong")) return new wOAPI(null);
+            string mo = Environment.GetEnvironmentVariable("MCT_GIA_LAP_MO");
+            return new wOAPI(!string.IsNullOrEmpty(mo) && System.IO.File.Exists(mo) ? MoHinh.Nap(mo) : new MoHinh());
         }
         public cOAPI GetObjectProcess(string typeName, int pid) => new wOAPI(TinhHuong == "boc-rong-het" ? null : new MoHinh());
     }
@@ -157,7 +226,8 @@ namespace ETABSv1
         public double GetOAPIVersionNumber() => _goc == null ? throw new NullReferenceException() : 2.14;
     }
 
-    public class wSapModel : cSapModel, cFile, cStory, cPropMaterial, cPropFrame, cPropArea, cPointObj, cFrameObj, cAreaObj, cLoadPatterns, cCombo, cView
+    public class wSapModel : cSapModel, cFile, cStory, cPropMaterial, cPropFrame, cPropArea, cPointObj, cFrameObj, cAreaObj, cLoadPatterns, cCombo, cView,
+                             cAnalyze, cAnalysisResults, cAnalysisResultsSetup, cPointElm
     {
         private readonly MoHinh _goc;
         internal wSapModel(MoHinh goc) { _goc = goc; }
@@ -173,6 +243,89 @@ namespace ETABSv1
         public cAreaObj AreaObj { get { _ = M; return this; } }
         public cLoadPatterns LoadPatterns { get { _ = M; return this; } }
         public cCombo RespCombo { get { _ = M; return this; } }
+        public cAnalyze Analyze { get { _ = M; return this; } }
+        public cAnalysisResults Results { get { _ = M; return this; } }
+        public cAnalysisResultsSetup Setup { get { _ = M; return this; } }
+        public cPointElm PointElm { get { _ = M; return this; } }
+        public int SetPresentUnits(eUnits Units) { M.DonVi = Units; return 0; }
+
+        // cAnalyze – cần lưu file trước khi chạy (như ETABS)
+        public int RunAnalysis() { if (string.IsNullOrEmpty(M.File) || M.Thanh.Count == 0) return 1; M.DaPhanTich = true; return 0; }
+        public int SetRunCaseFlag(string Name, bool Run, bool All = false) { if (Name != "Modal") return 1; M.TatCaKhongChay.Add(Name); return 0; }
+
+        // cAnalysisResultsSetup
+        public int DeselectAllCasesAndCombosForOutput() { M.ToHopXuat.Clear(); return 0; }
+        public int SetComboSelectedForOutput(string Name, bool Selected = true) { if (!M.ToHop.ContainsKey(Name)) return 1; if (Selected) M.ToHopXuat.Add(Name); return 0; }
+
+        // cAnalysisResults – số liệu giả lập có quy luật để kiểm tra app:
+        //   thanh "C{p}_{k}", tổ hợp thứ j: P = −(1000 + 100p + 10j + k) − 0,5·sta ; V2 = 10 + j ; M2 = 100 + 2j − k ; M3 = j
+        //   nút: U1 = 0,001(j+1) ; U2 = 0,0005 ; U3 = −0,002 ; R1 = 1e−4 ; R2 = 2e−4
+        //   vỏ : M11 = 10 + j ; M22 = 5 ; M12 = 0 ; V13 = 2 ; V23 = 1 (hằng số → mômen mặt cắt = giá trị × bề rộng)
+        int ChiSo(string ten) { int i = ten.IndexOf('_'); return i > 1 && int.TryParse(ten.Substring(1, i - 1), out int p) ? p : 0; }
+        int Doan(string ten) { int i = ten.IndexOf('_'); return i > 0 && int.TryParse(ten.Substring(i + 1), out int k) ? k : 0; }
+        public int FrameForce(string Name, eItemTypeElm ItemTypeElm, ref int NumberResults, ref string[] Obj, ref double[] ObjSta, ref string[] Elm, ref double[] ElmSta,
+                              ref string[] LoadCase, ref string[] StepType, ref double[] StepNum, ref double[] P, ref double[] V2, ref double[] V3, ref double[] T, ref double[] M2, ref double[] M3)
+        {
+            var t = M.Thanh.FirstOrDefault(x => x[0] == Name);
+            if (!M.DaPhanTich || t == null || ItemTypeElm != eItemTypeElm.ObjectElm) return 1;
+            double[] a = M.Diem[t[1]], b = M.Diem[t[2]];
+            double L = Math.Abs(a[2] - b[2]);
+            int p = ChiSo(Name), k = Doan(Name), n = M.ToHopXuat.Count * 2;
+            NumberResults = n; Obj = new string[n]; ObjSta = new double[n]; Elm = new string[n]; ElmSta = new double[n]; LoadCase = new string[n];
+            StepType = new string[n]; StepNum = new double[n]; P = new double[n]; V2 = new double[n]; V3 = new double[n]; T = new double[n]; M2 = new double[n]; M3 = new double[n];
+            for (int j = 0, i = 0; j < M.ToHopXuat.Count; j++)
+                foreach (double sta in new[] { 0, L })
+                {
+                    Obj[i] = Name; ObjSta[i] = sta; Elm[i] = Name; ElmSta[i] = sta; LoadCase[i] = M.ToHopXuat[j]; StepType[i] = "";
+                    P[i] = -(1000 + 100 * p + 10 * j + k) - 0.5 * sta; V2[i] = 10 + j; V3[i] = 0; T[i] = 0; M2[i] = 100 + 2 * j - k; M3[i] = j;
+                    i++;
+                }
+            return 0;
+        }
+        public int JointDispl(string Name, eItemTypeElm ItemTypeElm, ref int NumberResults, ref string[] Obj, ref string[] Elm, ref string[] LoadCase, ref string[] StepType,
+                              ref double[] StepNum, ref double[] U1, ref double[] U2, ref double[] U3, ref double[] R1, ref double[] R2, ref double[] R3)
+        {
+            if (!M.DaPhanTich || !M.Diem.ContainsKey(Name)) return 1;
+            int n = M.ToHopXuat.Count;
+            NumberResults = n; Obj = new string[n]; Elm = new string[n]; LoadCase = M.ToHopXuat.ToArray(); StepType = new string[n]; StepNum = new double[n];
+            U1 = new double[n]; U2 = new double[n]; U3 = new double[n]; R1 = new double[n]; R2 = new double[n]; R3 = new double[n];
+            for (int j = 0; j < n; j++) { Obj[j] = Name; Elm[j] = Name; U1[j] = 0.001 * (j + 1); U2[j] = 0.0005; U3[j] = -0.002; R1[j] = 1e-4; R2[j] = 2e-4; }
+            return 0;
+        }
+        public int AreaForceShell(string Name, eItemTypeElm ItemTypeElm, ref int NumberResults, ref string[] Obj, ref string[] Elm, ref string[] PointElm, ref string[] LoadCase,
+                                  ref string[] StepType, ref double[] StepNum, ref double[] F11, ref double[] F22, ref double[] F12, ref double[] FMax, ref double[] FMin, ref double[] FAngle,
+                                  ref double[] FVM, ref double[] M11, ref double[] M22, ref double[] M12, ref double[] MMax, ref double[] MMin, ref double[] MAngle, ref double[] V13,
+                                  ref double[] V23, ref double[] VMax, ref double[] VAngle)
+        {
+            if (!M.DaPhanTich || !TenVo.TryGetValue(Name, out int chiSoVo)) return 1;
+            string[] diem = M.Vo[chiSoVo];
+            int n = diem.Length * M.ToHopXuat.Count;
+            NumberResults = n;
+            Obj = new string[n]; Elm = new string[n]; PointElm = new string[n]; LoadCase = new string[n]; StepType = new string[n]; StepNum = new double[n];
+            F11 = new double[n]; F22 = new double[n]; F12 = new double[n]; FMax = new double[n]; FMin = new double[n]; FAngle = new double[n]; FVM = new double[n];
+            M11 = new double[n]; M22 = new double[n]; M12 = new double[n]; MMax = new double[n]; MMin = new double[n]; MAngle = new double[n];
+            V13 = new double[n]; V23 = new double[n]; VMax = new double[n]; VAngle = new double[n];
+            for (int j = 0, i = 0; j < M.ToHopXuat.Count; j++)
+                foreach (string d in diem)
+                {
+                    Obj[i] = Name; Elm[i] = Name; PointElm[i] = d; LoadCase[i] = M.ToHopXuat[j]; StepType[i] = "";
+                    M11[i] = 10 + j; M22[i] = 5; M12[i] = 0; V13[i] = 2; V23[i] = 1;
+                    i++;
+                }
+            return 0;
+        }
+        Dictionary<string, int> TenVo => M.TenVo;
+        int cFrameObj.GetPoints(string Name, ref string Point1, ref string Point2)
+        {
+            var t = M.Thanh.FirstOrDefault(x => x[0] == Name);
+            if (t == null) return 1;
+            Point1 = t[1]; Point2 = t[2]; return 0;
+        }
+        public int GetCoordCartesian(string Name, ref double X, ref double Y, ref double Z, string CSys = "Global")
+        {
+            if (!M.Diem.TryGetValue(Name, out double[] t)) return 1;
+            X = t[0]; Y = t[1]; Z = t[2]; return 0;
+        }
         public cView View { get { _ = M; return this; } }
 
         public int InitializeNewModel(eUnits Units = eUnits.kip_in_F)
@@ -204,6 +357,7 @@ namespace ETABSv1
         {
             if (string.IsNullOrWhiteSpace(FileName)) return 1;
             M.File = FileName;
+            M.Ghi(FileName);
             string ghi = Environment.GetEnvironmentVariable("MCT_GIA_LAP_GHI");
             if (!string.IsNullOrEmpty(ghi))
             {
@@ -282,6 +436,7 @@ namespace ETABSv1
         {
             if (Point == null || Point.Length != NumberPoints || NumberPoints < 3 || Point.Any(p => !M.Diem.ContainsKey(p)) || !M.TietDienVo.Contains(PropName)) return 1;
             Name = string.IsNullOrEmpty(UserName) ? "A" + (M.Vo.Count + 1) : UserName;
+            M.TenVo[Name] = M.Vo.Count;
             M.Vo.Add(Point);
             return 0;
         }

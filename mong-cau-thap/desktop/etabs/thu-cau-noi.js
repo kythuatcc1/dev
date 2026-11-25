@@ -18,7 +18,7 @@ globalThis.MCT = {};
 const goc = path.join(__dirname, '..', '..', 'js');
 ['data/cau-thap', 'data/vat-lieu', 'data/bang-tra', 'data/mau-dia-chat', 'data/he-so-tai-ngang', 'mac-dinh', 'calc/dia-chat', 'calc/sct-coc',
   'calc/phan-a-tai-trong', 'calc/phan-b-tai-coc', 'calc/phan-c-xuyen-thung', 'calc/phan-d-thep-dai', 'calc/phan-e-bulong', 'calc/phan-f-ket-luan',
-  'calc/tai-ngang', 'calc/tuong-tac', 'calc/lun', 'calc/tinh-tat-ca', 'calc/etabs-mo-hinh', 'calc/etabs-tai-trong'].forEach((f) => require(path.join(goc, f + '.js')));
+  'calc/tai-ngang', 'calc/tuong-tac', 'calc/lun', 'calc/tinh-tat-ca', 'calc/etabs-mo-hinh', 'calc/etabs-tai-trong', 'calc/etabs-ket-qua'].forEach((f) => require(path.join(goc, f + '.js')));
 const trangThai = JSON.parse(JSON.stringify(globalThis.MCT.macDinh));
 const ketQuaTinh = globalThis.MCT.calc.tinhTatCa(trangThai);
 const moHinh = globalThis.MCT.calc.taoMoHinhEtabs(trangThai, ketQuaTinh);
@@ -27,13 +27,13 @@ const duLieuMoHinh = globalThis.MCT.calc.duLieuGuiEtabs(moHinh, taiTrong);
 const fileGhi = path.join(tam, 'mo-hinh-gia-lap.json');
 const fileEdb = path.join(tam, 'Mô hình', 'CT1 thử.EDB');
 
-function chay(tinhHuong, yeuCau) {
+function chay(tinhHuong, yeuCau, moFile) {
   const vao = path.join(tam, 'vao.json');
   const ra = path.join(tam, 'ra.json');
   fs.rmSync(ra, { force: true });
   fs.writeFileSync(vao, JSON.stringify(Object.assign({ lenh: 'kiem-tra', thuNghiem: true, duongDanEtabs: thuMucGiaLap }, yeuCau)), 'utf8');
   const r = spawnSync('dotnet', [path.join(thuMucCauNoi, 'MctEtabs.dll'), '--yeu-cau', vao, '--ket-qua', ra],
-    { env: Object.assign({}, process.env, { MCT_GIA_LAP: tinhHuong, MCT_GIA_LAP_GHI: fileGhi }), encoding: 'utf8' });
+    { env: Object.assign({}, process.env, { MCT_GIA_LAP: tinhHuong, MCT_GIA_LAP_GHI: fileGhi, MCT_GIA_LAP_MO: moFile || '' }), encoding: 'utf8' });
   assert.ok(fs.existsSync(ra), 'không có file kết quả: ' + r.stderr);
   return JSON.parse(fs.readFileSync(ra, 'utf8'));
 }
@@ -106,6 +106,25 @@ const ca = [
     assert.strictEqual(k.ok, true, k.loi);
     assert.ok(k.buoc.some(function (b) { return b.ten === 'tang' && b.ok; }));
   }],
+  ['phân tích mô hình vừa dựng: nội lực cọc, chuyển vị, đài', '', { lenh: 'phan-tich', duLieu: globalThis.MCT.calc.duLieuPhanTich(moHinh, taiTrong) }, function (k) {
+    assert.strictEqual(k.ok, true, k.loi);
+    const kq = k.ketQua, n = taiTrong.toHop.length - 1;
+    assert.strictEqual(kq.toHop.length, n);
+    assert.strictEqual(kq.coc.length, 3);
+    // mỗi đoạn cọc 2 trạm × mọi tổ hợp
+    assert.strictEqual(kq.coc[0].dong.length, moHinh.coc[0].thanh.length * 2 * n);
+    assert.strictEqual(kq.chuyenVi.nut.length, 4);
+    assert.strictEqual(kq.dai.nut.length, moHinh.xs.length * moHinh.ys.length);
+    const r = globalThis.MCT.calc.ketQuaEtabs(kq, moHinh, taiTrong, trangThai, ketQuaTinh);
+    assert.strictEqual(r.hopLe, true);
+    assert.ok(Math.abs(r.cocKiemTra.Pnen.gt - (1000 + 300 + 10 * (n - 1) + 2)) < 1e-6, 'Pnén đầu cọc ' + r.cocKiemTra.Pnen.gt);
+    assert.ok(Math.abs(r.dai.X.Mduong.gt - (10 + n - 1) * moHinh.thongSo.Y) < 1e-6, 'M đài theo X ' + r.dai.X.Mduong.gt);
+    assert.ok(k.buoc.some(function (b) { return b.ten === 'phan-tich' && b.ok; }));
+  }, fileEdb],
+  ['phân tích khi ETABS đang mở mô hình khác', '', { lenh: 'phan-tich', duLieu: globalThis.MCT.calc.duLieuPhanTich(moHinh, taiTrong) }, function (k) {
+    assert.strictEqual(k.ok, false);
+    assert.strictEqual(k.buocLoi, 'kiem-tra-mo-hinh');
+  }],
   ['dựng mô hình: thiếu dữ liệu', '', { lenh: 'dung-mo-hinh' }, function (k) {
     assert.strictEqual(k.ok, false);
     assert.strictEqual(k.buocLoi, 'doc-yeu-cau');
@@ -121,8 +140,8 @@ const ca = [
 ];
 
 let loi = 0;
-for (const [ten, tinhHuong, yeuCau, kiemTra] of ca) {
-  try { kiemTra(chay(tinhHuong, yeuCau)); console.log('✔ ' + ten); }
+for (const [ten, tinhHuong, yeuCau, kiemTra, moFile] of ca) {
+  try { kiemTra(chay(tinhHuong, yeuCau, moFile)); console.log('✔ ' + ten); }
   catch (e) { loi++; console.log('✘ ' + ten + ': ' + e.message); }
 }
 fs.rmSync(tam, { recursive: true, force: true });

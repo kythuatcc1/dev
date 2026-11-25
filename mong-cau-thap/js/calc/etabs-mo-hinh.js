@@ -120,6 +120,8 @@
         if (K > 0) loXo.push({ diem: ten[j], k: [K, K, 0, 0, 0, 0] });
         if (j > 0) thanh.push({ ten: p.ten + '_' + j, dau: ten[j - 1], cuoi: ten[j], tietDien: j === 1 ? 'COC_TRONG_DAI' : 'COC' });
       });
+      p.thanh = capDo.slice(1).map(function (z, j) { return p.ten + '_' + (j + 1); });   // từ trên xuống
+      p.nutDau = ten[1];                                                                   // đầu cọc (đáy đài)
       gioiHan.push({ diem: ten[ten.length - 1], giaTri: [false, false, true, false, false, false] });
       p.nutDinh = ten[0];
       p.nutMui = ten[ten.length - 1];

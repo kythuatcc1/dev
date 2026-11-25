@@ -24,14 +24,24 @@ namespace MctEtabs
 
         public BoGoiEtabs(IBoGoi g, object sap) { _g = g; _sap = sap; }
 
-        object Con(string thuocTinh)
+        /// <summary>Giao diện của từng thuộc tính con (để đi theo đường dẫn như "Results.Setup").</summary>
+        static readonly Dictionary<string, string> GiaoDien = new Dictionary<string, string>
         {
-            if (thuocTinh == "") return _sap;
-            if (!_con.TryGetValue(thuocTinh, out object o))
-            {
-                o = _g.Lay(_sap, "cSapModel", thuocTinh) ?? throw new LoiEtabs("SapModel." + thuocTinh + " rong");
-                _con[thuocTinh] = o;
-            }
+            ["File"] = "cFile", ["Story"] = "cStory", ["PropMaterial"] = "cPropMaterial", ["PropFrame"] = "cPropFrame",
+            ["PropArea"] = "cPropArea", ["PointObj"] = "cPointObj", ["FrameObj"] = "cFrameObj", ["AreaObj"] = "cAreaObj",
+            ["LoadPatterns"] = "cLoadPatterns", ["RespCombo"] = "cCombo", ["View"] = "cView", ["Analyze"] = "cAnalyze",
+            ["Results"] = "cAnalysisResults", ["Setup"] = "cAnalysisResultsSetup", ["PointElm"] = "cPointElm"
+        };
+
+        object Con(string duongDan)
+        {
+            if (duongDan == "") return _sap;
+            if (_con.TryGetValue(duongDan, out object o)) return o;
+            int i = duongDan.LastIndexOf('.');
+            string cha = i < 0 ? "" : duongDan.Substring(0, i), ten = duongDan.Substring(i + 1);
+            string giaoDienCha = cha == "" ? "cSapModel" : GiaoDien[cha.Split('.').Last()];
+            o = _g.Lay(Con(cha), giaoDienCha, ten) ?? throw new LoiEtabs("SapModel." + duongDan + " rong");
+            _con[duongDan] = o;
             return o;
         }
 

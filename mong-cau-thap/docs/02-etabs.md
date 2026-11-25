@@ -63,9 +63,9 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 | Bước | Nội dung | Trạng thái |
 |---|---|---|
 | 1 | Kết nối: trang "Kết nối ETABS", lệnh `kiem-tra` (phiên bản, file mô hình, đơn vị, số phần tử, load pattern) | ✔ Đã chạy trên máy thật (ETABS 23.2.0, API 2.014) sau khi chạy RegisterETABS.exe bằng quyền Administrator |
-| 2 | Dựng mô hình (lệnh `dung-mo-hinh`, trang "Mô hình ETABS", `js/calc/etabs-mo-hinh.js`) | Đã làm – chờ chạy thử trên máy thật |
-| 3 | Tải trọng & tổ hợp (trang "Tải trọng & tổ hợp", gán cùng lệnh `dung-mo-hinh`) | Đã làm – chờ chạy thử trên máy thật |
-| 4 | Chạy phân tích, lấy nội lực cọc theo chiều sâu, chuyển vị và góc xoay đài, mô men và lực cắt đài | Chờ |
+| 2 | Dựng mô hình (lệnh `dung-mo-hinh`, trang "Mô hình ETABS", `js/calc/etabs-mo-hinh.js`) | ✔ Chạy trên máy thật (ETABS 23, MC205B: 51 tầng, 202 điểm, 153 thanh, 36 ô vỏ, 117 lò xo, 4,3 giây) |
+| 3 | Tải trọng & tổ hợp (trang "Tải trọng & tổ hợp", gán cùng lệnh `dung-mo-hinh`) | ✔ Chạy trên máy thật (12 load pattern, 49 tổ hợp) |
+| 4 | Chạy phân tích, lấy nội lực (lệnh `phan-tich`, trang "Kết quả ETABS", `js/calc/etabs-ket-qua.js`) | Đã làm – chờ chạy thử trên máy thật |
 | 5 | Chọn phương pháp; kiểm tra cọc nén/kéo, tải ngang (cắt, P–M), thép đài, chuyển vị/góc xoay theo form CC1 | Chờ |
 | 6 | Thuyết minh form CC1 cho phương pháp ETABS | Chờ |
 | 7 | Tự cập nhật: đổi thông số → dựng lại, chạy lại, lấy kết quả | Chờ |
@@ -97,6 +97,19 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 - **Hướng:** 8 hướng mỗi 45° (PDF) + hướng bất lợi của từng cọc theo mục B (hướng từ tâm đài tới cọc – cọc nén nhiều nhất,
   và hướng ngược lại – cọc kéo nhiều nhất); trùng thì gộp. Số liệu mặc định: 12 hướng × 4 = 48 tổ hợp + `BAO` (envelope).
 - **Lệnh cầu nối:** `LoadPatterns.Add` / `SetSelfWTMultiplier`, `PointObj.SetLoadForce`, `RespCombo.Add` + `SetCaseList`.
+
+## Bước 4 – phân tích và nội lực (`js/calc/etabs-ket-qua.js`, lệnh `phan-tich`)
+- **Cầu nối:** kiểm tra mô hình đang mở có các thanh cọc app dựng → `SetPresentUnits(kN_m_C)` → bỏ Modal →
+  `Analyze.RunAnalysis` → chọn các tổ hợp tuyến tính (`Results.Setup`) → `Results.FrameForce` từng đoạn cọc
+  (cao độ trạm tính từ 2 đầu đoạn `FrameObj.GetPoints`), `Results.JointDispl` tại tâm đài và đầu cọc,
+  `Results.AreaForceShell` từng ô vỏ (trung bình tại nút; điểm ETABS tự chia lưới lấy toạ độ bằng `PointElm.GetCoordCartesian`).
+- **App:** bao P, M = √(M2² + M3²), V = √(V2² + V3²) theo chiều sâu; lực đầu cọc (đáy đài) so với Qa, Qa' (như mục B);
+  mọi cặp (N = −P, M) so với biểu đồ tương tác của form CC1; V lớn nhất so với [Q] của phần tải ngang;
+  Δ = √(U1² + U2²), ψ = √(R1² + R2²) so với giới hạn phần tải ngang;
+  đài: mômen/lực cắt mặt cắt = ∫M11 dy, ∫V13 dy trên mỗi đường lưới x = const (thép theo X) và ∫M22 dx, ∫V23 dx
+  trên y = const (thép theo Y), quy ước CSI M > 0 thớ dưới chịu kéo; thép như mục D với b = bề rộng mặt cắt;
+  lực cắt so với Qb = 0,5·Rbt·b·h0 (như PDF).
+- App ghi dấu vân tay mô hình + tải trọng khi dựng, cảnh báo nếu thông số đổi mà chưa dựng lại.
 
 ## Chạy thử bước 1
 1. Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới (đợi mô hình hiện ra).

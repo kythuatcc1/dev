@@ -65,7 +65,8 @@
       fileMoHinh: '',       // đường dẫn lưu mô hình .EDB; để trống: Documents\MongCauThap\<tên móng>.EDB
       heSoTinhTaiNen: 1.1,  // hệ số tĩnh tải trong tổ hợp cọc nén (PDF)
       heSoTinhTaiKeo: 0.9,  // hệ số tĩnh tải trong tổ hợp cọc kéo (PDF)
-      heSoFzKeo: 0.9        // hệ số lực đứng của cẩu trong tổ hợp cọc kéo (PDF)
+      heSoFzKeo: 0.9,       // hệ số lực đứng của cẩu trong tổ hợp cọc kéo (PDF)
+      vanTayDung: ''        // dấu vân tay mô hình + tải trọng của lần dựng gần nhất (app tự ghi)
     },
     baoCao: {
       moTaThem: 'Cao độ đáy bê tông lót móng -2.600m so với cote MĐTN. ' +

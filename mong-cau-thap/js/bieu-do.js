@@ -125,7 +125,9 @@
       '" fill="none" stroke="#e8893a" stroke-width="2"/>';
     tt.diemNoiLuc.forEach(function (p) {
       var x = X(p.M), y = Y(p.N);
-      s += '<path d="M' + x + ' ' + (y - 6) + ' L' + (x + 6) + ' ' + y + ' L' + x + ' ' + (y + 6) + ' L' + (x - 6) + ' ' + y + ' Z" fill="#e02424"/>';
+      s += tt.chamNho   // nhiều điểm (kết quả ETABS): chấm nhỏ như hình P–M của PDF
+        ? '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2" fill="#e02424" fill-opacity="0.75"/>'
+        : '<path d="M' + x + ' ' + (y - 6) + ' L' + (x + 6) + ' ' + y + ' L' + x + ' ' + (y + 6) + ' L' + (x - 6) + ' ' + y + ' Z" fill="#e02424"/>';
     });
     s += '<text x="' + ((l + W - r) / 2) + '" y="' + (H - 8) + '" text-anchor="middle" ' + CHU + '>M (kNm)</text>' +
       '<text x="14" y="' + ((t + H - b) / 2) + '" text-anchor="middle" transform="rotate(-90 14 ' + ((t + H - b) / 2) + ')" ' + CHU + '>N (kN)</text>';

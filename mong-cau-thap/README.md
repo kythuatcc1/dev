@@ -21,7 +21,7 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | GĐ7 | Biểu đồ tương tác, biểu đồ SPT | ✔ |
 | GĐ8 | Thuyết minh toàn bộ: Phần 1 SCT cọc, Phần 2 A → F, Phần 3 tải ngang, Phần 4 tương tác, Phần 5 ổn định – lún (kèm biểu đồ) | ✔ |
 | GĐ9 | Đóng gói chương trình Windows (.exe) bằng Electron | ✔ |
-| GĐ10 | Tính bằng ETABS v22/v23 (xem [docs/02-etabs.md](docs/02-etabs.md)): bước 1 kết nối ✔, bước 2 dựng mô hình, bước 3 tải trọng & tổ hợp | đang làm |
+| GĐ10 | Tính bằng ETABS v22/v23 (xem [docs/02-etabs.md](docs/02-etabs.md)): bước 1 kết nối ✔, bước 2 dựng mô hình ✔, bước 3 tải trọng & tổ hợp ✔, bước 4 phân tích & nội lực | đang làm |
 
 ## Cấu trúc
 ```
