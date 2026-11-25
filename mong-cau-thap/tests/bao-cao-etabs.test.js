@@ -9,6 +9,8 @@ require('../js/mac-dinh.js');
 ['dia-chat', 'sct-coc', 'phan-a-tai-trong', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong',
   'phan-f-ket-luan', 'tai-ngang', 'tuong-tac', 'lun', 'tinh-tat-ca', 'etabs-mo-hinh', 'etabs-tai-trong', 'etabs-ket-qua', 'dam-giang'].forEach((f) => require(`../js/calc/${f}.js`));
 require('../js/bao-cao/thuyet-minh.js');
+require('../js/bieu-do.js');
+require('../js/bieu-do-mat-cat.js');
 require('../js/bieu-do-etabs.js');
 const MCT = globalThis.MCT;
 
@@ -119,13 +121,16 @@ test('Thuyết minh ETABS: biểu đồ app vẽ được chèn, các ô dán h�
   const L = soLieuEtabs();
   const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64'));
   const h = { data: png, w: 300, h: 400 };
-  const hinh = { etabsMatBang: { data: png, w: 560, h: 420 }, etabsP: h, etabsM: h, etabsV: h, etabsTuongTac: { data: png, w: 480, h: 440 }, sigma: h, spt: h };
+  const hinh = { etabsMatBang: { data: png, w: 560, h: 420 }, etabsP: h, etabsM: h, etabsV: h, etabsTuongTac: { data: png, w: 480, h: 440 }, sigma: h, spt: h,
+    matCat: { data: png, w: 760, h: 780 } };
   const buf = await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(L.s, L.tatCa, hinh));
   const chu = chuCua(docTrongZip(buf, 'word/document.xml'));
   assert.ok(!chu.includes('được chèn khi xuất từ app'), 'còn ô chờ biểu đồ app vẽ');
   assert.ok(chu.includes('Dán hình chụp từ ETABS'));
   assert.ok(chu.includes('Hình 4.1 Bao lực dọc nén, mômen, lực cắt cọc'));
   assert.ok(chu.includes('Hình 5.1 Biểu đồ chỉ số SPT'), 'đánh số lại hình SPT trong mục 5');
+  assert.ok(chu.includes('Hình 2.5 Mặt cắt móng cẩu tháp và địa chất – hố khoan HK7'), 'mặt cắt ở mục 2.4');
+  assert.ok(!/Hình [25]\.2 Mặt cắt/.test(chu), 'mặt cắt không lặp lại ở mục 5');
 });
 
 test('Thuyết minh ETABS có dầm giằng: mục 6.4 kiểm tra dầm, ổn định – lún thành 6.5, kết luận có dầm', async () => {
@@ -216,6 +221,41 @@ test('Thuyết minh ETABS: hình app tự vẽ được chèn vào mọi ô dán
   ['Hình 3.1 Mô hình móng cẩu tháp', 'Hình 3.3 Lực Fx1, Fy1, Fz1', 'Hình 3.6 Lực Mx2, My2', 'Hình 6.2 Chuyển vị ngang, góc xoay đầu cọc',
     'Hình 6.3 Mômen đài móng (kNm/m)', 'Hình 6.4 Lực cắt đài móng (kN/m)', 'Hình 6.5 Biểu đồ bao nội lực dầm DG1 (ETABS)'].forEach((t) => assert.ok(chu.includes(t), 'thiếu chú thích ' + t));
   assert.equal((xml.match(/<\/w:tbl><w:tbl>/g) || []).length, 0, 'hai bảng liền nhau');
+});
+
+test('Mặt cắt móng và địa chất: lớp đất có ghi chú, cao độ đài / cọc / MNN / đáy hố, dầm giằng, điểm đặt lực', () => {
+  const L = soLieuEtabs([{ tuCoc: 1, denCoc: 2, z: -9 }]);
+  const d = MCT.bieuDo.duLieuMatCat(L.s, L.kq, L.m);
+  const svg = MCT.bieuDo.matCat(d);
+  kiemTraSvg(svg, 'mặt cắt');
+  const c = L.kq.SCT.coc, dai = L.kq.A.dai;
+  ['MẶT CẮT MÓNG VÀ ĐỊA CHẤT – HỐ KHOAN HK7', 'MNN', 'Đáy hố đào -13.00', 'Cẩu tháp LLT5020-10', 'Dầm giằng DG1', 'tim dầm -9.00',
+    'ĐÀI ' + dai.X.toFixed(2) + ' × ' + dai.Y.toFixed(2) + ' × ' + dai.H.toFixed(2) + ' m', 'Cọc D800, L = 33.00 m', 'mũi cọc ' + c.muiCoc.toFixed(2),
+    'Điểm đặt lực tại tâm cẩu'].forEach((t) => assert.ok(svg.includes(t), 'thiếu: ' + t));
+  // thước cao độ: MĐTN, mặt đài, đáy đài, đỉnh các lớp trong hình, mũi cọc
+  ['±0.00', (c.dayDai + dai.H).toFixed(2), c.dayDai.toFixed(2), c.muiCoc.toFixed(2), '-13.50', '-29.60'].forEach((t) => assert.ok(svg.includes('>' + t + '<'), 'thước thiếu ' + t));
+  // mỗi lớp nằm trong hình có ghi chú tên + loại đất
+  L.kq.DC.lop.filter((l) => l.dinh > c.muiCoc).forEach((l) => assert.ok(svg.includes('Lớp ' + l.ten + ': ' + l.loai), 'thiếu ghi chú lớp ' + l.ten));
+  assert.ok(svg.includes('k = ' + Math.round(L.kq.DC.lop[1].k) + ' kN/m⁴'));
+  // 4 chân: hai mũi tên lực trên mặt cắt; thiếu số liệu → khung báo
+  const s2 = JSON.parse(JSON.stringify(L.s)); s2.etabs.diemDatLuc = 'chan';
+  const svg4 = MCT.bieuDo.matCat(MCT.bieuDo.duLieuMatCat(s2, L.kq, MCT.calc.taoMoHinhEtabs(s2, L.kq)));
+  assert.equal((svg4.match(/fill="#dc2626"\/>/g) || []).length, 2);
+  assert.ok(svg4.includes('Lực cẩu chia về 4 chân'));
+  assert.match(MCT.bieuDo.matCat(null), /Chưa đủ số liệu/);
+  // không có mô hình ETABS (phương pháp giải tích): không có dầm, không có điểm đặt lực
+  const svgGT = MCT.bieuDo.matCat(MCT.bieuDo.duLieuMatCat(L.s, L.kq, null));
+  assert.ok(!svgGT.includes('Dầm giằng') && !svgGT.includes('Điểm đặt lực'));
+});
+
+test('Thuyết minh giải tích: mặt cắt móng và địa chất là Hình 2.2 sau biểu đồ SPT', async () => {
+  const L = soLieuEtabs();
+  L.s.tinhToan.phuongPhap = 'giai-tich';
+  const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64'));
+  const buf = await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(L.s, L.tatCa, { matCat: { data: png, w: 760, h: 780 } }));
+  const chu = chuCua(docTrongZip(buf, 'word/document.xml'));
+  const i1 = chu.indexOf('Hình 2.1 Biểu đồ chỉ số SPT'), i2 = chu.indexOf('Hình 2.2 Mặt cắt móng cẩu tháp và địa chất – hố khoan HK7');
+  assert.ok(i1 > 0 && i2 > i1, 'thứ tự hình 2.1 → 2.2');
 });
 
 test('Chọn ETABS mà chưa có kết quả ETABS: báo lỗi rõ ràng, không xuất nhầm bản giải tích', () => {

@@ -9,6 +9,8 @@
 //   thieu-giao-dien  giống máy thật thiếu đăng ký type library: GetOAPIVersionNumber được, lấy SapModel báo E_NOINTERFACE
 //   tang-loi         SetStories_2 với SimilarToStory "" trả mã lỗi 1 (chỉ nhận "None")
 //   lo-xo-cu         bản ETABS không có SapModel.PropPointSpring (cầu nối phải dùng SetSpring theo trục cục bộ)
+//   tang-mo          SetStories_2 được cả khi mô hình đã có đối tượng (mặc định: chỉ được khi chưa có điểm nào – như ETABS khi có đối tượng)
+//   khong-di-chuyen  bản ETABS không có SapModel.EditPoint (không dời được điểm – cầu nối phải xoá và vẽ lại)
 // MCT_GIA_LAP_GHI: file JSON ghi lại mô hình giả lập sau lệnh Save (để kiểm tra)
 // MCT_GIA_LAP_MO : file .EDB giả lập đã lưu – nạp lại khi gắn (giống ETABS thật vẫn mở mô hình giữa các lệnh)
 using System;
@@ -56,6 +58,7 @@ namespace ETABSv1
         cAnalysisResults Results { get; }
         cPointElm PointElm { get; }
         cPropPointSpring PropPointSpring { get; }
+        cEditPoint EditPoint { get; }
         int SetPresentUnits(eUnits Units);
         int InitializeNewModel(eUnits Units = eUnits.kip_in_F);
         int GetVersion(ref string Version, ref double MyVersionNumber);
@@ -72,8 +75,11 @@ namespace ETABSv1
         int Save(string FileName = "");
         int OpenFile(string FileName);
     }
+    public interface cEditPoint { int ChangeCoordinates_1(string Name, double X, double Y, double Z, bool NoRefresh = false); }
     public interface cStory
     {
+        int GetStories_2(ref double BaseElevation, ref int NumberStories, ref string[] StoryNames, ref double[] StoryElevations, ref double[] StoryHeights,
+                         ref bool[] IsMasterStory, ref string[] SimilarToStory, ref bool[] SpliceAbove, ref double[] SpliceHeight, ref int[] color);
         int SetStories_2(double BaseElevation, int NumberStories, ref string[] StoryNames, ref double[] StoryHeights, ref bool[] IsMasterStory,
                          ref string[] SimilarToStory, ref bool[] SpliceAbove, ref double[] SpliceHeight, ref int[] color);
     }
@@ -102,6 +108,11 @@ namespace ETABSv1
         int SetRestraint(string Name, ref bool[] Value, eItemType ItemType = eItemType.Objects);
         int SetLoadForce(string Name, string LoadPat, ref double[] Value, bool Replace = false, string CSys = "Global", eItemType ItemType = eItemType.Objects);
         int GetCoordCartesian(string Name, ref double X, ref double Y, ref double Z, string CSys = "Global");
+        int GetNameList(ref int NumberNames, ref string[] MyName);
+        int DeleteSpecialPoint(string Name, eItemType ItemType = eItemType.Objects);
+        int ChangeName(string Name, string NewName);
+        int DeleteSpring(string Name, eItemType ItemType = eItemType.Objects);
+        int DeleteLoadForce(string Name, string LoadPat, eItemType ItemType = eItemType.Objects);
     }
     public interface cPropPointSpring
     {
@@ -136,11 +147,17 @@ namespace ETABSv1
         int Count(string MainName = "");
         int GetPoints(string Name, ref string Point1, ref string Point2);
         int AddByPoint(string Point1, string Point2, ref string Name, string PropName = "Default", string UserName = "");
+        int GetNameList(ref int NumberNames, ref string[] MyName);
+        int Delete(string Name, eItemType ItemType = eItemType.Objects);
+        int SetSection(string Name, string PropName, eItemType ItemType = eItemType.Objects, double SVarRelStartLoc = 0, double SVarTotalLength = 0);
     }
     public interface cAreaObj
     {
         int Count(string MainName = "");
         int AddByPoint(int NumberPoints, ref string[] Point, ref string Name, string PropName = "Default", string UserName = "");
+        int GetNameList(ref int NumberNames, ref string[] MyName);
+        int Delete(string Name, eItemType ItemType = eItemType.Objects);
+        int GetPoints(string Name, ref int NumberPoints, ref string[] Point);
     }
     public interface cLoadPatterns
     {
@@ -177,14 +194,29 @@ namespace ETABSv1
         public Dictionary<string, bool[]> Goi = new Dictionary<string, bool[]>();
         public List<string> Mau = new List<string>();                       // load pattern (= load case cùng tên)
         public Dictionary<string, double> BanThan = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<string, double[]> TongLuc = new Dictionary<string, double[]>();   // tổng lực mỗi pattern
+        public Dictionary<string, double[]> TongLuc = new Dictionary<string, double[]>();   // tổng lực mỗi pattern (Fx, Fy, Fz, Mx, My, Mz quanh gốc)
+        public Dictionary<string, double[]> LucDiem = new Dictionary<string, double[]>();   // "pattern|điểm" → lực tại điểm
+        public void TinhTongLuc()
+        {
+            TongLuc.Clear();
+            foreach (var kv in LucDiem)
+            {
+                string[] k = kv.Key.Split('|');
+                if (!Mau.Contains(k[0]) || !Diem.TryGetValue(k[1], out double[] p)) continue;
+                if (!TongLuc.TryGetValue(k[0], out double[] t)) TongLuc[k[0]] = t = new double[6];
+                double[] f = kv.Value;
+                for (int i = 0; i < 6; i++) t[i] += f[i];
+                t[3] += p[1] * f[2] - p[2] * f[1]; t[4] += p[2] * f[0] - p[0] * f[2]; t[5] += p[0] * f[1] - p[1] * f[0];
+            }
+        }
         public Dictionary<string, List<string>> ToHop = new Dictionary<string, List<string>>();
         public bool DaPhanTich, Khoa;
         public Dictionary<string, int> TenVo = new Dictionary<string, int>();
         public List<string> ToHopXuat = new List<string>();
         public List<string> TatCaKhongChay = new List<string>();
         public int SoDiemCu = 12, SoThanhCu = 99, SoVoCu = 1;
-        public bool MoiTao;
+        public int SoLanDoi, SoDiemXoa, SoThanhXoa, SoVoXoa, SoDiemThem, SoThanhThem, SoVoThem;   // thống kê thao tác (kiểm tra cập nhật tại chỗ)
+        public bool MoiTao, KhoiTaoMoi;   // KhoiTaoMoi: đã gọi InitializeNewModel (dựng mô hình mới) trong lần chạy này
 
         /// <summary>Ghi/nạp mô hình dạng văn bản (thay cho file .EDB thật).</summary>
         public void Ghi(string file)
@@ -194,6 +226,13 @@ namespace ETABSv1
             foreach (var t in Thanh) d.Add("F|" + string.Join("|", t));
             foreach (var kv in TenVo) d.Add("A|" + kv.Key + "|" + string.Join(",", Vo[kv.Value]));
             foreach (string m in Mau) d.Add("L|" + m);
+            d.Add("T|" + string.Join(",", CaoTang.Select(v => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture))));
+            foreach (var kv in LoXo) d.Add("S|" + kv.Key);
+            foreach (var kv in Goi) d.Add("R|" + kv.Key + "|" + string.Join(",", kv.Value.Select(b => b ? "1" : "0")));
+            foreach (var kv in LucDiem) d.Add("Q|" + kv.Key + "|" + string.Join(",", kv.Value.Select(v => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture))));
+            foreach (string t in TietDienThanh) d.Add("PF|" + t);
+            foreach (string t in TietDienVo) d.Add("PA|" + t);
+            foreach (string t in VatLieu) d.Add("M|" + t);
             foreach (string c in ToHop.Keys) d.Add("C|" + c);
             System.IO.File.WriteAllLines(file, d);
         }
@@ -212,11 +251,28 @@ namespace ETABSv1
                     case "F": m.Thanh.Add(new[] { x[1], x[2], x[3], x[4] }); break;
                     case "A": m.TenVo[x[1]] = m.Vo.Count; m.Vo.Add(x[2].Split(',')); break;
                     case "L": m.Mau.Add(x[1]); break;
+                    case "T": m.CaoTang = x[1] == "" ? new List<double>() : x[1].Split(',').Select(so).ToList(); break;
+                    case "S": m.LoXo[x[1]] = new double[6]; break;
+                    case "R": m.Goi[x[1]] = x[2].Split(',').Select(b => b == "1").ToArray(); break;
+                    case "Q": m.LucDiem[x[1] + "|" + x[2]] = x[3].Split(',').Select(so).ToArray(); break;
+                    case "PF": m.TietDienThanh.Add(x[1]); break;
+                    case "PA": m.TietDienVo.Add(x[1]); break;
+                    case "M": m.VatLieu.Add(x[1]); break;
                     case "C": m.ToHop[x[1]] = new List<string>(); break;
                 }
             }
+            m.TinhTongLuc();
             return m;
         }
+
+        public void XoaVo(string ten)
+        {
+            var giu = TenVo.Where(kv => kv.Key != ten).OrderBy(kv => kv.Value).Select(kv => (kv.Key, Vo[kv.Value])).ToList();
+            TenVo.Clear(); Vo.Clear();
+            foreach (var (k, v) in giu) { TenVo[k] = Vo.Count; Vo.Add(v); }
+        }
+        public bool DiemDangDung(string ten) => Thanh.Any(t => t[1] == ten || t[2] == ten) || Vo.Any(v => v.Contains(ten));
+        public bool TrenTang(double z) => Math.Abs(z - CaoDoDay) < 1e-6 || CaoTang.Any(c => Math.Abs(c - z) < 1e-6);
     }
 
     public class Helper : cHelper
@@ -242,7 +298,7 @@ namespace ETABSv1
     }
 
     public class wSapModel : cSapModel, cFile, cStory, cPropMaterial, cPropFrame, cPropArea, cPointObj, cFrameObj, cAreaObj, cLoadPatterns, cCombo, cView,
-                             cAnalyze, cAnalysisResults, cAnalysisResultsSetup, cPointElm, cPropPointSpring
+                             cAnalyze, cAnalysisResults, cAnalysisResultsSetup, cPointElm, cPropPointSpring, cEditPoint
     {
         private readonly MoHinh _goc;
         internal wSapModel(MoHinh goc) { _goc = goc; }
@@ -263,6 +319,15 @@ namespace ETABSv1
             }
         }
         public cPointObj PointObj { get { _ = M; return this; } }
+        public cEditPoint EditPoint
+        {
+            get
+            {
+                _ = M;
+                if (Environment.GetEnvironmentVariable("MCT_GIA_LAP") == "khong-di-chuyen") throw new NotImplementedException("EditPoint khong co trong ban ETABS nay");
+                return this;
+            }
+        }
         public cFrameObj FrameObj { get { _ = M; return this; } }
         public cAreaObj AreaObj { get { _ = M; return this; } }
         public cLoadPatterns LoadPatterns { get { _ = M; return this; } }
@@ -360,7 +425,7 @@ namespace ETABSv1
         public int InitializeNewModel(eUnits Units = eUnits.kip_in_F)
         {
             if (_goc == null) throw new NullReferenceException();
-            var m = new MoHinh { DaMo = true, File = "", DonVi = Units, SoDiemCu = 0, SoThanhCu = 0, SoVoCu = 0, MoiTao = true };
+            var m = new MoHinh { DaMo = true, File = "", DonVi = Units, SoDiemCu = 0, SoThanhCu = 0, SoVoCu = 0, MoiTao = true, KhoiTaoMoi = true };
             CopyTo(m, _goc);
             return 0;
         }
@@ -406,6 +471,13 @@ namespace ETABSv1
                     ",\"soToHop\":" + M.ToHop.Count + ",\"soThanhPhanBAO\":" + (M.ToHop.TryGetValue("BAO", out var bao) ? bao.Count : -1) +
                     ",\"tongFZ1\":" + (M.TongLuc.TryGetValue("FZ1", out double[] f) ? f[2] : 0).ToString(System.Globalization.CultureInfo.InvariantCulture) +
                     ",\"soMauCoLuc\":" + M.TongLuc.Count +
+                    ",\"luc\":{" + string.Join(",", M.TongLuc.Select(kv => "\"" + kv.Key + "\":[" + string.Join(",", kv.Value.Select(v => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture))) + "]")) + "}" +
+                    ",\"diemCoLuc\":" + ds(M.LucDiem.Keys.Select(k => k.Split('|')[1]).Distinct().OrderBy(x => x, StringComparer.Ordinal)) +
+                    ",\"tang\":[" + string.Join(",", M.CaoTang.Select(v => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture))) + "]" +
+                    ",\"goi\":" + ds(M.Goi.Where(kv => kv.Value.Any(b => b)).Select(kv => kv.Key).OrderBy(x => x, StringComparer.Ordinal)) +
+                    ",\"loXoDiem\":" + ds(M.LoXo.Keys.OrderBy(x => x, StringComparer.Ordinal)) +
+                    ",\"khoiTaoMoi\":" + (M.KhoiTaoMoi ? "true" : "false") + ",\"thaoTac\":{\"doi\":" + M.SoLanDoi + ",\"xoaDiem\":" + M.SoDiemXoa +
+                    ",\"xoaThanh\":" + M.SoThanhXoa + ",\"xoaVo\":" + M.SoVoXoa + ",\"themDiem\":" + M.SoDiemThem + ",\"themThanh\":" + M.SoThanhThem + ",\"themVo\":" + M.SoVoThem + "}" +
                     ",\"tietDienVo\":" + ds(M.TietDienVo) + ",\"loXoTAM\":" + (M.LoXo.ContainsKey("TAM_CAU") ? "true" : "false") + "}");
             }
             return 0;
@@ -415,7 +487,7 @@ namespace ETABSv1
         public int SetStories_2(double BaseElevation, int NumberStories, ref string[] StoryNames, ref double[] StoryHeights, ref bool[] IsMasterStory,
                                 ref string[] SimilarToStory, ref bool[] SpliceAbove, ref double[] SpliceHeight, ref int[] color)
         {
-            if (M.Diem.Count > 0) return 1;
+            if (M.Diem.Count > 0 && Environment.GetEnvironmentVariable("MCT_GIA_LAP") != "tang-mo") return 1;   // ETABS: mô hình đã có đối tượng
             if (new object[] { StoryNames, StoryHeights, IsMasterStory, SimilarToStory, SpliceAbove, SpliceHeight, color }.Any(a => ((Array)a).Length != NumberStories)) return 1;
             if (Environment.GetEnvironmentVariable("MCT_GIA_LAP") == "tang-loi" && SimilarToStory.Any(x => x == "")) return 1;
             if (StoryNames.Distinct().Count() != NumberStories || StoryHeights.Any(h => h <= 0)) return 1;
@@ -423,6 +495,27 @@ namespace ETABSv1
             M.CaoTang.Clear();
             double z = BaseElevation;
             foreach (double h in StoryHeights) { z += h; M.CaoTang.Add(Math.Round(z, 6)); }
+            return 0;
+        }
+
+        public int GetStories_2(ref double BaseElevation, ref int NumberStories, ref string[] StoryNames, ref double[] StoryElevations, ref double[] StoryHeights,
+                                ref bool[] IsMasterStory, ref string[] SimilarToStory, ref bool[] SpliceAbove, ref double[] SpliceHeight, ref int[] color)
+        {
+            if (double.IsNaN(M.CaoDoDay)) return 1;
+            int n = M.CaoTang.Count;
+            BaseElevation = M.CaoDoDay; NumberStories = n;
+            StoryElevations = M.CaoTang.ToArray();
+            StoryHeights = M.CaoTang.Select((z, i) => Math.Round(z - (i == 0 ? M.CaoDoDay : M.CaoTang[i - 1]), 6)).ToArray();
+            StoryNames = Enumerable.Range(1, n).Select(i => "Story" + i).ToArray();
+            IsMasterStory = new bool[n]; SimilarToStory = new string[n]; SpliceAbove = new bool[n]; SpliceHeight = new double[n]; color = new int[n];
+            return 0;
+        }
+
+        // cEditPoint – như ETABS: điểm mới phải nằm trên cao độ tầng (giả lập chặt như AddCartesian)
+        public int ChangeCoordinates_1(string Name, double X, double Y, double Z, bool NoRefresh = false)
+        {
+            if (!M.Diem.ContainsKey(Name) || !M.TrenTang(Z)) return 1;
+            M.Diem[Name] = new[] { X, Y, Z }; M.SoLanDoi++;
             return 0;
         }
 
@@ -446,10 +539,16 @@ namespace ETABSv1
         int cPointObj.Count() => M.MoiTao ? M.Diem.Count : M.SoDiemCu;
         public int AddCartesian(double X, double Y, double Z, ref string Name, string UserName = "", string CSys = "Global", bool MergeOff = false, int MergeNumber = 0)
         {
-            bool tren = Math.Abs(Z - M.CaoDoDay) < 1e-6 || M.CaoTang.Any(z => Math.Abs(z - Z) < 1e-6);
-            if (!tren) return 1;                                     // giả lập chặt: điểm phải nằm trên cao độ tầng
-            Name = string.IsNullOrEmpty(UserName) || M.Diem.ContainsKey(UserName) ? "P" + (M.Diem.Count + 1) : UserName;
-            M.Diem[Name] = new[] { X, Y, Z };
+            if (!M.TrenTang(Z)) return 1;                            // giả lập chặt: điểm phải nằm trên cao độ tầng
+            if (!MergeOff)
+            {   // như ETABS: trùng vị trí điểm có sẵn thì trả tên điểm đó
+                var trung = M.Diem.FirstOrDefault(kv => Math.Abs(kv.Value[0] - X) < 1e-6 && Math.Abs(kv.Value[1] - Y) < 1e-6 && Math.Abs(kv.Value[2] - Z) < 1e-6);
+                if (trung.Key != null) { Name = trung.Key; return 0; }
+            }
+            int so = M.Diem.Count + 1;
+            while (M.Diem.ContainsKey("P" + so)) so++;
+            Name = string.IsNullOrEmpty(UserName) || M.Diem.ContainsKey(UserName) ? "P" + so : UserName;
+            M.Diem[Name] = new[] { X, Y, Z }; M.SoDiemThem++;
             return 0;
         }
         public int SetSpring(string Name, ref double[] k, eItemType ItemType = eItemType.Objects, bool IsLocalCSys = false, bool Replace = false)
@@ -476,15 +575,58 @@ namespace ETABSv1
         }
         public int SetRestraint(string Name, ref bool[] Value, eItemType ItemType = eItemType.Objects)
         { if (!M.Diem.ContainsKey(Name) || Value == null || Value.Length != 6) return 1; M.Goi[Name] = Value; return 0; }
+        int cPointObj.GetNameList(ref int NumberNames, ref string[] MyName) { MyName = M.Diem.Keys.ToArray(); NumberNames = MyName.Length; return 0; }
+        public int DeleteSpecialPoint(string Name, eItemType ItemType = eItemType.Objects)
+        {   // chỉ xoá được điểm không nối thanh / vỏ nào; xoá luôn lò xo, gối, lực tại điểm
+            if (!M.Diem.ContainsKey(Name) || M.DiemDangDung(Name)) return 1;
+            M.Diem.Remove(Name); M.LoXo.Remove(Name); M.Goi.Remove(Name);
+            foreach (string k in M.LucDiem.Keys.Where(k => k.EndsWith("|" + Name, StringComparison.Ordinal)).ToList()) M.LucDiem.Remove(k);
+            M.TinhTongLuc(); M.SoDiemXoa++;
+            return 0;
+        }
+        public int ChangeName(string Name, string NewName)
+        {
+            if (!M.Diem.ContainsKey(Name) || string.IsNullOrEmpty(NewName) || M.Diem.ContainsKey(NewName)) return 1;
+            M.Diem[NewName] = M.Diem[Name]; M.Diem.Remove(Name);
+            foreach (var t in M.Thanh) { if (t[1] == Name) t[1] = NewName; if (t[2] == Name) t[2] = NewName; }
+            foreach (var v in M.Vo) for (int i = 0; i < v.Length; i++) if (v[i] == Name) v[i] = NewName;
+            if (M.LoXo.TryGetValue(Name, out double[] k)) { M.LoXo.Remove(Name); M.LoXo[NewName] = k; }
+            if (M.Goi.TryGetValue(Name, out bool[] g)) { M.Goi.Remove(Name); M.Goi[NewName] = g; }
+            return 0;
+        }
+        public int DeleteSpring(string Name, eItemType ItemType = eItemType.Objects) { if (!M.Diem.ContainsKey(Name)) return 1; M.LoXo.Remove(Name); return 0; }
+        public int DeleteLoadForce(string Name, string LoadPat, eItemType ItemType = eItemType.Objects)
+        {   // nhóm "All": mọi điểm; Objects: một điểm
+            if (!M.Mau.Contains(LoadPat)) return 1;
+            bool tatCa = ItemType == eItemType.Group;
+            if (tatCa && Name != "All") return 1;
+            if (!tatCa && !M.Diem.ContainsKey(Name)) return 1;
+            foreach (string k in M.LucDiem.Keys.Where(k => k.StartsWith(LoadPat + "|", StringComparison.Ordinal) && (tatCa || k.EndsWith("|" + Name, StringComparison.Ordinal))).ToList())
+                M.LucDiem.Remove(k);
+            M.TinhTongLuc(); return 0;
+        }
 
         // cFrameObj
         int cFrameObj.Count(string MainName) => M.MoiTao ? M.Thanh.Count : M.SoThanhCu;
         int cFrameObj.AddByPoint(string Point1, string Point2, ref string Name, string PropName, string UserName)
         {
             if (!M.Diem.ContainsKey(Point1) || !M.Diem.ContainsKey(Point2) || Point1 == Point2 || !M.TietDienThanh.Contains(PropName)) return 1;
-            Name = string.IsNullOrEmpty(UserName) ? "F" + (M.Thanh.Count + 1) : UserName;
-            M.Thanh.Add(new[] { Name, Point1, Point2, PropName });
+            Name = string.IsNullOrEmpty(UserName) || M.Thanh.Any(t => t[0] == UserName) ? "F" + (M.Thanh.Count + 1) : UserName;
+            M.Thanh.Add(new[] { Name, Point1, Point2, PropName }); M.SoThanhThem++;
             return 0;
+        }
+        int cFrameObj.GetNameList(ref int NumberNames, ref string[] MyName) { MyName = M.Thanh.Select(t => t[0]).ToArray(); NumberNames = MyName.Length; return 0; }
+        int cFrameObj.Delete(string Name, eItemType ItemType)
+        {
+            int i = M.Thanh.FindIndex(t => t[0] == Name);
+            if (i < 0) return 1;
+            M.Thanh.RemoveAt(i); M.SoThanhXoa++; return 0;
+        }
+        int cFrameObj.SetSection(string Name, string PropName, eItemType ItemType, double SVarRelStartLoc, double SVarTotalLength)
+        {
+            var t = M.Thanh.FirstOrDefault(x => x[0] == Name);
+            if (t == null || !M.TietDienThanh.Contains(PropName)) return 1;
+            t[3] = PropName; return 0;
         }
 
         // cAreaObj
@@ -492,10 +634,17 @@ namespace ETABSv1
         int cAreaObj.AddByPoint(int NumberPoints, ref string[] Point, ref string Name, string PropName, string UserName)
         {
             if (Point == null || Point.Length != NumberPoints || NumberPoints < 3 || Point.Any(p => !M.Diem.ContainsKey(p)) || !M.TietDienVo.Contains(PropName)) return 1;
-            Name = string.IsNullOrEmpty(UserName) ? "A" + (M.Vo.Count + 1) : UserName;
+            Name = string.IsNullOrEmpty(UserName) || M.TenVo.ContainsKey(UserName) ? "A" + (M.Vo.Count + 1) : UserName;
             M.TenVo[Name] = M.Vo.Count;
-            M.Vo.Add(Point);
+            M.Vo.Add(Point); M.SoVoThem++;
             return 0;
+        }
+        int cAreaObj.GetNameList(ref int NumberNames, ref string[] MyName) { MyName = M.TenVo.Keys.ToArray(); NumberNames = MyName.Length; return 0; }
+        int cAreaObj.Delete(string Name, eItemType ItemType) { if (!M.TenVo.ContainsKey(Name)) return 1; M.XoaVo(Name); M.SoVoXoa++; return 0; }
+        int cAreaObj.GetPoints(string Name, ref int NumberPoints, ref string[] Point)
+        {
+            if (!M.TenVo.TryGetValue(Name, out int i)) return 1;
+            Point = (string[])M.Vo[i].Clone(); NumberPoints = Point.Length; return 0;
         }
 
         // cLoadPatterns
@@ -514,7 +663,9 @@ namespace ETABSv1
         int cLoadPatterns.Delete(string Name)
         {   // như ETABS: không xoá được pattern đang nằm trong tổ hợp
             if (!M.Mau.Contains(Name) || M.ToHop.Values.Any(ds => ds.Contains(Name))) return 1;
-            M.Mau.Remove(Name); M.BanThan.Remove(Name); M.TongLuc.Remove(Name); return 0;
+            M.Mau.Remove(Name); M.BanThan.Remove(Name);
+            foreach (string k in M.LucDiem.Keys.Where(k => k.StartsWith(Name + "|", StringComparison.Ordinal)).ToList()) M.LucDiem.Remove(k);
+            M.TinhTongLuc(); return 0;
         }
         int cCombo.Delete(string Name)
         {   // không xoá được tổ hợp đang nằm trong tổ hợp khác
@@ -540,8 +691,10 @@ namespace ETABSv1
         public int SetLoadForce(string Name, string LoadPat, ref double[] Value, bool Replace = false, string CSys = "Global", eItemType ItemType = eItemType.Objects)
         {
             if (!M.Diem.ContainsKey(Name) || !M.Mau.Contains(LoadPat) || Value == null || Value.Length != 6) return 1;
-            if (!M.TongLuc.TryGetValue(LoadPat, out double[] t) || Replace) M.TongLuc[LoadPat] = t = new double[6];   // một điểm đặt tải
-            for (int i = 0; i < 6; i++) t[i] += Value[i];
+            string khoa = LoadPat + "|" + Name;   // lực theo từng điểm; Replace thay lực cũ của điểm đó
+            if (!M.LucDiem.TryGetValue(khoa, out double[] cu) || Replace) M.LucDiem[khoa] = cu = new double[6];
+            for (int i = 0; i < 6; i++) cu[i] += Value[i];
+            M.TinhTongLuc();
             return 0;
         }
         // cView

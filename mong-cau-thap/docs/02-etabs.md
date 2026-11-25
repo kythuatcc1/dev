@@ -68,7 +68,9 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 | 4 | Chạy phân tích, lấy nội lực (lệnh `phan-tich`, trang "Kết quả ETABS", `js/calc/etabs-ket-qua.js`) | Đã làm (thử với ETABS giả lập) – chờ chạy thử trên máy thật |
 | 5 | Chọn phương pháp (Giải tích / ETABS) cho kết luận; B, D, tải ngang, tương tác dùng nội lực ETABS | Đã làm |
 | 6 | Thuyết minh form CC1 cho phương pháp ETABS (nội dung các mục kiểm tra trình bày như PDF tham khảo) | Đã làm |
-| 7 | Tự cập nhật: đổi thông số → **cập nhật mô hình tại chỗ** (lệnh `cap-nhat-mo-hinh`) hoặc dựng lại khi hình học đổi, chạy lại, lấy kết quả | Đã làm (thử với ETABS giả lập) – chờ chạy thử trên máy thật |
+| 7 | Tự cập nhật: đổi thông số – **kể cả hình học** (chiều cao đài, chiều dài cọc, lưới, điểm đặt lực, dầm giằng) → **cập nhật mô hình trong file đang có** (lệnh `cap-nhat-mo-hinh`), chạy lại, lấy kết quả | Đã làm (thử với ETABS giả lập) – chờ chạy thử trên máy thật |
+| + | Điểm đặt lực cẩu tháp: một điểm tại tâm cẩu hoặc chia về 4 chân; tâm cẩu lệch tâm đài | Đã làm |
+| + | Hình mặt cắt móng và địa chất (cao độ đài, cọc, lớp đất có ghi chú) trên app và thuyết minh | Đã làm |
 | + | Dầm giằng cọc (số liệu, mô hình, nội lực, kiểm tra TCVN 5574:2018, thuyết minh 6.4) | Đã làm (thử với ETABS giả lập) |
 | + | Hình nội lực app tự vẽ từ kết quả ETABS, chèn vào các ô dán hình của thuyết minh | Đã làm |
 
@@ -84,7 +86,13 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
   Display → Show Assigns → Joint → Springs). Bản đầu gán bằng `SetSpring` theo hệ tổng thể – kiểu lò xo giao diện ETABS không có
   (chỉ có theo trục cục bộ) và bấm xem lò xo làm ETABS văng; mô hình dựng trước bản sửa cần dựng lại.
 - **Mũi cọc:** gối chặn UZ.
-- **Điểm đặt tải:** một điểm ở tâm đài – nút tâm (0; 0) của tấm vỏ ở mặt phẳng giữa đài (như file PDF).
+- **Điểm đặt lực cẩu tháp** (`etabs.diemDatLuc`, trang Mô hình ETABS): `tam` – một điểm tại tâm cẩu (mặc định, như file PDF) hoặc
+  `chan` – 4 chân cẩu cách nhau H<sub>t</sub> (bề rộng thân cẩu) quanh tâm cẩu; tâm cẩu lệch tâm đài `tamCauX`, `tamCauY` (mặc định 0,
+  chỉ dùng cho mô hình ETABS – phương pháp giải tích vẫn coi tâm cẩu trùng tâm đài). Lưới tấm đài luôn đi qua tâm cẩu, 4 chân và tâm đài
+  (chuyển vị "tâm đài" lấy ở nút (0; 0)). Chia về 4 chân là hệ lực tương đương (x', y' tính từ tâm cẩu): F<sub>X</sub>, F<sub>Y</sub>,
+  F<sub>Z</sub> mỗi chân 1/4; M<sub>X</sub> → F<sub>z</sub> = M<sub>X</sub>·y'/Σy'² (= ±M/(2H<sub>t</sub>)); M<sub>Y</sub> → F<sub>z</sub> = −M<sub>Y</sub>·x'/Σx'²;
+  M<sub>Z</sub> → F<sub>x</sub> = −T·y'/Σr², F<sub>y</sub> = T·x'/Σr² – tổng lực và mômen quanh tâm cẩu đúng bằng tải pattern (`mauTai[i].luc` là hợp lực,
+  `mauTai[i].diemLuc` là các lực điểm gửi ETABS). Hướng bất lợi của từng cọc tính từ tâm cẩu.
 - **Tầng ETABS:** mỗi cao độ nút là một tầng, đáy công trình ở mũi cọc; tầng trên cùng `GIUA_DAI`, rồi `DAY_DAI`, `DAY_HO`, `Zm13p6`…
 - **Lệnh cầu nối:** `InitializeNewModel(kN_m_C)` → `File.NewBlank` → `Story.SetStories_2` (dự phòng SimilarToStory "None",
   `SetStories`, `NewGridOnly`) → vật liệu, tiết diện → `PointObj.AddCartesian` → `FrameObj.AddByPoint` → `AreaObj.AddByPoint`
@@ -178,16 +186,28 @@ ETABS được **app tự vẽ hình từ kết quả ETABS và chèn sẵn** (x
 - Kết quả hiện ở trang Kết quả ETABS (bảng từng dầm, biểu đồ nội lực), vào Kết luận (dòng "Dầm giằng DGi") và thuyết minh
   mục 6.4 (Bảng 6.8 thông số, Hình 6.5… nội lực, Bảng 6.9… kiểm tra); mục ổn định – lún thành 6.5.
 
-## Cập nhật mô hình tại chỗ (lệnh `cap-nhat-mo-hinh`, `LenhCapNhatMoHinh.cs`)
-- App nhớ file đã dựng (`state.etabs.fileDung`) và dấu vân tay **hình học** (`vanTayHinhHoc`: lưới đài, toạ độ cọc, chia cọc,
-  cao độ lò xo, dầm). Đổi thông số mà hình học không đổi (cẩu, chiều cao, tải, hệ số tổ hợp, vật liệu, tiết diện, hệ số nền…)
-  → trang Mô hình ETABS hiện nút **Cập nhật mô hình trong ETABS** và **Cập nhật mô hình và chạy lại phân tích**; hình học đổi → chỉ còn
-  **Dựng lại mô hình**.
-- Cầu nối: mở đúng file đã dựng nếu ETABS đang mở file khác (`File.OpenFile`) → mở khoá (`SetModelIsLocked(false)`, kết quả cũ bị xoá)
-  → so toạ độ mọi điểm, hai đầu mọi thanh, số thanh, số ô vỏ với số liệu app; khác → dừng, gợi ý `dung-lai` → đặt lại vật liệu,
-  tiết diện, lò xo, gối → xoá tổ hợp cũ của app (`BAO` trước) và load pattern tải cẩu không còn dùng (ví dụ `MZ1` khi cẩu mới
-  không có mômen xoắn) → gán lại tải (`SetLoadForce` Replace) và tổ hợp → lưu đè.
-- Thử bằng ETABS giả lập: `npm run thu-cau-noi` (đổi cẩu xoá MZ1; hình học khác → dung-lai; tự mở file; thiếu file).
+## Cập nhật mô hình trong file đang có (lệnh `cap-nhat-mo-hinh`, `LenhCapNhatMoHinh.cs`)
+- App nhớ file đã dựng (`state.etabs.fileDung`) và dấu vân tay hình học (`vanTayHinhHoc`). Đã dựng mô hình thì **mọi thay đổi** – tải,
+  cẩu, vật liệu, hệ số nền **và cả hình học** (chiều cao đài, đáy đài, chiều dài cọc, vị trí cọc, lưới đài, bước chia cọc, điểm đặt lực,
+  dầm giằng) – đều bấm **Cập nhật mô hình trong ETABS** (hoặc **Cập nhật mô hình và chạy lại phân tích**). Không gọi `InitializeNewModel`,
+  `NewBlank`: giữ file, các thiết lập và đối tượng khác của người dùng trong mô hình. **Dựng lại mô hình mới** vẫn còn khi cần.
+- Đối tượng của app nhận theo tên: điểm `D<i>_<k>` (đài), `C<n>_…` (cọc); thanh `C<n>_<j>`, `DG<n>`; ô vỏ `V<i>_<k>`.
+- Cầu nối: mở đúng file (`File.OpenFile` nếu ETABS đang mở file khác) → mở khoá (`SetModelIsLocked(false)`) → vật liệu, tiết diện →
+  **tầng**: khác số liệu app (`Story.GetStories_2`) thì `SetStories_2`; ETABS không cho đổi tầng khi mô hình còn đối tượng → xoá thanh,
+  ô vỏ, điểm của app, đặt tầng rồi vẽ lại trong cùng file → **đồng bộ hình học theo tên**: thanh / ô vỏ không còn hoặc đổi nút → xoá
+  (`FrameObj.Delete`, `AreaObj.Delete`); điểm không còn → bỏ gối, lò xo rồi `PointObj.DeleteSpecialPoint`; điểm đổi toạ độ → dời bằng
+  `EditPoint.ChangeCoordinates_1` (chỗ mới đang có điểm khác thì dời tạm ra xa trước); thiếu → `AddCartesian` / `AddByPoint`
+  (ETABS trả điểm cũ cùng chỗ thì `ChangeName`); thanh giữ lại → `SetSection`. Bản ETABS không dời được điểm → xoá đối tượng của app
+  và vẽ lại → **kiểm tra lại** toạ độ mọi điểm, nút hai đầu mọi thanh, đỉnh mọi ô vỏ, không thừa thanh / ô vỏ của app; khác → dừng, gợi ý
+  `dung-lai` → bỏ lò xo / gối ở nút cọc không còn cần (`DeleteSpring`, `SetRestraint` false) rồi gán lại → xoá tổ hợp cũ của app
+  (`BAO` trước), load pattern không còn dùng (ví dụ `MZ1`), lực cũ của các pattern tải cẩu ở mọi điểm (`DeleteLoadForce("All", …, Group)`,
+  không được thì xoá ở từng nút đài) → đặt lực mới (một điểm hoặc 4 chân) và tổ hợp → lưu đè.
+- Kết quả trả về `thongTin.dongBo`: số điểm dời / thêm / xoá, thanh và ô vỏ giữ / thêm / xoá, có phải vẽ lại không và lý do.
+- Thử bằng ETABS giả lập: `npm run thu-cau-noi` – đổi cẩu (xoá MZ1); lưới 0,5 m (xoá / dời / thêm); chiều cao đài 1,6 → 2,0 m (ETABS
+  không đổi tầng khi còn đối tượng → vẽ lại trong file); cọc dài thêm 3 m (ETABS đổi được tầng → chỉ thêm nút, chuyển gối mũi cọc);
+  4 chân + tâm cẩu lệch (dời nút lưới, kiểm tra hợp lực); bản ETABS không có `EditPoint` (vẽ lại); thêm dầm giằng bằng cập nhật; tự mở file;
+  thiếu file. Mỗi tình huống so file lưu với mô hình app: tập điểm và toạ độ, thanh, ô vỏ, gối chỉ ở mũi cọc, lò xo, tầng, điểm đặt lực,
+  và không có lần khởi tạo mô hình mới.
 
 ## Hình tự vẽ trong thuyết minh (`js/bieu-do-etabs.js`)
 API ETABS không có lệnh chụp màn hình hình nội lực, nên app vẽ lại từ kết quả đã đọc (`MCT.bieuDoEtabs.hinhThuyetMinh`), chuyển
@@ -205,6 +225,13 @@ SVG → PNG trong trình duyệt và chèn vào đúng chỗ báo cáo thẩm tr
 
 Trình duyệt chặn vẽ SVG → PNG thì vị trí đó trở lại ô dán hình chụp ETABS (kèm hướng dẫn chụp trong ETABS).
 Test: `tests/bao-cao-etabs.test.js` (SVG hợp lệ, nhãn không tràn ô, mỗi hình chèn đúng một lần, không còn ô "Dán hình chụp từ ETABS").
+
+## Mặt cắt móng và địa chất (`js/bieu-do-mat-cat.js`)
+`MCT.bieuDo.duLieuMatCat(state, kq, m)` + `MCT.bieuDo.matCat(d)`: mặt cắt theo phương X (tỉ lệ ngang phóng to so với tỉ lệ đứng):
+MĐTN, mực nước ngầm, đáy hố đào, các lớp đất tô theo loại (cát chấm, sét gạch chéo) có ghi chú tên lớp, loại đất, I<sub>L</sub>, chiều dày,
+SPT trung bình, hệ số nền k; đài (kích thước, H), cọc (D, L, mũi cọc, tên cọc), thân cẩu, thước cao độ; khi có mô hình ETABS thêm dầm
+giằng và điểm đặt lực (tâm cẩu / 4 chân). Hiện ở trang **Số liệu địa chất** và **Mô hình ETABS**; thuyết minh giải tích: Hình 2.2 (sau biểu đồ
+SPT); thuyết minh ETABS: Hình 2.5 (mục 2.4 số liệu địa chất).
 
 ## Chạy thử bước 1
 1. Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới (đợi mô hình hiện ra).

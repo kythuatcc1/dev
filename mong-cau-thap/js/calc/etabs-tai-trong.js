@@ -1,5 +1,8 @@
 // Tải trọng và tổ hợp cho mô hình ETABS (bước 3) – theo cách của file PDF tham khảo:
-//   Load pattern: DEAD (trọng lượng bản thân đài + cọc) và tải cẩu tách theo thành phần, đặt tại MỘT điểm ở tâm đài:
+//   Load pattern: DEAD (trọng lượng bản thân đài + cọc) và tải cẩu tách theo thành phần, đặt tại MỘT điểm ở tâm cẩu
+//   (mặc định trùng tâm đài) hoặc chia về 4 chân cẩu (m.chan, cách nhau Ht) thành hệ lực tương đương:
+//     FX, FY, FZ: mỗi chân 1/4;  MX: Fz = MX·y'/Σy'² ;  MY: Fz = −MY·x'/Σx'² ;  MZ: Fx = −T·y'/Σr², Fy = T·x'/Σr²
+//     (x', y' tính từ tâm cẩu) – tổng lực và mômen quanh tâm cẩu đúng bằng tải của pattern.
 //     làm việc     : FX1, FY1 (= H), FZ1 (= N, hướng xuống), MX1, MY1 (= M), MZ1 (= mômen xoắn T)
 //     không làm việc: FX2, FY2, FZ2, MX2, MY2
 //   Giá trị pattern = tải quy đổi của form CC1 chia n (chưa nhân hệ số) → tổ hợp nhân lại n, nên tổ hợp đúng bằng tải
@@ -43,8 +46,22 @@
     var lv = tieuChuan(A.quyDoi.lv, A.catalogue && A.catalogue.lv ? A.catalogue.lv.T : 0);
     var klv = tieuChuan(A.quyDoi.klv, 0);
 
-    var diem = m.nutTai;
-    function mau(ten, moTa, gt) { return { ten: ten, loai: 'Other', banThan: 0, moTa: moTa, luc: { diem: diem, giaTri: gt.map(function (v) { return tron(v); }) } }; }
+    var diem = m.nutTai, t0 = m.thongSo, chan = t0.diemDatLuc === 'chan' && m.chan && m.chan.length === 4 ? m.chan : null;
+    // Lực đặt vào mô hình: một điểm (tâm cẩu) hoặc 4 chân – hệ lực tương đương với hợp lực gt tại tâm cẩu
+    function chiaVeChan(gt) {
+      if (!chan) return [{ diem: diem, giaTri: gt }];
+      var dx = chan.map(function (c) { return c.x - t0.xc; }), dy = chan.map(function (c) { return c.y - t0.yc; });
+      var sx = dx.reduce(function (a, v) { return a + v * v; }, 0), sy = dy.reduce(function (a, v) { return a + v * v; }, 0);
+      return chan.map(function (c, i) {
+        var fx = gt[0] / 4 - gt[5] * dy[i] / (sx + sy), fy = gt[1] / 4 + gt[5] * dx[i] / (sx + sy);
+        var fz = gt[2] / 4 + gt[3] * dy[i] / sy - gt[4] * dx[i] / sx;
+        return { diem: c.nut, giaTri: [fx, fy, fz, 0, 0, 0].map(function (v) { return tron(v); }) };
+      });
+    }
+    function mau(ten, moTa, gt) {
+      gt = gt.map(function (v) { return tron(v); });
+      return { ten: ten, loai: 'Other', banThan: 0, moTa: moTa, luc: { diem: diem, giaTri: gt }, diemLuc: chiaVeChan(gt) };
+    }
     var mauTai = [{ ten: 'DEAD', loai: 'Dead', banThan: 1, moTa: 'Trọng lượng bản thân đài và cọc', luc: null }];
     [['1', lv, 'làm việc'], ['2', klv, 'không làm việc']].forEach(function (x) {
       var k = x[0], v = x[1], ten = x[2];
@@ -64,8 +81,8 @@
       if (co) { if (co.nguon.indexOf(nguon) < 0) co.nguon.push(nguon); } else huong.push({ goc: goc, nguon: [nguon] });
     }
     for (var g = 0; g < 360; g += 45) themHuong(g, 'PDF');
-    B.coc.forEach(function (c) {
-      var goc = Math.atan2(c.y, c.x) * 180 / Math.PI;
+    B.coc.forEach(function (c) {   // hướng từ tâm cẩu (điểm đặt lực) tới cọc
+      var goc = Math.atan2(c.y - (t0.yc || 0), c.x - (t0.xc || 0)) * 180 / Math.PI;
       themHuong(goc, 'C' + c.stt + ' nén');
       themHuong(goc + 180, 'C' + c.stt + ' kéo');
     });
@@ -93,7 +110,7 @@
     return {
       hopLe: true, loi: [],
       n: n, tayDon: tayDon, heSo: { tinhTaiNen: kNen, tinhTaiKeo: kKeo, fzKeo: kFzKeo },
-      diemDatTai: diem, thanhPhan: { lv: lv, klv: klv },
+      diemDatTai: diem, kieuDatLuc: chan ? 'chan' : 'tam', thanhPhan: { lv: lv, klv: klv },
       mauTai: mauTai, huong: huong, toHop: toHop,
       thongKe: { soMauTai: mauTai.length, soHuong: huong.length, soToHop: toHop.length - 1 }
     };

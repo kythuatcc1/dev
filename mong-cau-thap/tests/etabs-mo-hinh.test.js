@@ -165,3 +165,64 @@ test('Tổ hợp: hệ số tĩnh tải chỉnh được', () => {
   const { t } = taiMacDinh((s) => { s.etabs.heSoTinhTaiNen = 1.15; });
   gan(t.toHop.find((c) => c.ten === 'KLV-NEN-045').ds.find((x) => x.ca === 'DEAD').heSo, 1.15);
 });
+
+function taiTheo(sua) {
+  const s = JSON.parse(JSON.stringify(MCT.macDinh));
+  if (sua) sua(s);
+  const kq = MCT.calc.tinhTatCa(s), m = MCT.calc.taoMoHinhEtabs(s, kq);
+  return { s, kq, m, t: m.hopLe ? MCT.calc.taiTrongEtabs(s, kq, m) : null };
+}
+// Hợp lực của các lực điểm (diemLuc) quy về điểm (x0, y0), cùng cao độ tấm
+function hopLuc(m, p, x0, y0) {
+  const toaDo = new Map(m.diem.map((d) => [d.ten, d]));
+  const r = [0, 0, 0, 0, 0, 0];
+  p.diemLuc.forEach((l) => {
+    const d = toaDo.get(l.diem), f = l.giaTri, dx = d.x - x0, dy = d.y - y0;
+    for (let i = 0; i < 6; i++) r[i] += f[i];
+    r[3] += dy * f[2]; r[4] += -dx * f[2]; r[5] += dx * f[1] - dy * f[0];
+  });
+  return r;
+}
+
+test('Điểm đặt lực mặc định: một điểm tại tâm cẩu trùng tâm đài, diemLuc = luc', () => {
+  const { m, t } = taiTheo();
+  assert.equal(m.thongSo.diemDatLuc, 'tam');
+  assert.equal(m.nutTai, m.nutTamDai);
+  t.mauTai.slice(1).forEach((p) => assert.deepEqual(p.diemLuc, [{ diem: m.nutTai, giaTri: p.luc.giaTri }]));
+});
+
+test('Tâm cẩu lệch tâm đài: lưới qua tâm cẩu, lực đặt tại tâm cẩu, hướng bất lợi tính từ tâm cẩu', () => {
+  const { m, t, kq } = taiTheo((s) => { s.etabs.tamCauX = 0.4; s.etabs.tamCauY = -0.3; });
+  assert.equal(m.hopLe, true, (m.loi || []).join('; '));
+  assert.ok(m.xs.includes(0.4) && m.ys.includes(-0.3) && m.xs.includes(0) && m.ys.includes(0));
+  const nut = m.diem.find((d) => d.ten === m.nutTai);
+  assert.deepEqual([nut.x, nut.y, nut.z], [0.4, -0.3, m.thongSo.zGiua]);
+  assert.notEqual(m.nutTai, m.nutTamDai);
+  const c1 = kq.B.coc[0], goc = Math.atan2(c1.y + 0.3, c1.x - 0.4) * 180 / Math.PI;
+  assert.ok(t.huong.some((h) => Math.abs(h.goc - ((goc % 360) + 360) % 360) < 0.01 && h.nguon.includes('C1 nén')));
+  // tâm cẩu ngoài đài → báo lỗi
+  assert.match(taiTheo((s) => { s.etabs.tamCauX = 2.5; }).m.loi.join(' '), /Tâm cẩu .* nằm ngoài đài/);
+});
+
+test('Chia lực về 4 chân cẩu: nút chân trên lưới, hợp lực và mômen quanh tâm cẩu đúng bằng tải pattern', () => {
+  for (const [xc, yc] of [[0, 0], [0.3, 0.2]]) {
+    const { m, t, kq } = taiTheo((s) => { s.etabs.diemDatLuc = 'chan'; s.etabs.tamCauX = xc; s.etabs.tamCauY = yc; });
+    assert.equal(m.hopLe, true, (m.loi || []).join('; '));
+    const Ht = kq.A.Ht;
+    assert.equal(m.chan.length, 4);
+    m.chan.forEach((c) => {
+      const d = m.diem.find((x) => x.ten === c.nut);
+      assert.ok(d, 'chân ' + c.ten + ' không nằm trên nút lưới');
+      gan(Math.abs(d.x - xc), Ht / 2, 'x chân'); gan(Math.abs(d.y - yc), Ht / 2, 'y chân');
+    });
+    assert.equal(t.kieuDatLuc, 'chan');
+    t.mauTai.slice(1).forEach((p) => {
+      assert.equal(p.diemLuc.length, 4, p.ten);
+      p.diemLuc.forEach((l) => assert.deepEqual(l.giaTri.slice(3), [0, 0, 0], p.ten + ': chỉ lực, không mômen tại chân'));
+      const r = hopLuc(m, p, xc, yc);
+      r.forEach((v, i) => assert.ok(Math.abs(v - p.luc.giaTri[i]) < 1e-4, `${p.ten} thành phần ${i}: ${v} ≠ ${p.luc.giaTri[i]}`));
+    });
+  }
+  // chân cẩu ra ngoài đài
+  assert.match(taiTheo((s) => { s.etabs.diemDatLuc = 'chan'; s.etabs.tamCauX = 1.5; }).m.loi.join(' '), /Chân cẩu .* nằm ngoài đài/);
+});

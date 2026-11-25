@@ -39,6 +39,61 @@ function duLieuTheo(doi) {
 }
 const capNhatCau = duLieuTheo((st) => { st.cau.ten = 'ZT6016-10 thân 1.6m'; st.cau.chieuCao = 45.6; });
 const capNhatLuoi = duLieuTheo((st) => { st.etabs.luoi = 0.5; });
+// Cập nhật hình học trong file đang có (không dựng mô hình mới)
+const capNhatH = duLieuTheo((st) => { st.dai.H = 2.0; });
+const capNhatCoc = duLieuTheo((st) => { st.dai.H = 2.0; st.sct.L = 36; });
+const capNhat4Chan = duLieuTheo((st) => { st.dai.H = 2.0; st.sct.L = 36; st.etabs.diemDatLuc = 'chan'; st.etabs.tamCauX = 0.3; st.etabs.tamCauY = 0.2; });
+const capNhatVeTam = duLieuTheo((st) => { st.dai.H = 2.0; st.sct.L = 36; });
+const capNhatDam = duLieuTheo((st) => {
+  st.dai.H = 2.0; st.sct.L = 36;
+  st.damGiang.ds = [[1, 2], [2, 3], [3, 1]].map((c) => Object.assign({}, st.damGiang.mau, { tuCoc: c[0], denCoc: c[1] }));
+});
+
+// Đọc file .EDB giả lập (văn bản) và so với mô hình app: điểm, thanh, ô vỏ, gối, lò xo, tầng, điểm đặt lực FZ1
+function docEdb(file) {
+  const r = { P: new Map(), F: new Map(), A: new Map(), R: new Set(), S: new Set(), Q: [], T: [], day: NaN };
+  for (const dong of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const x = dong.split('|');
+    if (x[0] === 'P') r.P.set(x[1], x.slice(2, 5).map(Number));
+    else if (x[0] === 'F') r.F.set(x[1], x.slice(2));
+    else if (x[0] === 'A') r.A.set(x[1], x[2].split(','));
+    else if (x[0] === 'R' && x[2].includes('1')) r.R.add(x[1]);
+    else if (x[0] === 'S') r.S.add(x[1]);
+    else if (x[0] === 'Q') r.Q.push({ mau: x[1], diem: x[2], gt: x[3].split(',').map(Number) });
+    else if (x[0] === 'T') r.T = x[1] ? x[1].split(',').map(Number) : [];
+    else if (x[0] === 'DAY') r.day = Number(x[1]);
+  }
+  return r;
+}
+function khopMoHinh(file, x) {
+  const f = docEdb(file), m = x.m;
+  assert.strictEqual(m.hopLe, true, (m.loi || []).join('; '));
+  const sx = (a) => [...a].sort();
+  assert.deepStrictEqual(sx(f.P.keys()), sx(m.diem.map((d) => d.ten)), 'tập điểm');
+  m.diem.forEach((d) => { const c = f.P.get(d.ten); assert.ok([d.x, d.y, d.z].every((v, i) => Math.abs(c[i] - v) < 1e-6), 'toạ độ ' + d.ten + ': ' + c); });
+  assert.deepStrictEqual(sx(f.F.keys()), sx(m.thanh.map((t) => t.ten)), 'tập thanh');
+  m.thanh.forEach((t) => assert.deepStrictEqual(f.F.get(t.ten), [t.dau, t.cuoi, t.tietDien], 'thanh ' + t.ten));
+  assert.deepStrictEqual(sx(f.A.keys()), sx(m.vo.map((v) => v.ten)), 'tập ô vỏ');
+  m.vo.forEach((v) => assert.deepStrictEqual(f.A.get(v.ten), v.diem, 'ô vỏ ' + v.ten));
+  assert.deepStrictEqual(sx(f.R), sx(m.gioiHan.map((g) => g.diem)), 'gối chỉ ở mũi cọc');
+  assert.deepStrictEqual(sx(f.S), sx(new Set(m.loXo.map((l) => l.diem))), 'lò xo đúng nút');
+  let z = m.tang.caoDoDay;
+  assert.ok(Math.abs(f.day - z) < 1e-6, 'cao độ đáy tầng');
+  assert.strictEqual(f.T.length, m.tang.ds.length, 'số tầng');
+  m.tang.ds.forEach((t, i) => { z += t.cao; assert.ok(Math.abs(f.T[i] - z) < 1e-6, 'tầng ' + t.ten); });
+  const fz = x.t.mauTai.find((p) => p.ten === 'FZ1');
+  assert.deepStrictEqual(sx(f.Q.filter((q) => q.mau === 'FZ1').map((q) => q.diem)), sx(fz.diemLuc.map((l) => l.diem)), 'điểm đặt FZ1');
+  const tong = f.Q.filter((q) => q.mau === 'FZ1').reduce((a, q) => a + q.gt[2], 0);
+  assert.ok(Math.abs(tong - fz.luc.giaTri[2]) < 1e-6, 'tổng FZ1 ' + tong);
+  return f;
+}
+function capNhatKhongTaoMoi(k) {
+  assert.strictEqual(k.ok, true, k.loi);
+  const g = JSON.parse(fs.readFileSync(fileGhi, 'utf8'));
+  assert.strictEqual(g.khoiTaoMoi, false, 'không InitializeNewModel');
+  assert.strictEqual(g.file, fileEdb, 'lưu đè file đang có');
+  return g;
+}
 const fileGhi = path.join(tam, 'mo-hinh-gia-lap.json');
 const fileEdb = path.join(tam, 'Mô hình', 'CT1 thử.EDB');
 
@@ -181,11 +236,54 @@ const ca = [
     assert.strictEqual(g.soThuocTinhLoXo, capNhatCau.m.thuocTinhLoXo.length);
     assert.strictEqual(g.soLoXoTongThe, 0);
   }, fileEdb],
-  ['cập nhật mô hình: hình học khác (lưới đài 0,5 m) → yêu cầu dựng lại', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatLuoi.gui, fileMoHinh: fileEdb } }, function (k) {
-    assert.strictEqual(k.ok, false);
-    assert.strictEqual(k.buocLoi, 'kiem-tra-hinh-hoc');
-    assert.strictEqual(k.goiY, 'dung-lai');
-    assert.ok(k.thongTin.khacHinhHoc.length > 0);
+  ['cập nhật mô hình: lưới đài 0,5 m – xoá / dời / thêm điểm, thanh, ô vỏ trong file đang có', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatLuoi.gui, fileMoHinh: fileEdb } }, function (k) {
+    const g = capNhatKhongTaoMoi(k);
+    const db = k.thongTin.dongBo;
+    assert.strictEqual(db.veLai, false, 'đồng bộ từng đối tượng');
+    assert.ok(db.xoaVo > 0 && db.xoaDiem > 0 && db.doiDiem > 0, JSON.stringify(db));
+    assert.ok(k.buoc.some((b) => b.ten === 'tang' && /Giu nguyen/.test(b.chiTiet)));
+    assert.ok(g.thaoTac.doi > 0);
+    khopMoHinh(fileEdb, capNhatLuoi);
+  }, fileEdb],
+  ['cập nhật mô hình: chiều cao đài 1,6 → 2,0 m – ETABS không đổi tầng khi còn đối tượng → vẽ lại trong file đang có', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatH.gui, fileMoHinh: fileEdb } }, function (k) {
+    capNhatKhongTaoMoi(k);
+    assert.strictEqual(k.thongTin.dongBo.veLai, true);
+    assert.ok(k.buoc.some((b) => b.ten === 'tang' && /Xoa doi tuong cua app, dat lai/.test(b.chiTiet)));
+    const f = khopMoHinh(fileEdb, capNhatH);
+    assert.ok(Math.abs(f.P.get(capNhatH.m.nutTai)[2] - (-2.6 + 1.0)) < 1e-9, 'tấm đài ở giữa đài mới (−1,6 m)');
+  }, fileEdb],
+  ['cập nhật mô hình: cọc dài thêm 3 m – ETABS đổi được tầng khi có đối tượng → chỉ thêm nút / thanh, chuyển gối mũi cọc', 'tang-mo', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatCoc.gui, fileMoHinh: fileEdb } }, function (k) {
+    const g = capNhatKhongTaoMoi(k);
+    const db = k.thongTin.dongBo;
+    assert.strictEqual(db.veLai, false);
+    assert.ok(db.themDiem >= 3 * 3 && db.themThanh >= 3 * 3 && db.xoaThanh === 0 && db.xoaVo === 0, JSON.stringify(db));
+    assert.ok(k.buoc.some((b) => b.ten === 'tang' && /Dat lai/.test(b.chiTiet)));
+    assert.strictEqual(g.thaoTac.xoaThanh, 0);
+    khopMoHinh(fileEdb, capNhatCoc);
+  }, fileEdb],
+  ['cập nhật mô hình: chia lực về 4 chân, tâm cẩu lệch (0,3; 0,2) – dời các nút lưới đài', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhat4Chan.gui, fileMoHinh: fileEdb } }, function (k) {
+    capNhatKhongTaoMoi(k);
+    const db = k.thongTin.dongBo;
+    assert.strictEqual(db.veLai, false);
+    assert.ok(db.doiDiem > 0, JSON.stringify(db));
+    assert.deepStrictEqual(k.thongTin.diemDatLuc, capNhat4Chan.m.chan.map((c) => c.nut).sort());
+    const f = khopMoHinh(fileEdb, capNhat4Chan);
+    // hợp lực MX1 quanh tâm cẩu = MX1 của app
+    const mx = capNhat4Chan.t.mauTai.find((p) => p.ten === 'MX1');
+    const M = f.Q.filter((q) => q.mau === 'MX1').reduce((a, q) => a + (f.P.get(q.diem)[1] - 0.2) * q.gt[2], 0);
+    assert.ok(Math.abs(M - mx.luc.giaTri[3]) < 1e-3, 'MX1 ' + M + ' / ' + mx.luc.giaTri[3]);
+  }, fileEdb],
+  ['cập nhật mô hình: bản ETABS không dời được điểm → xoá và vẽ lại đối tượng của app trong file đang có', 'khong-di-chuyen', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatVeTam.gui, fileMoHinh: fileEdb } }, function (k) {
+    capNhatKhongTaoMoi(k);
+    assert.strictEqual(k.thongTin.dongBo.veLai, true);
+    assert.match(k.thongTin.dongBo.lyDoVeLai, /khong doi duoc toa do diem/);
+    khopMoHinh(fileEdb, capNhatVeTam);
+  }, fileEdb],
+  ['cập nhật mô hình: thêm 3 dầm giằng bằng cập nhật (không dựng mới)', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatDam.gui, fileMoHinh: fileEdb } }, function (k) {
+    const g = capNhatKhongTaoMoi(k);
+    assert.ok(g.tietDienThanh.includes('DAM_DG1'));
+    const f = khopMoHinh(fileEdb, capNhatDam);
+    assert.deepStrictEqual(f.F.get('DG2').slice(0, 2), ['C2_m8', 'C3_m8']);
   }, fileEdb],
   ['cập nhật mô hình: ETABS đang mở mô hình khác → tự mở đúng file', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: duLieuMoHinh, fileMoHinh: fileEdb } }, function (k) {
     assert.strictEqual(k.ok, true, k.loi);

@@ -22,7 +22,7 @@
       toHop: t.toHop.filter(function (c) { return c.loai === 0; }).map(function (c) { return c.ten; }),
       diem: diem,
       vo: m.vo.map(function (v) { return v.ten; }),
-      nutChuyenVi: [m.nutTai].concat(m.coc.map(function (c) { return c.nutDau; }))
+      nutChuyenVi: [m.nutTamDai || m.nutTai].concat(m.coc.map(function (c) { return c.nutDau; }))
     };
   }
 

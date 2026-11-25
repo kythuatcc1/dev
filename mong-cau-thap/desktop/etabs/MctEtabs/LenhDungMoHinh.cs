@@ -31,7 +31,7 @@ namespace MctEtabs
             ["PropArea"] = "cPropArea", ["PointObj"] = "cPointObj", ["FrameObj"] = "cFrameObj", ["AreaObj"] = "cAreaObj",
             ["LoadPatterns"] = "cLoadPatterns", ["RespCombo"] = "cCombo", ["View"] = "cView", ["Analyze"] = "cAnalyze",
             ["Results"] = "cAnalysisResults", ["Setup"] = "cAnalysisResultsSetup", ["PointElm"] = "cPointElm",
-            ["PropPointSpring"] = "cPropPointSpring"
+            ["PropPointSpring"] = "cPropPointSpring", ["EditPoint"] = "cEditPoint"
         };
 
         object Con(string duongDan)
@@ -279,6 +279,7 @@ namespace MctEtabs
             if (dsMau.Count == 0) return tenMau;
             var coSan = DanhSachMau(e);
             int soLuc = 0;
+            var diemCoLuc = new SortedSet<string>(StringComparer.Ordinal);
             foreach (JsonNode p in dsMau)
             {
                 string ma = (string)p["ten"], loai = (string)p["loai"];
@@ -295,15 +296,21 @@ namespace MctEtabs
                     e.Goi("LoadPatterns", "cLoadPatterns", "Add", new object[] { ma, loai, banThan, true });
                     tenMau[ma] = ma;
                 }
-                if (p["luc"] is JsonObject luc)
+                // diemLuc: các điểm thực sự nhận lực (tâm cẩu, hoặc 4 chân cẩu); bản cũ chỉ có luc (một điểm)
+                var dsLuc = p["diemLuc"] is JsonArray dl && dl.Count > 0 ? dl.Cast<JsonNode>().ToList()
+                          : p["luc"] is JsonObject luc ? new List<JsonNode> { luc } : new List<JsonNode>();
+                foreach (JsonNode l in dsLuc)
                 {
-                    double[] gt = ((JsonArray)luc["giaTri"]).Select(x => (double)x).ToArray();
-                    e.Goi("PointObj", "cPointObj", "SetLoadForce", new object[] { ten(luc["diem"]), tenMau[ma], gt, true, "Global", "Objects" }, true);
+                    double[] gt = ((JsonArray)l["giaTri"]).Select(x => (double)x).ToArray();
+                    e.Goi("PointObj", "cPointObj", "SetLoadForce", new object[] { ten(l["diem"]), tenMau[ma], gt, true, "Global", "Objects" }, true);
                     soLuc++;
+                    diemCoLuc.Add(ten(l["diem"]));
                 }
             }
             kq.Dat("loadPatterns", tenMau.Values.ToList());
-            kq.GhiBuoc("tai-trong", true, dsMau.Count + " load pattern (" + string.Join(", ", tenMau.Values) + "); " + soLuc + " luc tai tam dai");
+            kq.Dat("diemDatLuc", diemCoLuc.ToList());
+            kq.GhiBuoc("tai-trong", true, dsMau.Count + " load pattern (" + string.Join(", ", tenMau.Values) + "); " + soLuc + " luc diem tai " +
+                       string.Join(", ", diemCoLuc));
             return tenMau;
         }
 
@@ -341,41 +348,49 @@ namespace MctEtabs
         /// <summary>Đặt tầng: SetStories_2 (SimilarToStory "" rồi "None"), dự phòng SetStories; nếu ETABS chưa cho thì tạo NewGridOnly rồi thử lại.</summary>
         static string DatTang(KetQua kq, BoGoiEtabs e, JsonNode t)
         {
+            var loi = new List<string>();
+            string kqTang = ThuDatTang(e, t, loi);
+            if (kqTang != null) return kqTang;
+            double[] cao = ((JsonArray)t["ds"]).Select(x => (double)x["cao"]).ToArray();
+            try
+            {
+                e.Goi("File", "cFile", "NewGridOnly", new object[] { 1, cao[0], cao[0], 2, 2, 1.0, 1.0 });
+                kqTang = ThuDatTang(e, t, loi);
+                if (kqTang != null) return kqTang + ", sau NewGridOnly";
+            }
+            catch (Exception ex) { loi.Add("NewGridOnly: " + Api.GocLoi(ex).Message); }
+            kq.Dat("loiTang", loi);
+            throw new LoiEtabs("Khong dat duoc tang: " + string.Join(" | ", loi));
+        }
+
+        /// <summary>Thử đặt tầng (không tạo mô hình mới): trả mô tả nếu được, null nếu ETABS không nhận (lỗi ghi vào loi).</summary>
+        internal static string ThuDatTang(BoGoiEtabs e, JsonNode t, List<string> loi)
+        {
             double day = (double)t["caoDoDay"];
             var ds = (JsonArray)t["ds"];
             int n = ds.Count;
             string[] ten = ds.Select(x => (string)x["ten"]).ToArray();
             double[] cao = ds.Select(x => (double)x["cao"]).ToArray();
-            var loi = new List<string>();
-            for (int lan = 0; lan < 2; lan++)
+            foreach (string tuongTu in new[] { "", "None" })
             {
-                if (lan == 1)
+                try
                 {
-                    try { e.Goi("File", "cFile", "NewGridOnly", new object[] { 1, cao[0], cao[0], 2, 2, 1.0, 1.0 }); }
-                    catch (Exception ex) { loi.Add("NewGridOnly: " + Api.GocLoi(ex).Message); break; }
+                    e.Goi("Story", "cStory", "SetStories_2", new object[] {
+                        day, n, (string[])ten.Clone(), (double[])cao.Clone(), Enumerable.Repeat(true, n).ToArray(),
+                        Enumerable.Repeat(tuongTu, n).ToArray(), new bool[n], new double[n], new int[n] }, true);
+                    return n + " tang, day " + day + " m (SetStories_2)";
                 }
-                foreach (string tuongTu in new[] { "", "None" })
+                catch (Exception ex) { loi.Add("SetStories_2('" + tuongTu + "'): " + Api.GocLoi(ex).Message); }
+                try
                 {
-                    try
-                    {
-                        e.Goi("Story", "cStory", "SetStories_2", new object[] {
-                            day, n, (string[])ten.Clone(), (double[])cao.Clone(), Enumerable.Repeat(true, n).ToArray(),
-                            Enumerable.Repeat(tuongTu, n).ToArray(), new bool[n], new double[n], new int[n] }, true);
-                        return n + " tang, day " + day + " m (SetStories_2" + (lan == 1 ? ", sau NewGridOnly" : "") + ")";
-                    }
-                    catch (Exception ex) { loi.Add("SetStories_2('" + tuongTu + "'): " + Api.GocLoi(ex).Message); }
-                    try
-                    {
-                        e.Goi("Story", "cStory", "SetStories", new object[] {
-                            day, n, (string[])ten.Clone(), (double[])cao.Clone(), Enumerable.Repeat(true, n).ToArray(),
-                            Enumerable.Repeat(tuongTu, n).ToArray(), new bool[n], new double[n] }, true);
-                        return n + " tang, day " + day + " m (SetStories" + (lan == 1 ? ", sau NewGridOnly" : "") + ")";
-                    }
-                    catch (Exception ex) { loi.Add("SetStories('" + tuongTu + "'): " + Api.GocLoi(ex).Message); }
+                    e.Goi("Story", "cStory", "SetStories", new object[] {
+                        day, n, (string[])ten.Clone(), (double[])cao.Clone(), Enumerable.Repeat(true, n).ToArray(),
+                        Enumerable.Repeat(tuongTu, n).ToArray(), new bool[n], new double[n] }, true);
+                    return n + " tang, day " + day + " m (SetStories)";
                 }
+                catch (Exception ex) { loi.Add("SetStories('" + tuongTu + "'): " + Api.GocLoi(ex).Message); }
             }
-            kq.Dat("loiTang", loi);
-            throw new LoiEtabs("Khong dat duoc tang: " + string.Join(" | ", loi));
+            return null;
         }
 
         internal static string DuongDanLuu(YeuCau yc)

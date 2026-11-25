@@ -493,7 +493,7 @@
   }
 
   // ---------------- Chương II – Phần 1: sức chịu tải cọc ----------------
-  function phan1SCT(s, kq, hinh) {
+  function phan1SCT(s, kq, hinh, boMatCat) {   // boMatCat: thuyết minh ETABS đã có mặt cắt ở mục 2.4
     var x = D();
     var DC = kq.DC, S = kq.SCT;
     var out = [phan('PHẦN 1. TÍNH TOÁN SỨC CHỊU TẢI CỌC', true)];
@@ -513,6 +513,7 @@
     out.push(bangDayDu(['STT', 'Tên lớp', 'Loại đất', 'Cao độ đỉnh lớp (m)', 'γ (kN/m3)', 'φ (độ)', 'c (kN/m2)', 'I_{L}', 'e'],
       hangDC, [600, 800, 2038, 1300, 1100, 1000, 1100, 850, 850], { canhTrai: [2] }));
     out = out.concat(hinhAnh(hinh.spt, 330, 'Biểu đồ SPT', 'Hình 2.1 Biểu đồ chỉ số SPT theo độ sâu – hố khoan ' + DC.hoKhoan));
+    if (!boMatCat) out = out.concat(hinhAnh(hinh.matCat, 600, 'Mặt cắt móng và địa chất', 'Hình 2.2 Mặt cắt móng cẩu tháp và địa chất – hố khoan ' + DC.hoKhoan));
 
     out.push(tieuMuc('A.2. Thông số cọc'));
     out.push(p('A.2.1 Đặc trưng về tiết diện cọc', { bold: true, italics: true, keepNext: true }));
@@ -1222,6 +1223,13 @@
       .concat(chuThichHinh ? [chuThich(chuThichHinh)] : []);
   }
 
+  // Điểm đặt lực cẩu tháp trong mô hình ETABS (lời văn)
+  function moTaDiemDat(m) {
+    var t = m.thongSo, lech = Math.abs(t.xc || 0) > 1e-9 || Math.abs(t.yc || 0) > 1e-9;
+    var tam = lech ? 'tâm cẩu (lệch tâm đài x = ' + g(t.xc) + ' m, y = ' + g(t.yc) + ' m)' : 'tâm đài (trùng tâm cẩu)';
+    return t.diemDatLuc === 'chan' ? '4 chân cẩu cách nhau H_{t} = ' + g(t.Ht) + ' m quanh ' + tam : 'một điểm ở ' + tam;
+  }
+
   // Có hình app vẽ từ kết quả ETABS thì chèn hình, không có thì để ô dán hình chụp
   function hinhHoacO(h, rongPx, cachChup, giaTri, caoTwip, chuThichHinh) {
     if (h && h.data) return hinhAnh(h, rongPx, '', chuThichHinh);
@@ -1280,7 +1288,7 @@
 
   // 2. THÔNG SỐ ĐẦU VÀO
   function etabsDauVao(s, kq, hinh, E, tenCau) {
-    var x = D(), A = kq.A, vl = A.vatLieu, S = kq.SCT, t = E.t;
+    var x = D(), A = kq.A, vl = A.vatLieu, S = kq.SCT, t = E.t, m = E.m;
     var out = [tieuDe('2. THÔNG SỐ ĐẦU VÀO', 2, true), tieuDe('2.1. Thông số vật liệu', 3)];
     var cungBt = S && S.hopLe && S.vatLieu.beTong === s.dai.beTong;
     out.push(cham('Bê tông cấp độ bền ' + s.dai.beTong + ' cho đài móng' + (cungBt ? ', cọc cẩu tháp' : '') + ': R_{b} = ' + g(vl.Rb) +
@@ -1311,17 +1319,19 @@
 
     // 2.3 Tổ hợp tải trọng
     out.push(tieuDe('2.3. Tổ hợp tải trọng', 3));
-    out.push(doan('Tải trọng cẩu tháp đặt tại tâm đài, tách theo thành phần. Giá trị bằng tải quy đổi ở mục 2.2 chia hệ số n = ' + g(t.n) +
-      ' (tổ hợp nhân lại n). Mômen đặt tại tâm đài cộng thêm H × ' + g(t.tayDon) + ' m do tải trọng cẩu tháp đặt tại mặt đài còn điểm đặt tải ở mặt phẳng giữa đài.'));
+    out.push(doan('Tải trọng cẩu tháp đặt tại ' + moTaDiemDat(m) + ', tách theo thành phần. Giá trị bằng tải quy đổi ở mục 2.2 chia hệ số n = ' + g(t.n) +
+      ' (tổ hợp nhân lại n). Mômen tại tâm cẩu cộng thêm H × ' + g(t.tayDon) + ' m do tải trọng cẩu tháp đặt tại mặt đài còn điểm đặt tải ở mặt phẳng giữa đài.' +
+      (m.thongSo.diemDatLuc === 'chan' ? ' Mỗi load pattern chia về 4 chân cẩu thành hệ lực tương đương: lực ngang, lực đứng chia đều 4 chân; mômen lật thành cặp lực đứng ' +
+        'F = M/(2·H_{t}); mômen xoắn thành lực ngang tiếp tuyến F = T/(2√2·H_{t}) – Bảng 2.3 ghi hợp lực tại tâm cẩu.' : '')));
     var TP = ['F_{X}', 'F_{Y}', 'F_{Z}', 'M_{X}', 'M_{Y}', 'M_{Z}'];
     out.push(bangDayDu(['Load pattern', 'Nội dung', 'Thành phần', 'Giá trị'],
       t.mauTai.map(function (pt) {
         var k = pt.luc ? pt.luc.giaTri.map(function (v, i) { return v ? i : -1; }).filter(function (i) { return i >= 0; })[0] : -1;
         return [pt.ten, pt.moTa, pt.luc ? TP[k] : 'Bản thân', pt.luc ? f(pt.luc.giaTri[k], 2) + (k < 3 ? ' kN' : ' kNm') : '× ' + g(pt.banThan)];
       }), [1500, 4638, 1500, 2000], { canhTrai: [1], fillTieuDe: 'F2F2F2' }));
-    out.push(chuThich('Bảng 2.3 Tải trọng tác dụng tại tâm đài (load pattern)'));
+    out.push(chuThich('Bảng 2.3 Tải trọng tác dụng tại ' + (m.thongSo.xc || m.thongSo.yc ? 'tâm cẩu' : 'tâm đài') + ' (load pattern)'));
     out.push(doan('Tổ hợp theo hướng θ của tải trọng (θ đo từ trục X ngược chiều kim đồng hồ; lực ngang và mômen lật cùng hướng θ): ' +
-      g(t.thongKe.soHuong) + ' hướng gồm 8 hướng mỗi 45° và hướng bất lợi của từng cọc (hướng từ tâm đài tới cọc: cọc nén nhiều nhất; ' +
+      g(t.thongKe.soHuong) + ' hướng gồm 8 hướng mỗi 45° và hướng bất lợi của từng cọc (hướng từ tâm ' + (m.thongSo.xc || m.thongSo.yc ? 'cẩu' : 'đài') + ' tới cọc: cọc nén nhiều nhất; ' +
       'hướng ngược lại: cọc kéo nhiều nhất). Hệ số: tĩnh tải ' + g(t.heSo.tinhTaiNen) + ' (cọc nén) / ' + g(t.heSo.tinhTaiKeo) +
       ' (cọc kéo); lực đứng của cẩu ' + g(t.n) + ' (cọc nén) / ' + g(t.heSo.fzKeo) + ' (cọc kéo); lực ngang, mômen nhân n·cosθ, n·sinθ.'));
     var coMZ = t.mauTai.some(function (pt) { return pt.ten === 'MZ1'; });
@@ -1357,8 +1367,9 @@
     out = out.concat(oDanHinh('Mặt bằng vị trí các hố khoan (báo cáo khảo sát địa chất)', '', 4200, 'Hình 2.2 Mặt bằng hố khoan', 'Dán hình'));
     out = out.concat(oDanHinh('Mặt bằng bố trí cẩu tháp trên công trình', '', 4200, 'Hình 2.3 Mặt bằng bố trí cẩu tháp', 'Dán hình'));
     out.push(doan('Dựa trên điều kiện địa chất và vị trí cẩu, chọn địa chất hố khoan ' + hk + ' để tính toán móng cẩu tháp ' + s.duAn.tenMong +
-      '. Số liệu các lớp đất và chỉ số SPT dùng tính toán: xem mục 5.1.'));
+      '. Số liệu các lớp đất và chỉ số SPT dùng tính toán: xem mục 5.1. Mặt cắt móng với các lớp đất, cao độ đài, cọc: Hình 2.5.'));
     out = out.concat(oDanHinh('Hình trụ hố khoan ' + hk + ' (báo cáo khảo sát địa chất)', '', 9000, 'Hình 2.4 Hình trụ hố khoan ' + hk, 'Dán hình'));
+    out = out.concat(hinhAnh(hinh.matCat, 600, 'Mặt cắt móng và địa chất', 'Hình 2.5 Mặt cắt móng cẩu tháp và địa chất – hố khoan ' + hk));
     return out;
   }
 
@@ -1375,7 +1386,7 @@
       'z tính từ ' + (ts.batDauLoXo === 'day-ho' ? 'đáy hố đào' : 'đáy đài') + ' (cao độ ' + f(ts.zBatDau, 2) + ' m), b_{p} = ' + g(ts.bp) +
       ' m, l là đoạn cọc nút lò xo đảm nhận. Mỗi độ cứng là một thuộc tính lò xo điểm LX_<K> (trục cục bộ U1, U2).'));
     out.push(gach('Mũi cọc: gối chặn chuyển vị đứng.'));
-    out.push(gach('Tải trọng cẩu tháp đặt tại một điểm ở tâm đài.'));
+    out.push(gach('Tải trọng cẩu tháp đặt tại ' + moTaDiemDat(m) + '.'));
     out = out.concat(hinhHoacO(hinh.etabsMoHinh3D, 470, 'Mô hình 3D móng cẩu tháp trong ETABS (đài, cọc, lò xo đất)', '', 7600, 'Hình 3.1 Mô hình móng cẩu tháp'));
     out.push(bangDayDu(['Cao độ (m)', 'Độ sâu z (m)', 'Lớp đất', 'Hệ số nền tỉ lệ k (kN/m^{4})', 'Đoạn cọc l (m)', 'Độ cứng lò xo K (kN/m)'],
       m.bangLoXo.map(function (r) { return [f(r.caoDo, 2), f(r.doSau, 2), String(r.lop), f(r.k, 0), f(r.l, 2), f(r.K, 0)]; }),
@@ -1397,7 +1408,7 @@
     nhom.forEach(function (nh, i) {
       var ds = nh.slice(0, 3).filter(Boolean).map(gt).filter(Boolean);
       out = out.concat(hinhHoacO(hinh['etabsTai' + (i + 1)], 430, 'ETABS: Display → Load Assigns → Joint, chọn load pattern ' + nh.slice(0, 3).filter(Boolean).join(', ') +
-        ' (xem 3D, chụp nút tâm đài)', 'Giá trị app gán: ' + ds.join('; '), 4600, 'Hình 3.' + (3 + i) + ' ' + nh[3]));
+        ' (xem 3D, chụp ' + (m.thongSo.diemDatLuc === 'chan' ? '4 nút chân cẩu' : 'nút tâm cẩu') + ')', 'Giá trị app gán (hợp lực tại tâm cẩu): ' + ds.join('; '), 4600, 'Hình 3.' + (3 + i) + ' ' + nh[3]));
     });
     return out;
   }
@@ -1448,7 +1459,7 @@
       'C. TỔNG HỢP VÀ LỰA CHỌN SỨC CHỊU TẢI THIẾT KẾ CỦA CỌC': '5.3. Tổng hợp sức chịu tải theo từng phương pháp',
       'C.1. Sức chịu tải trọng nén thiết kế': '5.3.1. Sức chịu tải trọng nén thiết kế',
       'C.2. Sức chịu tải trọng kéo thiết kế': '5.3.2. Sức chịu tải trọng kéo thiết kế'
-    }, [[/^Hình 2\.1 /, 'Hình 5.1 ']], function () { return phan1SCT(s, kq, hinh); });
+    }, [[/^Hình 2\.1 /, 'Hình 5.1 ']], function () { return phan1SCT(s, kq, hinh, true); });
   }
 
   // 6. TÍNH TOÁN MÓNG CẨU THÁP

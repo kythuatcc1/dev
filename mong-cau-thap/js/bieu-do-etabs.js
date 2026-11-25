@@ -74,8 +74,9 @@
       var p = P((c1.x + c2.x) / 2, (c1.y + c2.y) / 2, d.z);
       g += chu(p[0] + 4, p[1] - 4, d.ten, { mau: '#8b5a2b', co: 10 });
     });
-    var tam = P(0, 0, t.zGiua);
-    g += '<circle cx="' + f1(tam[0]) + '" cy="' + f1(tam[1]) + '" r="4.5" fill="#dc2626"/>';
+    var tam = P(t.xc || 0, t.yc || 0, t.zGiua);   // điểm đặt lực: tâm cẩu, hoặc 4 chân cẩu
+    (m.chan || []).forEach(function (c) { var q = P(c.x, c.y, t.zGiua); g += '<rect x="' + f1(q[0] - 3.5) + '" y="' + f1(q[1] - 3.5) + '" width="7" height="7" fill="#dc2626"/>'; });
+    g += '<circle cx="' + f1(tam[0]) + '" cy="' + f1(tam[1]) + '" r="' + ((m.chan || []).length ? 3 : 4.5) + '" fill="#dc2626"/>';
     // thước cao độ
     var x0 = 34, yTop = P(-X, Y, t.zGiua)[1], yDay = P(-X, Y, t.zMui)[1], yChu = -Infinity;
     var dsZ = [[t.zGiua, 'giữa đài'], [t.zDay, 'đáy đài']].concat(t.zBatDau !== t.zDay ? [[t.zBatDau, 'đầu cọc']] : []), theoZ = {};
@@ -93,7 +94,7 @@
     });
     g += '<line x1="' + x0 + '" y1="' + f1(yTop) + '" x2="' + x0 + '" y2="' + f1(yDay) + '" stroke="#6b7280"/>';
     g += chu(W - 12, H - 30, 'Xanh lá: tấm đài (shell); xanh dương: cọc (frame); xám: lò xo đất', { phai: true, co: 10, mau: '#6b7280' }) +
-      chu(W - 12, H - 16, 'Tam giác: gối mũi cọc; đỏ: điểm đặt tải' + ((m.dam || []).length ? '; nâu: dầm giằng' : ''), { phai: true, co: 10, mau: '#6b7280' });
+      chu(W - 12, H - 16, 'Tam giác: gối mũi cọc; đỏ: ' + ((m.chan || []).length ? '4 chân cẩu nhận tải' : 'điểm đặt tải') + ((m.dam || []).length ? '; nâu: dầm giằng' : ''), { phai: true, co: 10, mau: '#6b7280' });
     return khung(W, H, g, 'MÔ HÌNH MÓNG CẨU THÁP (ETABS)');
   }
 

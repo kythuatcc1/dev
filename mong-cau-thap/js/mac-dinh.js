@@ -74,6 +74,8 @@
       batDauLoXo: 'day-dai',// lò xo đất bắt đầu từ: 'day-dai' (móng đài thấp) | 'day-ho' (đáy hố đào – đầu cọc tính toán)
       luoi: 0.25,           // m – kích thước lưới chia tấm đài
       buocCoc: 1,           // m – bước chia cọc (vị trí lò xo đất)
+      diemDatLuc: 'tam',    // điểm đặt lực cẩu tháp: 'tam' – một điểm tại tâm cẩu (như báo cáo thẩm tra) | 'chan' – chia về 4 chân cẩu
+      tamCauX: 0, tamCauY: 0, // m – tâm cẩu so với tâm đài (chỉ dùng cho mô hình ETABS)
       fileMoHinh: '',       // đường dẫn lưu mô hình .EDB; để trống: Documents\MongCauThap\<tên móng>.EDB
       heSoTinhTaiNen: 1.1,  // hệ số tĩnh tải trong tổ hợp cọc nén (PDF)
       heSoTinhTaiKeo: 0.9,  // hệ số tĩnh tải trong tổ hợp cọc kéo (PDF)
