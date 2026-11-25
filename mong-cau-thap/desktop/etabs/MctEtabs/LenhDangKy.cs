@@ -3,6 +3,7 @@
 // Cách chính thức tương đương: chạy RegisterETABS.exe trong thư mục ETABS bằng quyền Administrator.
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
 namespace MctEtabs
@@ -24,11 +25,15 @@ namespace MctEtabs
             }
             string thuMuc = Path.GetDirectoryName(dll);
             kq.Dat("dll", dll);
-            string tlb = ThuVienKieu.TimTlb(thuMuc, out string[] tatCa);
-            kq.Dat("fileTlb", tatCa);
+            Type cOAPI = null;
+            try { cOAPI = Assembly.LoadFrom(dll).GetType("ETABSv1.cOAPI", true); } catch { /* vẫn tìm theo tên */ }
+            var nguon = ThuVienKieu.TimNguonTypeLib(thuMuc, cOAPI);
+            kq.Dat("nguonTypeLib", nguon.Select(x => x.moTa).ToList());
+            string tlb = nguon.Count > 0 ? nguon[0].file : null;
             if (tlb == null)
             {
-                kq.Dung("tim-tlb", "Thu muc ETABS khong co file .tlb. Hay chay RegisterETABS.exe bang quyen Administrator.", "chay-register");
+                kq.Dung("tim-tlb", "Khong tim thay type library cua ETABS (file .tlb hoac nhung trong .dll/.exe). " +
+                                   "Hay chay RegisterETABS.exe bang quyen Administrator.", "chay-register");
                 return;
             }
             kq.Dat("tlb", tlb);

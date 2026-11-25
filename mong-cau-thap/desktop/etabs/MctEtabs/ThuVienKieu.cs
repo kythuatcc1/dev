@@ -39,6 +39,41 @@ namespace MctEtabs
 
         const int REGKIND_NONE = 2;
 
+        /// <summary>
+        /// Tìm nơi chứa type library có giao diện cOAPI: file .tlb/.olb, hoặc nhúng trong .dll/.exe của ETABS
+        /// (ETABS 23 không kèm file .tlb riêng). Trả về các nguồn tìm được, nguồn khớp IID của ETABSv1.dll đứng đầu.
+        /// </summary>
+        public static List<(string file, string moTa, bool khop)> TimNguonTypeLib(string thuMucEtabs, Type cOAPI)
+        {
+            var kq = new List<(string, string, bool)>();
+            if (!Directory.Exists(thuMucEtabs)) return kq;
+            var ung = Directory.GetFiles(thuMucEtabs)
+                .Where(f =>
+                {
+                    string ten = Path.GetFileName(f).ToLowerInvariant(), duoi = Path.GetExtension(f).ToLowerInvariant();
+                    if (duoi == ".tlb" || duoi == ".olb") return true;
+                    return (duoi == ".dll" || duoi == ".exe") &&
+                           (ten.Contains("etabs") || ten.Contains("csi") || ten.Contains("api") || ten.Contains("comhost") || ten.Contains("interop"));
+                })
+                .OrderBy(f => Path.GetExtension(f).Equals(".tlb", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .Take(300);
+            foreach (string f in ung)
+            {
+                try
+                {
+                    if (LoadTypeLibEx(f, REGKIND_NONE, out ITypeLib tl) != 0 || tl == null) continue;
+                    var a = ThuocTinh(tl);
+                    Dictionary<string, Guid> kieu = CacKieu(tl);
+                    if (!kieu.TryGetValue("cOAPI", out Guid g)) continue;
+                    bool khop = cOAPI == null || g == cOAPI.GUID;
+                    kq.Add((f, Path.GetFileName(f) + " – LIBID " + a.libId.ToString("B") + " v" + a.chinh.ToString("x") + "." + a.phu.ToString("x") +
+                               (khop ? ", cOAPI khop ETABSv1.dll" : ", cOAPI KHAC ETABSv1.dll"), khop));
+                }
+                catch { /* file không chứa type library */ }
+            }
+            return kq.OrderByDescending(x => x.Item3).ToList();
+        }
+
         /// <summary>File .tlb của ETABS trong thư mục cài (ưu tiên ETABSv1.tlb).</summary>
         public static string TimTlb(string thuMucEtabs, out string[] tatCa)
         {
@@ -141,6 +176,7 @@ namespace MctEtabs
 
             string tlb = TimTlb(thuMucEtabs, out string[] tatCa);
             cd["fileTlb"] = KetQua.ThanhNut(tatCa);
+            cd["nguonTypeLib"] = Thu(() => TimNguonTypeLib(thuMucEtabs, giaoDien.FirstOrDefault(t => t.Name == "cOAPI")).Select(x => x.moTa).ToList());
             if (tlb != null)
             {
                 cd["thuVienTlb"] = Thu(() =>

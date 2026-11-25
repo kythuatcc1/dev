@@ -15,8 +15,9 @@ namespace MctEtabs
         ///    → Windows thiếu đăng ký giao diện API (type library) của ETABS
         ///  - còn lại (NullReference khi lớp bọc có đối tượng bên trong) → ETABS chưa mở mô hình
         /// </summary>
-        static string NguyenNhan(KetQua kq)
+        static string NguyenNhan(KetQua kq, PhienEtabs ph)
         {
+            if (ph.ThieuDangKyGiaoDien) return ph.CoNguonTypeLib ? "dang-ky-giao-dien" : "chay-register";
             bool noInterface = kq.ThuHam.Any(h => (string)h["hresult"] == "0x80004002");
             bool bocRong = kq.ThongTin.Any(c => c.Key.StartsWith("lopBoc ", StringComparison.Ordinal) &&
                                                 c.Value is System.Text.Json.Nodes.JsonArray a &&
@@ -35,7 +36,7 @@ namespace MctEtabs
             object sap = ph.SapModel ?? kq.Thu("cOAPI.SapModel", () => g.Lay(ph.OAPI, "cOAPI", "SapModel"));
             if (sap == null || ph.ChiGanMotPhan)
             {
-                kq.Dung("doc-mo-hinh", "Gan duoc ETABS (goi duoc ham don gian) nhung khong lay duoc mo hinh.", NguyenNhan(kq));
+                kq.Dung("doc-mo-hinh", "Gan duoc ETABS (goi duoc ham don gian) nhung khong lay duoc mo hinh.", NguyenNhan(kq, ph));
                 return;
             }
             kq.Dat("kieuSapModel", sap.GetType().FullName);
@@ -62,7 +63,7 @@ namespace MctEtabs
             bool DocDuoc(System.Text.Json.Nodes.JsonNode h) => HamDocMoHinh.Contains((string)h["ten"]) && (bool)h["ok"];
             if (!kq.ThuHam.Any(DocDuoc))
             {
-                kq.Dung("doc-mo-hinh", "Gan duoc ETABS nhung khong doc duoc mo hinh (xem bang thu tung ham).", NguyenNhan(kq));
+                kq.Dung("doc-mo-hinh", "Gan duoc ETABS nhung khong doc duoc mo hinh (xem bang thu tung ham).", NguyenNhan(kq, ph));
                 return;
             }
             kq.GhiBuoc("doc-mo-hinh", true, "ETABS " + KetQua.HienThi(kq.ThongTin["etabsPhienBan"]) +

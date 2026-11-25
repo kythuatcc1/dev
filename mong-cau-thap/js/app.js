@@ -1283,8 +1283,8 @@
       'tim-dll': ['Không thấy thư viện API', 'Nhập thư mục cài ETABS vào ô phía trên, ví dụ <code>C:\\Program Files\\Computers and Structures\\ETABS 23</code>.'],
       'mo-mo-hinh': ['ETABS chưa mở mô hình', 'Đã gắn được vào ETABS nhưng chưa có mô hình. Vào <strong>File → New Model</strong> ' +
         '(mô hình trống, đơn vị kN-m) hoặc mở một file .EDB, đợi mô hình hiện ra rồi bấm Kiểm tra kết nối.'],
-      'quyen-admin': ['ETABS và chương trình khác quyền Administrator', 'ETABS đang chạy bằng <strong>Run as administrator</strong> còn MongCauThap.exe thì không, ' +
-        'Windows chặn hai bên trao đổi. Mở cả hai cùng một kiểu: chạy ETABS bình thường, hoặc chạy MongCauThap.exe bằng Run as administrator.'],
+      'quyen-admin': ['ETABS đang chạy bằng quyền Administrator', 'ETABS đang chạy bằng <strong>Run as administrator</strong> còn MongCauThap.exe thì không, ' +
+        'Windows chặn hai bên trao đổi. Đóng ETABS rồi mở lại <strong>bình thường</strong> (nhấp đúp, không chọn Run as administrator), mở mô hình, rồi bấm Kiểm tra kết nối.'],
       'dang-ky-api': ['ETABS chưa đăng ký API với Windows', 'Đóng ETABS, nhấp chuột phải ' + dk + ' → <strong>Run as administrator</strong>, rồi mở lại ETABS và thử lại.'],
       'rot': ['ETABS chưa đăng ký phiên làm việc', 'Windows không thấy phiên ETABS đang mở. Đóng ETABS, mở lại (không dùng Run as administrator) rồi thử lại. ' +
         'Nếu vẫn lỗi: chạy ' + dk + ' bằng Run as administrator.'],
@@ -1293,17 +1293,27 @@
         'Chương trình đã gắn được vào ETABS và gọi được hàm đơn giản' + (t.apiPhienBan ? ' (phiên bản API ' + esc(t.apiPhienBan) + ')' : '') +
         ', nhưng Windows không chuyển được đối tượng mô hình (SapModel) giữa ETABS và chương trình – lỗi E_NOINTERFACE, ' +
         'do thiếu đăng ký type library của ETABS.</p><p><strong>Cách 1 (khuyên dùng):</strong> đóng ETABS, nhấp chuột phải ' + dk +
-        ' → <strong>Run as administrator</strong>, mở lại ETABS rồi bấm Kiểm tra kết nối.</p><p><strong>Cách 2 (không cần quyền Administrator):</strong> ' +
-        'bấm nút bên dưới để đăng ký cho riêng tài khoản Windows này, sau đó đóng ETABS, mở lại rồi bấm Kiểm tra kết nối.</p>' +
-        '<p><button type="button" class="btn" data-action="etabs-dang-ky">Đăng ký giao diện ETABS cho tài khoản này</button> ' +
-        '<button type="button" class="btn btn-ghost" data-action="etabs-go-dang-ky">Gỡ đăng ký</button>'],
-      'chay-register': ['Cần chạy RegisterETABS.exe', 'Đóng ETABS, nhấp chuột phải ' + dk + ' → <strong>Run as administrator</strong>, mở lại ETABS rồi bấm Kiểm tra kết nối.'],
+        ' → <strong>Run as administrator</strong>, mở lại ETABS bình thường rồi bấm Kiểm tra kết nối.</p>' +
+        (t.nguonTypeLib && t.nguonTypeLib.length
+          ? '<p><strong>Cách 2 (không cần quyền Administrator):</strong> bấm nút bên dưới để đăng ký cho riêng tài khoản Windows này, ' +
+            'sau đó đóng ETABS, mở lại rồi bấm Kiểm tra kết nối.</p>' +
+            '<p><button type="button" class="btn" data-action="etabs-dang-ky">Đăng ký giao diện ETABS cho tài khoản này</button> ' +
+            '<button type="button" class="btn btn-ghost" data-action="etabs-go-dang-ky">Gỡ đăng ký</button>'
+          : '<p>Không tìm thấy type library trong thư mục ETABS nên chỉ dùng được cách 1.')],
+      'chay-register': ['Windows chưa đăng ký giao diện API của ETABS', 'Các giao diện API của ETABS (cOAPI, cSapModel…) chưa được đăng ký với Windows, ' +
+        'nên chương trình khác gắn được vào ETABS nhưng không lấy được mô hình. Chỉ cần làm <strong>một lần</strong>:</p><ol>' +
+        '<li>Đóng ETABS.</li><li>Nhấp chuột phải ' + dk + ' → <strong>Run as administrator</strong>, đợi chạy xong.</li>' +
+        '<li>Mở lại ETABS <strong>bình thường</strong> (không chọn Run as administrator) và mở mô hình.</li>' +
+        '<li>Bấm Kiểm tra kết nối.</li></ol><p>Nếu vẫn báo lỗi này sau khi chạy RegisterETABS.exe, mở Chi tiết kỹ thuật và gửi lại nội dung.'],
       'het-gio': ['ETABS không phản hồi', 'Có thể ETABS đang mở một hộp thoại hoặc đang chạy phân tích. Đóng các hộp thoại trong ETABS, đợi ETABS rảnh rồi thử lại.'],
       'ket-noi': ['Không gắn được vào ETABS', 'Thử: đóng hết ETABS rồi mở lại một phiên; mở cả ETABS và MongCauThap.exe cùng quyền (cùng chạy bình thường). ' +
         'Nếu vẫn lỗi, mở Chi tiết kỹ thuật bên dưới và gửi lại nội dung.']
     };
-    var g = GOI_Y[r.goiY];
-    return g ? '<div class="ghi-chu-lech"><h3>' + g[0] + '</h3><p>' + g[1] + '</p></div>' : '';
+    return [r.goiY].concat(r.goiYThem || []).filter(function (m, i, ds) { return m && GOI_Y[m] && ds.indexOf(m) === i; })
+      .map(function (m, i) {
+        var g = GOI_Y[m];
+        return '<div class="ghi-chu-lech"' + (i ? ' style="margin-top:10px"' : '') + '><h3>' + (i ? 'Thêm: ' : '') + g[0] + '</h3><p>' + g[1] + '</p></div>';
+      }).join('');
   }
 
   TRANG.etabs = {
@@ -1375,6 +1385,7 @@
         dongCd += dongTT('Giao diện trong .tlb', ghep(cd.thuVienTlb.giaoDien));
       } else dongCd += dongTT('Type library', cd.thuVienTlb);
       if (cd.fileTlb) dongCd += dongTT('File .tlb trong thư mục ETABS', cd.fileTlb);
+      if (cd.nguonTypeLib) dongCd += dongTT('Type library tìm thấy (kể cả nhúng trong .dll/.exe)', cd.nguonTypeLib);
       return '<section class="card"><h2>Kết quả</h2>' +
         '<div class="ket-luan-lon ' + (r.ok ? 'ok' : 'fail') + '">' +
         (r.ok ? 'Đã kết nối được ETABS' : 'Chưa kết nối được: ' + esc(r.loi || '')) + '</div>' + goiY +

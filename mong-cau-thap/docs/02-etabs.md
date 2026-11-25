@@ -39,6 +39,9 @@ Trang app (js/app.js) ──window.mctDesktop.etabs(yêu cầu)──► desktop
   Nghĩa là Windows thiếu đăng ký giao diện API (type library) nên không chuyển được đối tượng API giữa ETABS và chương trình khác.
   Cách sửa: chạy `RegisterETABS.exe` bằng quyền Administrator, hoặc nút **Đăng ký giao diện ETABS cho tài khoản này**
   (lệnh `dang-ky-giao-dien`: `RegisterTypeLibForUser` với file .tlb trong thư mục ETABS, ghi vào HKCU, gỡ được bằng `go-dang-ky-giao-dien`).
+  Lần thử sau (ETABS chạy bằng Run as administrator): Windows chặn ROT (MK_E_UNAVAILABLE); chẩn đoán cho thấy giao diện
+  cOAPI/cSapModel/cFrameObj **chưa đăng ký** trong registry và thư mục ETABS 23 **không có file .tlb** → cần chạy
+  `RegisterETABS.exe` bằng quyền Administrator rồi mở ETABS bình thường. Cầu nối tìm thêm type library nhúng trong .dll/.exe.
   Cầu nối ghi chẩn đoán chi tiết (`chanDoanCom`): giao diện cOAPI/cSapModel trong registry, QueryInterface trên đối tượng ETABS,
   ETABS tự mô tả qua IDispatch, LIBID và trạng thái đăng ký của file .tlb, IID trong .tlb có khớp ETABSv1.dll không.
 - Khi không gắn được, cầu nối tự chẩn đoán và app hiện lời khuyên: ETABS chưa mở, khác quyền Administrator,

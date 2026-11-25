@@ -22,6 +22,8 @@ namespace MctEtabs
         public string ThuMucEtabs;
         /// <summary>Gắn được (gọi được hàm đơn giản) nhưng chưa lấy được mô hình qua cách này.</summary>
         public bool ChiGanMotPhan;
+        public bool ThieuDangKyGiaoDien;
+        public bool CoNguonTypeLib;
         public Type T(string ten) => Asm.GetType("ETABSv1." + ten, true);
     }
 
@@ -190,8 +192,17 @@ namespace MctEtabs
                 // Không cách nào đọc được mô hình: chẩn đoán giao diện API (type library) với Windows
                 try
                 {
-                    kq.ThongTin["chanDoanCom"] = ThuVienKieu.ChanDoan(ProgId, new[] { tOAPI, tSap, ph.T("cFrameObj") }, thuMucEtabs);
-                    kq.Dat("tlb", ThuVienKieu.TimTlb(thuMucEtabs, out _));
+                    Type[] gd = { tOAPI, tSap, ph.T("cFrameObj") };
+                    kq.ThongTin["chanDoanCom"] = ThuVienKieu.ChanDoan(ProgId, gd, thuMucEtabs);
+                    var nguon = ThuVienKieu.TimNguonTypeLib(thuMucEtabs, tOAPI);
+                    kq.Dat("nguonTypeLib", nguon.Select(x => x.file).ToList());
+                    ph.CoNguonTypeLib = nguon.Count > 0;
+                    // Giao diện API chưa đăng ký với Windows → không thể lấy mô hình dù gắn được
+                    if (gd.All(t => !ThuVienKieu.GiaoDienDaDangKy(t)))
+                    {
+                        ph.ThieuDangKyGiaoDien = true;
+                        kq.ThemGoiY(ph.CoNguonTypeLib ? "dang-ky-giao-dien" : "chay-register");
+                    }
                 }
                 catch (Exception ex) { kq.Dat("chanDoanCom", "loi: " + Api.GocLoi(ex).Message); }
             }
@@ -208,6 +219,8 @@ namespace MctEtabs
                 else if (win && !com.dangKy) goiY = "dang-ky-api";
                 else if (win && com.coTrongRot == false) goiY = "rot";
                 kq.Dung("ket-noi", "Khong gan duoc vao ETABS. " + string.Join(" | ", moTaLoi), goiY);
+                if (kq.Goc["goiYThem"] is System.Text.Json.Nodes.JsonArray them)
+                    for (int i = them.Count - 1; i >= 0; i--) if ((string)them[i] == goiY) them.RemoveAt(i);
                 return null;
             }
             kq.Dat("cachKetNoi", ph.Cach + " – " + ph.G.Ten);

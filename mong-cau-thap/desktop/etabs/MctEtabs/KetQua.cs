@@ -48,12 +48,25 @@ namespace MctEtabs
 
         public void Dat(string khoa, object giaTri) => ThongTin[khoa] = ThanhNut(giaTri);
 
+        /// <summary>Thêm một gợi ý phụ (ngoài gợi ý chính) – app hiện tất cả.</summary>
+        public void ThemGoiY(string ma)
+        {
+            if (ma == null || ma == GoiY) return;
+            if (Goc["goiYThem"] is not JsonArray ds) { ds = new JsonArray(); Goc["goiYThem"] = ds; }
+            if (!ds.Any(x => (string)x == ma)) ds.Add(ma);
+        }
+
         /// <summary>Chạy thử một lệnh API: ghi kết quả hoặc lỗi (loại, thông báo, HRESULT); lỗi thì trả null.</summary>
         public object Thu(string ten, Func<object> viec)
         {
             try
             {
                 object gt = viec();
+                if (gt == null)
+                {
+                    ThuHam.Add(new JsonObject { ["ten"] = ten, ["ok"] = false, ["loi"] = "tra ve rong (null)" });
+                    return null;
+                }
                 ThuHam.Add(new JsonObject { ["ten"] = ten, ["ok"] = true, ["ketQua"] = HienThi(gt) });
                 return gt;
             }
