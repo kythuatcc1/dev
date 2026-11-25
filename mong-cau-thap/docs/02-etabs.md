@@ -68,7 +68,9 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 | 4 | Chạy phân tích, lấy nội lực (lệnh `phan-tich`, trang "Kết quả ETABS", `js/calc/etabs-ket-qua.js`) | Đã làm (thử với ETABS giả lập) – chờ chạy thử trên máy thật |
 | 5 | Chọn phương pháp (Giải tích / ETABS) cho kết luận; B, D, tải ngang, tương tác dùng nội lực ETABS | Đã làm |
 | 6 | Thuyết minh form CC1 cho phương pháp ETABS (nội dung các mục kiểm tra trình bày như PDF tham khảo) | Đã làm |
-| 7 | Tự cập nhật: đổi thông số → dựng lại, chạy lại, lấy kết quả | Chờ |
+| 7 | Tự cập nhật: đổi thông số → **cập nhật mô hình tại chỗ** (lệnh `cap-nhat-mo-hinh`) hoặc dựng lại khi hình học đổi, chạy lại, lấy kết quả | Đã làm (thử với ETABS giả lập) – chờ chạy thử trên máy thật |
+| + | Dầm giằng cọc (số liệu, mô hình, nội lực, kiểm tra TCVN 5574:2018, thuyết minh 6.4) | Đã làm (thử với ETABS giả lập) |
+| + | Hình nội lực app tự vẽ từ kết quả ETABS, chèn vào các ô dán hình của thuyết minh | Đã làm |
 
 ## Bước 2 – mô hình app tự dựng (`js/calc/etabs-mo-hinh.js`)
 - **Gốc toạ độ:** tâm đài = tâm cẩu (như toạ độ cọc mục B); Z = cao độ so với MĐTN; đơn vị kN, m.
@@ -108,7 +110,7 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
   (cao độ trạm tính từ 2 đầu đoạn `FrameObj.GetPoints`), `Results.JointDispl` tại tâm đài và đầu cọc,
   `Results.AreaForceShell` từng ô vỏ (trung bình tại nút; điểm ETABS tự chia lưới lấy toạ độ bằng `PointElm.GetCoordCartesian`).
 - **App:** bao P, M = √(M2² + M3²), V = √(V2² + V3²) theo chiều sâu, từ đáy đài tới mũi cọc (bỏ đoạn cọc nằm trong đài –
-  thanh cứng; bản tóm tắt có `phienBan` = 2, kết quả lưu theo cách cũ phải chạy lại phân tích); lực đầu cọc (đáy đài) so với Qa, Qa' (như mục B);
+  thanh cứng; bản tóm tắt có `phienBan` = 3 – thêm bao từng thành phần P, V2, V3, M2, M3 theo chiều sâu `coc[i].tp`, bao nội lực tại nút đài `dai.nutBao`, nội lực dầm `dam`; kết quả lưu bằng bản cũ phải chạy lại phân tích); lực đầu cọc (đáy đài) so với Qa, Qa' (như mục B);
   mọi cặp (N = −P, M) so với biểu đồ tương tác của form CC1; V lớn nhất so với [Q] của phần tải ngang;
   Δ = √(U1² + U2²), ψ = √(R1² + R2²) so với giới hạn phần tải ngang;
   đài: mômen/lực cắt mặt cắt = ∫M11 dy, ∫V13 dy trên mỗi đường lưới x = const (thép theo X) và ∫M22 dx, ∫V23 dx
@@ -128,7 +130,9 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 
 ## Bước 6 – thuyết minh Word theo phương pháp ETABS (`js/bao-cao/thuyet-minh.js`)
 Chọn phương pháp ETABS rồi bấm "Xuất thuyết minh": giữ trang bìa, khung tiêu đề, trang ký, mục lục của form CC1; phần thân đặt
-đầu mục như **phụ lục tính toán của báo cáo thẩm tra** (260917_MD3_1_BCTT mong cau thap FULL), có ô trống để dán hình chụp ETABS:
+đầu mục như **phụ lục tính toán của báo cáo thẩm tra** (260917_MD3_1_BCTT mong cau thap FULL). Các vị trí báo cáo thẩm tra dán hình chụp
+ETABS được **app tự vẽ hình từ kết quả ETABS và chèn sẵn** (xem mục "Hình tự vẽ" dưới); chỉ còn ô trống cho hình không lấy được từ ETABS
+(catalogue cẩu, mặt bằng hố khoan, mặt bằng bố trí cẩu, hình trụ hố khoan):
 
 | Đầu mục | Nội dung |
 |---|---|
@@ -151,6 +155,56 @@ Chọn phương pháp ETABS rồi bấm "Xuất thuyết minh": giữ trang bìa
 - Phương pháp giải tích: thuyết minh giữ đúng form CC1 (chương I, chương II phần 1–5).
 - Tên file thêm đuôi `_ETABS`. Chưa có kết quả ETABS → báo lỗi; kết quả không khớp thông số → hỏi trước khi xuất.
 - Test: `tests/bao-cao-etabs.test.js` (thứ tự đầu mục cấp 2, 3; ô dán hình; nội dung tính), `tests/etabs-ket-qua.test.js` (nứt đài tính tay).
+
+## Dầm giằng cọc (`js/calc/dam-giang.js`, trang "Mô hình ETABS")
+- **Số liệu** (`state.damGiang.ds`, mỗi dầm): cọc đầu – cọc cuối, cao độ tim dầm z, b × h, cấp bê tông, nhóm thép dọc / thép đai,
+  lớp bảo vệ a (tới tim thép), thép trên / dưới / hông (số thanh × Ø), đai Ø, bước, số nhánh. Nút "Giằng tất cả các cọc kề nhau"
+  tạo nhanh dầm theo chu vi nhóm cọc. Kiểm tra: hai cọc khác nhau, z nằm giữa đáy đài và mũi cọc, mặt trên dầm không cao hơn đáy đài,
+  không trùng dầm.
+- **Mô hình:** cao độ dầm được chèn vào lưới chia cọc (nút cọc đúng tại z); thanh `DGi` nối hai nút cọc, tiết diện chữ nhật `DAM_DGi`,
+  vật liệu `BT_<cấp>`. Thêm / bớt / đổi cao độ dầm là đổi hình học → phải **dựng lại** mô hình.
+- **Nội lực:** `Results.FrameForce` từng dầm, bao mọi tổ hợp tại các trạm (`dam[i].bao`, `dam[i].tram`).
+- **Kiểm tra (TCVN 5574:2018)** – trục cục bộ thanh ngang của ETABS: M3, V2 trong mặt phẳng đứng; M2, V3 trong mặt phẳng ngang;
+  P > 0 kéo; M3 > 0 thớ dưới chịu kéo:
+  - Uốn: α<sub>m</sub> = M/(R<sub>b</sub>·b·h0²) ≤ α<sub>R</sub>, ξ = 1 − √(1 − 2α<sub>m</sub>), A<sub>s</sub> = ξ·R<sub>b</sub>·b·h0/R<sub>s</sub>,
+    cộng N<sub>t</sub>/(2R<sub>s</sub>) cho mỗi lớp (lấy N<sub>t</sub> lớn nhất cùng M lớn nhất dù khác tổ hợp – thiên về an toàn).
+  - Uốn ngang M2: thép hông + 2 thanh góc, tiết diện rộng h, cao b.
+  - Kéo N<sub>t</sub> ≤ R<sub>s</sub>·A<sub>s,tot</sub>; nén N<sub>c</sub> ≤ φ(R<sub>b</sub>·A + R<sub>sc</sub>·A<sub>s,tot</sub>), φ theo l0/h<sub>min</sub>
+    (6 → 0,92; 10 → 0,9; 15 → 0,83; 20 → 0,7), l0 = nhịp thông thủy giữa hai cọc.
+  - Cắt (mục 8.1.3.3): Q ≤ 0,3·R<sub>b</sub>·b·h0 và Q ≤ min theo c ∈ [h0; 3h0] của Q<sub>b</sub> + Q<sub>sw</sub>;
+    Q<sub>b</sub> = 1,5·R<sub>bt</sub>·b·h0²/c trong [0,5; 2,5]·R<sub>bt</sub>·b·h0; Q<sub>sw</sub> = 0,75·q<sub>sw</sub>·min(c; 2h0),
+    chỉ kể đai khi q<sub>sw</sub> ≥ 0,25·R<sub>bt</sub>·b. Cắt ngang V3 kể 2 nhánh nằm ngang của đai kín.
+  - Mômen xoắn T chỉ liệt kê, chưa kiểm tra.
+- Kết quả hiện ở trang Kết quả ETABS (bảng từng dầm, biểu đồ nội lực), vào Kết luận (dòng "Dầm giằng DGi") và thuyết minh
+  mục 6.4 (Bảng 6.8 thông số, Hình 6.5… nội lực, Bảng 6.9… kiểm tra); mục ổn định – lún thành 6.5.
+
+## Cập nhật mô hình tại chỗ (lệnh `cap-nhat-mo-hinh`, `LenhCapNhatMoHinh.cs`)
+- App nhớ file đã dựng (`state.etabs.fileDung`) và dấu vân tay **hình học** (`vanTayHinhHoc`: lưới đài, toạ độ cọc, chia cọc,
+  cao độ lò xo, dầm). Đổi thông số mà hình học không đổi (cẩu, chiều cao, tải, hệ số tổ hợp, vật liệu, tiết diện, hệ số nền…)
+  → trang Mô hình ETABS hiện nút **Cập nhật mô hình trong ETABS** và **Cập nhật mô hình và chạy lại phân tích**; hình học đổi → chỉ còn
+  **Dựng lại mô hình**.
+- Cầu nối: mở đúng file đã dựng nếu ETABS đang mở file khác (`File.OpenFile`) → mở khoá (`SetModelIsLocked(false)`, kết quả cũ bị xoá)
+  → so toạ độ mọi điểm, hai đầu mọi thanh, số thanh, số ô vỏ với số liệu app; khác → dừng, gợi ý `dung-lai` → đặt lại vật liệu,
+  tiết diện, lò xo, gối → xoá tổ hợp cũ của app (`BAO` trước) và load pattern tải cẩu không còn dùng (ví dụ `MZ1` khi cẩu mới
+  không có mômen xoắn) → gán lại tải (`SetLoadForce` Replace) và tổ hợp → lưu đè.
+- Thử bằng ETABS giả lập: `npm run thu-cau-noi` (đổi cẩu xoá MZ1; hình học khác → dung-lai; tự mở file; thiếu file).
+
+## Hình tự vẽ trong thuyết minh (`js/bieu-do-etabs.js`)
+API ETABS không có lệnh chụp màn hình hình nội lực, nên app vẽ lại từ kết quả đã đọc (`MCT.bieuDoEtabs.hinhThuyetMinh`), chuyển
+SVG → PNG trong trình duyệt và chèn vào đúng chỗ báo cáo thẩm tra dán hình:
+
+| Vị trí | Hình |
+|---|---|
+| Hình 3.1 | Mô hình 3D trục đo: tấm đài (lưới), cọc, lò xo, gối mũi cọc, dầm giằng, điểm đặt tải, thước cao độ |
+| Hình 3.3–3.6 | Lực tại tâm đài theo load pattern (FX1, FY1, FZ1 / MX1, MY1, MZ1 / FX2, FY2, FZ2 / MX2, MY2) kèm giá trị |
+| Bảng 4.1, 4.2 | 5 ô mỗi bảng: P, M2-2, M3-3, V2-2, V3-3 tổ hợp BAO-MIN / BAO-MAX theo chiều sâu mọi cọc, ghi giá trị đầu cọc và lớn nhất |
+| Hình 6.2 | Chuyển vị ngang tâm đài và đầu cọc (hướng, Δ) |
+| Hình 6.3 | Bản đồ màu M11, M22 (bao max / min, kNm/m) trên mặt bằng đài, đánh dấu giá trị lớn nhất / nhỏ nhất |
+| Hình 6.4 | Bản đồ màu V13, V23 (bao, kN/m) |
+| Hình 6.5… | Nội lực dầm giằng M3, V2, P, M2 dọc dầm (bao max / min) |
+
+Trình duyệt chặn vẽ SVG → PNG thì vị trí đó trở lại ô dán hình chụp ETABS (kèm hướng dẫn chụp trong ETABS).
+Test: `tests/bao-cao-etabs.test.js` (SVG hợp lệ, nhãn không tràn ô, mỗi hình chèn đúng một lần, không còn ô "Dán hình chụp từ ETABS").
 
 ## Chạy thử bước 1
 1. Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới (đợi mô hình hiện ra).

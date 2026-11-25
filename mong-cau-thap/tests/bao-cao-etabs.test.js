@@ -9,6 +9,7 @@ require('../js/mac-dinh.js');
 ['dia-chat', 'sct-coc', 'phan-a-tai-trong', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong',
   'phan-f-ket-luan', 'tai-ngang', 'tuong-tac', 'lun', 'tinh-tat-ca', 'etabs-mo-hinh', 'etabs-tai-trong', 'etabs-ket-qua', 'dam-giang'].forEach((f) => require(`../js/calc/${f}.js`));
 require('../js/bao-cao/thuyet-minh.js');
+require('../js/bieu-do-etabs.js');
 const MCT = globalThis.MCT;
 
 function docTrongZip(buf, ten) {
@@ -95,7 +96,7 @@ test('Thuyết minh ETABS: khung CC1, đầu mục theo báo cáo thẩm tra, ô
     'Hình 2.3 Mặt bằng bố trí cẩu tháp', 'Hình 2.4 Hình trụ hố khoan', 'Hình 3.1 Mô hình móng cẩu tháp',
     'Hình 3.3 Lực Fx1, Fy1, Fz1 của cẩu tháp tác dụng lên móng (kN)', 'Hình 3.4 Lực Mx1, My1, Mz1', 'Hình 3.5 Lực Fx2, Fy2, Fz2', 'Hình 3.6 Lực Mx2, My2',
     'Bảng 4.1 Nội lực cọc tổ hợp BAO-MIN', 'Bảng 4.2 Nội lực cọc tổ hợp BAO-MAX', 'Moment 2-2', 'Shear 3-3', 'Dán hình',
-    'Hình 6.2 Chuyển vị ngang, góc xoay đầu cọc', 'Hình 6.3 Mômen đài móng (kNm)', 'Hình 6.4 Lực cắt đài móng (kN)',
+    'Hình 6.2 Chuyển vị ngang, góc xoay đầu cọc', 'Hình 6.3 Mômen đài móng (kNm/m)', 'Hình 6.4 Lực cắt đài móng (kN/m)',
     // nội dung tính
     'Bảng 2.1 Tải trọng chân đế cẩu tháp', 'Bảng 2.3 Tải trọng tác dụng tại tâm đài', 'LV-NEN-000', 'KLV-KEO-000', 'BAO = ENVELOPE',
     'Bảng 3.1 Độ cứng lò xo đất ngang', 'Bảng 4.3 Nội lực cọc từ đáy đài tới mũi cọc', '5.2.1. Sức chịu tải cọc theo vật liệu', '6572', '4561',
@@ -138,6 +139,82 @@ test('Thuyết minh ETABS có dầm giằng: mục 6.4 kiểm tra dầm, ổn đ
   ['Bảng 6.8 Thông số dầm giằng', 'Dầm DG1 (C1 – C2, z = -8.00 m)', 'Dầm DG2', 'Bảng 6.9 Kiểm tra dầm DG1', 'Bảng 6.10 Kiểm tra dầm DG2',
     'Thép dưới (M3 &gt; 0)', 'Kéo dọc trục', 'Cắt ngang', 'dầm DG1 đảm bảo khả năng chịu lực', 'dầm DG2 KHÔNG đảm bảo', 'Dầm giằng DG1',
     'Dầm giằng cọc KHÔNG đảm bảo'].forEach((t) => assert.ok(chu.includes(t), 'thiếu: ' + t));
+  assert.equal((xml.match(/<\/w:tbl><w:tbl>/g) || []).length, 0, 'hai bảng liền nhau');
+});
+
+// SVG đóng/mở thẻ cân bằng, không có số hỏng
+function kiemTraSvg(svg, ten) {
+  assert.ok(svg.startsWith('<svg') && svg.endsWith('</svg>'), ten + ': không phải SVG');
+  assert.ok(!/NaN|undefined|Infinity/.test(svg), ten + ': có số hỏng');
+  const ngan = [];
+  for (const t of svg.match(/<\/?[a-zA-Z][^>]*>/g)) {
+    if (t.endsWith('/>')) continue;
+    if (t.startsWith('</')) assert.equal(ngan.pop(), t.slice(2, -1), ten + ': thẻ đóng sai ' + t);
+    else ngan.push(t.slice(1).split(/[\s>]/)[0]);
+  }
+  assert.equal(ngan.length, 0, ten + ': còn thẻ chưa đóng');
+}
+
+test('Hình ETABS tự vẽ: đủ hình cho thuyết minh, SVG hợp lệ, nhãn nội lực cọc không tràn ô', () => {
+  const L = soLieuEtabs([{ tuCoc: 1, denCoc: 2 }, { tuCoc: 2, denCoc: 3, z: -12 }]);
+  const ds = MCT.bieuDoEtabs.hinhThuyetMinh({ m: L.m, t: L.t, kE: L.kE });
+  const khoa = ds.map((d) => d[0]);
+  assert.deepEqual(khoa, ['etabsMoHinh3D', 'etabsTai1', 'etabsTai2', 'etabsTai3', 'etabsTai4',
+    ...['min', 'max'].flatMap((l) => ['P', 'M2', 'M3', 'V2', 'V3'].map((t) => 'etabsBao_' + l + '_' + t)),
+    'etabsMomenDai', 'etabsCatDai', 'etabsChuyenVi', 'dam_DG1', 'dam_DG2']);
+  for (const [ten, svg, w, h] of ds) {
+    kiemTraSvg(svg, ten);
+    assert.ok(svg.includes('viewBox="0 0 ' + w + ' ' + h + '"'), ten + ': kích thước');
+  }
+  const get = (k) => ds.find((d) => d[0] === k)[1];
+  // mô hình 3D: đủ cọc, dầm, nhãn cao độ đầu – mũi cọc và cao độ dầm; hai nhãn cao độ không chồng nhau
+  const m3 = get('etabsMoHinh3D');
+  ['C1', 'C2', 'C3', 'DG1', 'DG2', '(mũi cọc)', '(đáy đài)', '-8.00 m (DG1)', '-12.00 m (DG2)'].forEach((t) => assert.ok(m3.includes(t), '3D thiếu ' + t));
+  const yCaoDo = [...m3.matchAll(/<text x="46" y="([\d.]+)"/g)].map((r) => Number(r[1]));
+  assert.ok(yCaoDo.length >= 4);
+  yCaoDo.slice(1).forEach((y, i) => assert.ok(y - yCaoDo[i] >= 12.9, 'nhãn cao độ chồng nhau'));
+  // tải tại tâm đài: lực đúng tên pattern và giá trị
+  const fz = L.t.mauTai.find((p) => p.ten === 'FZ1');
+  assert.ok(get('etabsTai1').includes('FZ1 = ' + fz.luc.giaTri[2].toFixed(2) + ' kN'));
+  // nội lực cọc: tên cọc, giá trị đầu cọc của từng cọc, nhãn nằm trong cột của cọc (ước bề rộng chữ 0,56·cỡ)
+  const P = get('etabsBao_min_P');
+  L.kE.coc.forEach((c) => {
+    assert.ok(P.includes('>' + c.ten + '<'));
+    const dau = c.tp.slice().sort((a, b) => b.z - a.z)[0].P[0];
+    assert.ok(P.includes('>' + (Math.abs(dau) >= 100 ? dau.toFixed(0) : dau.toFixed(1)) + '<'), 'thiếu P đầu cọc ' + c.ten);
+  });
+  for (const k of khoa.filter((x) => x.startsWith('etabsBao_'))) {
+    for (const r of get(k).matchAll(/<text x="([\d.-]+)" y="[\d.-]+" [^>]*font-size="([\d.]+)"[^>]*paint-order="stroke">([^<]*)</g)) {
+      const x = Number(r[1]), co = Number(r[2]), w = r[3].length * co * 0.56;
+      assert.ok(x >= 0 && x + w <= 120 + 1e-6, k + ': nhãn ' + r[3] + ' tràn khỏi hình');
+    }
+  }
+  // mômen / lực cắt đài: đúng giá trị lớn nhất bao
+  const M11 = Math.max(...L.kE.dai.nutBao.map((n) => n.M11[1]));
+  assert.ok(get('etabsMomenDai').includes('lớn nhất ' + M11.toFixed(1)));
+  assert.ok(get('dam_DG1').includes('NỘI LỰC DẦM DG1'));
+});
+
+test('Thuyết minh ETABS: hình app tự vẽ được chèn vào mọi ô dán hình ETABS (3D, tải, bảng 4.1/4.2, chuyển vị, đài, dầm)', async () => {
+  const L = soLieuEtabs([{ tuCoc: 1, denCoc: 2 }]);
+  const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64'));
+  const ds = MCT.bieuDoEtabs.hinhThuyetMinh({ m: L.m, t: L.t, kE: L.kE });
+  const hinh = {};
+  ds.forEach((d) => { hinh[d[0]] = { data: png, w: d[2], h: d[3] }; });
+  const soHinh = (xml) => (xml.match(/<a:blip r:embed=/g) || []).length;
+  const xml0 = docTrongZip(await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(L.s, L.tatCa)), 'word/document.xml');
+  const xml = docTrongZip(await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(L.s, L.tatCa, hinh)), 'word/document.xml');
+  const chu0 = chuCua(xml0), chu = chuCua(xml);
+  assert.equal(soHinh(xml) - soHinh(xml0), ds.length, 'mỗi hình ETABS chèn đúng một lần');
+  assert.ok(chu0.includes('Dán hình chụp từ ETABS'));
+  assert.ok(!chu.includes('Dán hình chụp từ ETABS'), 'còn ô dán hình ETABS');
+  // bảng 4.1, 4.2 không còn ô "Dán hình"; các ô ảnh khảo sát / mặt bằng (không lấy được từ ETABS) vẫn giữ
+  const bang41 = chu.slice(chu.indexOf('Bảng 4.1'), chu.indexOf('Bảng 4.3'));
+  assert.ok(!bang41.includes('Dán hình'));
+  assert.ok(chuCua(xml0).slice(chu0.indexOf('Bảng 4.1'), chu0.indexOf('Bảng 4.3')).includes('Dán hình'));
+  ['Hình 2.2 Mặt bằng hố khoan', 'Mặt bằng vị trí các hố khoan'].forEach((t) => assert.ok(chu.includes(t)));
+  ['Hình 3.1 Mô hình móng cẩu tháp', 'Hình 3.3 Lực Fx1, Fy1, Fz1', 'Hình 3.6 Lực Mx2, My2', 'Hình 6.2 Chuyển vị ngang, góc xoay đầu cọc',
+    'Hình 6.3 Mômen đài móng (kNm/m)', 'Hình 6.4 Lực cắt đài móng (kN/m)', 'Hình 6.5 Biểu đồ bao nội lực dầm DG1 (ETABS)'].forEach((t) => assert.ok(chu.includes(t), 'thiếu chú thích ' + t));
   assert.equal((xml.match(/<\/w:tbl><w:tbl>/g) || []).length, 0, 'hai bảng liền nhau');
 });
 

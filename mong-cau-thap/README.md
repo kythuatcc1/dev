@@ -22,7 +22,8 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | GĐ8 | Thuyết minh toàn bộ: Phần 1 SCT cọc, Phần 2 A → F, Phần 3 tải ngang, Phần 4 tương tác, Phần 5 ổn định – lún (kèm biểu đồ) | ✔ |
 | GĐ9 | Đóng gói chương trình Windows (.exe) bằng Electron | ✔ |
 | GĐ11 | Thêm cẩu tháp ngoài catalogue (trang "Thêm cẩu tháp") – xem mục dưới | ✔ |
-| GĐ10 | Tính bằng ETABS v22/v23 (xem [docs/02-etabs.md](docs/02-etabs.md)): bước 1 kết nối ✔, bước 2 dựng mô hình ✔, bước 3 tải trọng & tổ hợp ✔, bước 4 phân tích & nội lực, bước 5 chọn phương pháp, bước 6 thuyết minh ETABS | đang làm |
+| GĐ10 | Tính bằng ETABS v22/v23 (xem [docs/02-etabs.md](docs/02-etabs.md)): bước 1 kết nối ✔, bước 2 dựng mô hình ✔, bước 3 tải trọng & tổ hợp ✔, bước 4 phân tích & nội lực, bước 5 chọn phương pháp, bước 6 thuyết minh ETABS (hình nội lực app tự vẽ), bước 7 cập nhật mô hình tại chỗ | đang làm (chờ chạy thử bước 4, 7 trên ETABS thật) |
+| GĐ12 | Dầm giằng cọc: kích thước, cao độ, thép tuỳ chỉnh; mô hình ETABS; kiểm tra uốn, kéo, nén, cắt, thép theo TCVN 5574:2018 | ✔ (thử với ETABS giả lập) |
 
 ## Danh sách cẩu tháp
 Ô chọn cẩu ở trang A.1 chia ba nhóm:
@@ -59,6 +60,7 @@ js/calc/                 phần tính toán, mỗi file ứng với một mục 
 js/app.js                điều khiển giao diện
 tests/                   test đối chiếu với giá trị Excel (excel-tham-chieu.json)
 js/bieu-do.js            biểu đồ SVG dùng chung (SPT, M/Q/σz, tương tác) – giao diện và thuyết minh
+js/bieu-do-etabs.js      hình vẽ từ kết quả ETABS cho thuyết minh (mô hình 3D, tải, nội lực cọc / đài / dầm, chuyển vị)
 js/bao-cao/              tạo thuyết minh Word (.docx)
 vendor/                  thư viện docx 9.15.3 (MIT) – tạo file Word ngay trong trình duyệt, không cần mạng
 tools/                   script trích dữ liệu từ file Excel
@@ -89,6 +91,8 @@ Ghi chú:
 Bấm **Xuất thuyết minh** ở góc trên. File .docx trình bày theo thuyết minh mẫu
 `260917_MD3-1_THUYET_MINH_MCT_VN.pdf`. Khi mở trong Word, chọn **Yes** khi được hỏi
 cập nhật trường dữ liệu để điền mục lục. Hình mặt bằng và catalogue cẩu để ô trống để dán hình.
+Phương pháp ETABS: các hình nội lực (mô hình 3D, tải tại tâm đài, Bảng 4.1/4.2, chuyển vị, mômen / lực cắt đài, dầm giằng)
+được app vẽ từ kết quả ETABS và chèn sẵn.
 
 Nội dung thuyết minh: chương I (giới thiệu, cơ sở, tiêu chuẩn), Phần 1 sức chịu tải cọc
 (địa chất + biểu đồ SPT, vật liệu, SPT, Qa/Qa' thiết kế), Phần 2 móng cẩu tháp mục A → F,

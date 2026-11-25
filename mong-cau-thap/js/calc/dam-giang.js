@@ -111,7 +111,7 @@
       beTong: d.beTong, cotThep: d.cotThep, cotThepDai: d.cotThepDai || d.cotThep,
       Rb: Rb, Rbt: Rbt, Rs: Rs, Rsc: Rsc, Rsw: Rsw, Es: Es,
       thep: { tren: tren, duoi: duoi, hong: hong, AsNgang: AsNgang, AsTot: AsTot, muy: AsTot / (b * h * 1e6) * 100, dai: { d: dai.d, s: sw, nhanh: dai.n } },
-      bao: B, M3duong: M3duong, M3am: M3am, M2: M2, V2: V2, V3: V3, T: T,
+      bao: B, tram: r.tram, M3duong: M3duong, M3am: M3am, M2: M2, V2: V2, V3: V3, T: T,
       uon: uon, keo: keo, nen: nen, cat: cat,
       tiSo: tiSo, ok: dsKT.every(function (k) { return k.ok; })
     };

@@ -338,7 +338,7 @@
       return { V: dl.gt, viTri: dl.viTri, b: dl.b, toHop: dl.toHop, Qb: Qb, ok: dl.gt <= Qb };
     }
     var dai = {
-      h0: h0, a: a, Rb: Rb, Rbt: Rbt, Rs: Rs,
+      h0: h0, a: a, Rb: Rb, Rbt: Rbt, Rs: Rs, nutBao: tt.dai.nutBao || [],
       X: Object.assign(datX, { duoi: lop(datX.Mduong, 'duoiX', 'Lớp dưới theo X'), tren: lop(datX.Mam, 'trenX', 'Lớp trên theo X'), catKT: cat(datX.Vmax) }),
       Y: Object.assign(datY, { duoi: lop(datY.Mduong, 'duoiY', 'Lớp dưới theo Y'), tren: lop(datY.Mam, 'trenY', 'Lớp trên theo Y'), catKT: cat(datY.Vmax) })
     };

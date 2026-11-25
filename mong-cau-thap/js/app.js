@@ -2711,6 +2711,8 @@
       ds.push(['etabsP', BD.noiLuc(bang, 'P', 'AXIAL FORCE – ' + c0.ten, 'P (kN)', '#1f4e79', { w: 250, h: 380 }), 250, 380]);
       ds.push(['etabsM', BD.noiLuc(bang, 'M', 'BENDING MOMENT – ' + c0.ten, 'M (kNm)', '#c0504d', { w: 250, h: 380 }), 250, 380]);
       ds.push(['etabsV', BD.noiLuc(bang, 'V', 'SHEAR FORCE – ' + c0.ten, 'V (kN)', '#2a9bb8', { w: 250, h: 380 }), 250, 380]);
+      // Hình nội lực vẽ từ kết quả ETABS (thay các ô dán hình chụp trong thuyết minh)
+      if (MCT.bieuDoEtabs) ds = ds.concat(MCT.bieuDoEtabs.hinhThuyetMinh(E));
       if (tatCa.TT && tatCa.TT.hopLe) {
         ds.push(['etabsTuongTac', BD.tuongTac(Object.assign({}, tatCa.TT, { diemNoiLuc: E.kE.diemTuongTac, chamNho: true,
           diemDanhDau: E.kE.cocKiemTra.nguyHiem, motPhia: true, tieuDe: 'BIỂU ĐỒ TƯƠNG TÁC CỌC CẨU THÁP ' + state.duAn.tenMong }), { w: 560, h: 480 }), 560, 480]);
