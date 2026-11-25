@@ -42,6 +42,10 @@
     };
   }
 
+  // Phiên bản cách tóm tắt kết quả (đổi khi cách lấy nội lực thay đổi; kết quả lưu theo phiên bản khác phải chạy lại phân tích)
+  //   2: bỏ đoạn cọc nằm trong đài khỏi nội lực cọc
+  var PHIEN_BAN = 2;
+
   function thepCanThiet(M, b, h0, Rb, Rs) {
     var Mabs = Math.abs(M), am = Mabs / (Rb * 1000 * b * h0 * h0);
     var duTietDien = am < 0.5;
@@ -74,6 +78,8 @@
     var coc = raw.coc.map(function (c) {
       var tram = {}, dauNen = null, dauKeo = null, Mmax = null, Vmax = null, capNM = [];
       c.dong.forEach(function (r) {
+        // bỏ đoạn cọc nằm trong đài (thanh cứng từ giữa đài tới đáy đài): kiểm tra cọc từ đáy đài trở xuống
+        if (r[0] > zDau + 1e-3) return;
         var z = r[0], ci = r[1], P = r[2], V = Math.sqrt(r[3] * r[3] + r[4] * r[4]), M = Math.sqrt(r[6] * r[6] + r[7] * r[7]);
         var kz = z.toFixed(3);
         var b = tram[kz] || (tram[kz] = { z: z, Pmin: Infinity, Pmax: -Infinity, M: 0, V: 0 });
@@ -138,7 +144,7 @@
       return cat.sort(function (a, b) { return a.viTri - b.viTri; });
     }
     return {
-      hopLe: true, loi: [],
+      hopLe: true, loi: [], phienBan: PHIEN_BAN,
       toHop: raw.toHop.slice(),
       thongSo: { zDay: zDau, X: m.thongSo.X, Y: m.thongSo.Y, H: m.thongSo.H, soCoc: m.coc.length },
       coc: coc,
@@ -150,6 +156,7 @@
   /** Giai đoạn 2 – kiểm tra theo thông số hiện tại (Qa, biểu đồ tương tác, giới hạn chuyển vị, thép chọn…). */
   function kiemTraEtabs(tt, s, kq) {
     if (!tt || !tt.hopLe) return { hopLe: false, loi: (tt && tt.loi) || ['Chưa có kết quả phân tích ETABS.'] };
+    if (tt.phienBan !== PHIEN_BAN) return { hopLe: false, loi: ['Kết quả ETABS đang lưu được tóm tắt theo cách cũ của app – chạy lại phân tích ở trang Kết quả ETABS.'] };
     var A = kq.A, TT = kq.TT, TN = kq.TN;
     if (!A || !A.hopLe || !kq.B || !kq.B.hopLe) return { hopLe: false, loi: ['Mục A, B chưa hợp lệ.'] };
     var Mgh = TT && TT.hopLe ? taoMgh(TT) : null;

@@ -59,11 +59,13 @@ test('Cọc: lực đầu cọc, bao theo chiều sâu, so với Qa', () => {
   assert.equal(r.cocKiemTra.Pnen.toHop, gui.toHop[n]);
   assert.equal(r.cocKiemTra.Pkeo, null, 'không có cọc kéo');
   assert.equal(r.cocKiemTra.okNen, 1772 <= kq.B.Qa);
-  // bao theo chiều sâu cọc C1: trạm đầu tiên ở giữa đài, cuối cùng ở mũi
+  // bao theo chiều sâu cọc C1: bỏ đoạn cọc trong đài – trạm đầu tiên ở đáy đài (−2,6), cuối cùng ở mũi
   const doc = r.coc[0].doc;
-  gan(doc[0].z, -1.8); gan(doc[doc.length - 1].z, -34.6);
-  // M lớn nhất: √(M2² + M3²), M2 = 100 + 2j − k lớn nhất ở k = 1, j = 47
+  gan(doc[0].z, -2.6); gan(doc[doc.length - 1].z, -34.6);
+  assert.ok(r.coc.every((c) => c.doc.every((d) => d.z <= -2.6 + 1e-9)), 'không còn trạm trong đài');
+  // M lớn nhất: √(M2² + M3²), M2 = 100 + 2j − k lớn nhất ở k = 1 (đầu dưới thanh trong đài = đáy đài), j = 47
   gan(r.cocKiemTra.Mmax.gt, Math.hypot(100 + 2 * n - 1, n), 'Mmax');
+  gan(r.cocKiemTra.Mmax.z, -2.6, 'Mmax tại đáy đài');
   gan(r.cocKiemTra.Vmax.gt, 10 + n, 'Vmax');
   assert.ok(r.diemTuongTac.length > 0);
   assert.ok(r.cocKiemTra.tuongTac && r.cocKiemTra.tuongTac.tiSo > 0);
@@ -128,4 +130,14 @@ test('Kết luận theo phương pháp ETABS: B, D theo ETABS, thêm kiểm tra 
   assert.equal(F.ok, false);
   assert.equal(F.ketLuanGiaiTich, kq.F.ketLuan);
   assert.equal(MCT.calc.ketLuanEtabs(kq.F, null).hopLe, false, 'chưa có kết quả ETABS');
+});
+
+test('Kết quả lưu theo cách tóm tắt cũ (chưa bỏ đoạn cọc trong đài): yêu cầu chạy lại phân tích', () => {
+  const tt = MCT.calc.tomTatEtabs(raw, m, t);
+  const cu = Object.assign({}, tt);
+  delete cu.phienBan;
+  const kq2 = MCT.calc.kiemTraEtabs(cu, s, kq);
+  assert.equal(kq2.hopLe, false);
+  assert.match(kq2.loi[0], /chạy lại phân tích/);
+  assert.equal(MCT.calc.kiemTraEtabs(tt, s, kq).hopLe, true);
 });

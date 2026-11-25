@@ -1463,6 +1463,11 @@
 
   // Mặt bằng đài trong mô hình ETABS: lưới tấm, cọc, điểm đặt tải ở tâm đài
   function svgMatBangEtabs(m) {
+    return '<div class="bieu-do-svg">' + svgMatBangEtabsChi(m) + '</div>' +
+      '<p class="hint">Lưới tấm đài (xám), cọc (xanh), điểm đặt tải cẩu tại tâm đài trên tấm vỏ (đỏ) – như file PDF.</p>';
+  }
+
+  function svgMatBangEtabsChi(m) {
     var t = m.thongSo, W = 560, Hh = 420, le = 46;
     var sc = Math.min((W - 2 * le) / t.X, (Hh - 2 * le) / t.Y);
     function px(x) { return le + (x + t.X / 2) * sc + ((W - 2 * le) - t.X * sc) / 2; }
@@ -1480,9 +1485,8 @@
       '<text x="' + f(px(0) + 10) + '" y="' + f(py(0) - 8) + '" font-size="12" fill="#c0504d">Điểm đặt tải (tâm đài)</text>');
     g.push('<text x="' + f(px(0)) + '" y="' + f(py(t.Y / 2) - 10) + '" text-anchor="middle" font-size="12" fill="#333">X = ' + so(t.X, 3) + ' m</text>');
     g.push('<text x="' + f(px(t.X / 2) + 10) + '" y="' + f(py(0)) + '" font-size="12" fill="#333" transform="rotate(90 ' + f(px(t.X / 2) + 10) + ' ' + f(py(0)) + ')" text-anchor="middle">Y = ' + so(t.Y, 3) + ' m</text>');
-    return '<div class="bieu-do-svg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="Mặt bằng đài trong mô hình ETABS">' +
-      '<rect width="' + W + '" height="' + Hh + '" fill="#fff"/>' + g.join('') + '</svg></div>' +
-      '<p class="hint">Lưới tấm đài (xám), cọc (xanh), điểm đặt tải cẩu tại tâm đài trên tấm vỏ (đỏ) – như file PDF.</p>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + Hh + '" viewBox="0 0 ' + W + ' ' + Hh + '" font-family="Arial, Helvetica, sans-serif" role="img" aria-label="Mặt bằng đài trong mô hình ETABS">' +
+      '<rect width="' + W + '" height="' + Hh + '" fill="#fff"/>' + g.join('') + '</svg>';
   }
 
   function nutDungMoHinh() {
@@ -1656,7 +1660,8 @@
     var r = ketQuaEtabsHienTai();
     var dau = '<section class="card khung-etabs"><h2>Đang dùng phương pháp ETABS</h2>';
     if (!r || !r.hopLe) {
-      return dau + '<p>Chưa có kết quả ETABS. Vào <button type="button" class="link" data-trang="etabs-ket-qua">Kết quả ETABS</button> để chạy phân tích, ' +
+      return dau + '<p>' + (r && r.loi && r.loi.length ? esc(r.loi[0]) : 'Chưa có kết quả ETABS.') +
+        ' Vào <button type="button" class="link" data-trang="etabs-ket-qua">Kết quả ETABS</button> để chạy phân tích, ' +
         'hoặc chọn lại phương pháp Giải tích ở trang Kết luận.</p></section>';
     }
     var ck = r.cocKiemTra, cv = r.chuyenVi, d = r.dai, noiDung = '';
@@ -2081,7 +2086,7 @@
     });
   }
 
-  function taoHinhThuyetMinh() {
+  function taoHinhThuyetMinh(E) {
     var ds = [];
     var BD = MCT.bieuDo;
     if (tatCa.DC && tatCa.DC.hopLe) ds.push(['spt', BD.spt(tatCa.DC, { w: 360, h: 520 }), 360, 520]);
@@ -2091,6 +2096,18 @@
       ds.push(['sigma', BD.noiLuc(tatCa.TN.bang, 'sigma', 'HORIZONTAL PRESSURE ALONG PILE SHAFT', 'σz (kN/m2)', '#2f6db5', { w: 340, h: 400 }), 340, 400]);
     }
     if (tatCa.TT && tatCa.TT.hopLe) ds.push(['tuongTac', BD.tuongTac(tatCa.TT, { w: 480, h: 440 }), 480, 440]);
+    if (E) {   // phương pháp ETABS: mặt bằng mô hình, bao nội lực cọc chính, các cặp N–M
+      ds.push(['etabsMatBang', svgMatBangEtabsChi(E.m), 560, 420]);
+      var ck = E.kE.cocKiemTra;
+      var c0 = E.kE.coc.filter(function (c) { return ck.Mmax && c.ten === ck.Mmax.coc; })[0] || E.kE.coc[0];
+      var bang = c0.doc.map(function (x) { return { z: x.z, P: -x.Pmin, M: x.M, V: x.V }; });
+      ds.push(['etabsP', BD.noiLuc(bang, 'P', 'AXIAL FORCE – ' + c0.ten, 'P (kN)', '#1f4e79', { w: 250, h: 380 }), 250, 380]);
+      ds.push(['etabsM', BD.noiLuc(bang, 'M', 'BENDING MOMENT – ' + c0.ten, 'M (kNm)', '#c0504d', { w: 250, h: 380 }), 250, 380]);
+      ds.push(['etabsV', BD.noiLuc(bang, 'V', 'SHEAR FORCE – ' + c0.ten, 'V (kN)', '#2a9bb8', { w: 250, h: 380 }), 250, 380]);
+      if (tatCa.TT && tatCa.TT.hopLe) {
+        ds.push(['etabsTuongTac', BD.tuongTac(Object.assign({}, tatCa.TT, { diemNoiLuc: E.kE.diemTuongTac, chamNho: true }), { w: 480, h: 440 }), 480, 440]);
+      }
+    }
     return Promise.all(ds.map(function (d) { return svgSangPng(d[1], d[2], d[3]); })).then(function (anh) {
       var hinh = {};
       ds.forEach(function (d, i) { if (anh[i]) hinh[d[0]] = anh[i]; });
@@ -2103,17 +2120,36 @@
       datTrangThai('Chưa xuất được: mục A còn lỗi.');
       return;
     }
+    // Phương pháp ETABS: gắn mô hình, tải trọng, kết quả kiểm tra, kết luận vào số liệu thuyết minh
+    var E = null;
+    if (laEtabs()) {
+      var kE = ketQuaEtabsHienTai();
+      if (!kE || !kE.hopLe) {
+        datTrangThai('Chưa xuất được: đang chọn phương pháp ETABS nhưng ' +
+          (kE && kE.loi && kE.loi.length ? kE.loi[0].replace(/\.$/, '') : 'chưa có kết quả ETABS – chạy phân tích ở trang Kết quả ETABS') +
+          ' (hoặc chọn phương pháp Giải tích).');
+        return;
+      }
+      if (!etabsConKhop() && !window.confirm('Kết quả ETABS đang lưu được tính với thông số khác thông số hiện tại.\n' +
+        'Nên dựng lại mô hình và chạy phân tích trước khi xuất. Vẫn xuất thuyết minh với kết quả cũ?')) {
+        datTrangThai('Đã huỷ xuất thuyết minh.');
+        return;
+      }
+      var mE = moHinhEtabs();
+      E = { m: mE, t: taiTrongEtabs(mE), kE: kE, F: ketLuanHienTai(), thoiDiem: etabsLuu.thoiDiem, file: etabsLuu.file };
+    }
+    var soLieu = E ? Object.assign({}, tatCa, { etabs: E }) : tatCa;
     datTrangThai('Đang tạo thuyết minh…');
     napThuVienDocx().then(function () {
-      return taoHinhThuyetMinh();
+      return taoHinhThuyetMinh(E);
     }).then(function (hinh) {
-      var doc = MCT.baoCao.taoThuyetMinh(state, tatCa, hinh);
+      var doc = MCT.baoCao.taoThuyetMinh(state, soLieu, hinh);
       return globalThis.docx.Packer.toBlob(doc);
     }).then(function (blob) {
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = MCT.baoCao.tenFile(state, tatCa);
+      a.download = MCT.baoCao.tenFile(state, soLieu);
       document.body.appendChild(a);
       a.click();
       a.remove();

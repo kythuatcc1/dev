@@ -67,7 +67,7 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 | 3 | Tải trọng & tổ hợp (trang "Tải trọng & tổ hợp", gán cùng lệnh `dung-mo-hinh`) | ✔ Chạy trên máy thật (12 load pattern, 49 tổ hợp) |
 | 4 | Chạy phân tích, lấy nội lực (lệnh `phan-tich`, trang "Kết quả ETABS", `js/calc/etabs-ket-qua.js`) | Đã làm (thử với ETABS giả lập) – chờ chạy thử trên máy thật |
 | 5 | Chọn phương pháp (Giải tích / ETABS) cho kết luận; B, D, tải ngang, tương tác dùng nội lực ETABS | Đã làm |
-| 6 | Thuyết minh form CC1 cho phương pháp ETABS | Chờ |
+| 6 | Thuyết minh form CC1 cho phương pháp ETABS (nội dung các mục kiểm tra trình bày như PDF tham khảo) | Đã làm |
 | 7 | Tự cập nhật: đổi thông số → dựng lại, chạy lại, lấy kết quả | Chờ |
 
 ## Bước 2 – mô hình app tự dựng (`js/calc/etabs-mo-hinh.js`)
@@ -103,7 +103,8 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
   `Analyze.RunAnalysis` → chọn các tổ hợp tuyến tính (`Results.Setup`) → `Results.FrameForce` từng đoạn cọc
   (cao độ trạm tính từ 2 đầu đoạn `FrameObj.GetPoints`), `Results.JointDispl` tại tâm đài và đầu cọc,
   `Results.AreaForceShell` từng ô vỏ (trung bình tại nút; điểm ETABS tự chia lưới lấy toạ độ bằng `PointElm.GetCoordCartesian`).
-- **App:** bao P, M = √(M2² + M3²), V = √(V2² + V3²) theo chiều sâu; lực đầu cọc (đáy đài) so với Qa, Qa' (như mục B);
+- **App:** bao P, M = √(M2² + M3²), V = √(V2² + V3²) theo chiều sâu, từ đáy đài tới mũi cọc (bỏ đoạn cọc nằm trong đài –
+  thanh cứng; bản tóm tắt có `phienBan` = 2, kết quả lưu theo cách cũ phải chạy lại phân tích); lực đầu cọc (đáy đài) so với Qa, Qa' (như mục B);
   mọi cặp (N = −P, M) so với biểu đồ tương tác của form CC1; V lớn nhất so với [Q] của phần tải ngang;
   Δ = √(U1² + U2²), ψ = √(R1² + R2²) so với giới hạn phần tải ngang;
   đài: mômen/lực cắt mặt cắt = ∫M11 dy, ∫V13 dy trên mỗi đường lưới x = const (thép theo X) và ∫M22 dx, ∫V23 dx
@@ -120,6 +121,28 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 - Phương pháp ETABS (`ketLuanEtabs`): mục B (nén/kéo đầu cọc) và D (4 lớp thép đài) lấy theo ETABS; thêm cọc chịu cắt,
   tương tác N–M, chuyển vị, góc xoay, đài chịu cắt; giữ C (xuyên thủng) và E (bulong). Các trang B, D, tải ngang, tương tác
   hiện khung "Đang dùng phương pháp ETABS", dấu ✓/✗ ở danh mục theo ETABS.
+
+## Bước 6 – thuyết minh Word theo phương pháp ETABS (`js/bao-cao/thuyet-minh.js`)
+Chọn phương pháp ETABS rồi bấm "Xuất thuyết minh": giữ nguyên khung form CC1 (trang bìa, chương I, Phần 1 – 5, đầu trang),
+chỉ thay nội dung các đầu mục kiểm tra bằng nội lực ETABS, trình bày như phụ lục của PDF tham khảo (MD3-1):
+
+| Vị trí trong form CC1 | Nội dung khi chọn ETABS |
+|---|---|
+| Chương I | Phần mềm áp dụng thêm ETABS |
+| Phần 1 | Giữ nguyên (sức chịu tải cọc) |
+| Phần 2 – A | Giữ A.1 – A.4; thêm **A.5 Mô hình tính toán** (mô tả, Hình A.1 mặt bằng đài trong mô hình, Bảng A.1 độ cứng lò xo), **A.6 Tải trọng và tổ hợp** (Bảng A.2 load pattern, 4 bảng tổ hợp LV/KLV × nén/kéo như PDF mục 2.3, BAO), **A.7 Kết quả nội lực cọc** (Bảng A.3, Hình A.2 bao P – M – V cọc có M lớn nhất) |
+| B | Bảng P<sub>max</sub>/P<sub>min</sub> từng cọc kèm tổ hợp, Q<sub>a</sub>, Q<sub>a</sub>' (như PDF 6.1) + dòng kiểm tra CC1 |
+| C, E | Giữ nguyên (xuyên thủng, bulong – giải tích) |
+| D | Bảng D.1, D.2 mômen → thép phương X/Y (M, mặt cắt, b, h, h<sub>0</sub>, α<sub>m</sub>, ξ, A<sub>s</sub>, chọn, μ); Bảng D.3 đài chịu cắt V ≤ Q<sub>b</sub> (như PDF 6.2) |
+| F | Bảng F.1 tổng hợp kiểm tra (`ketLuanEtabs`) + kết luận |
+| Phần 3 | A – D theo ETABS (thông số, chuyển vị và góc xoay từng nút, biểu đồ bao M, V + [Q]); E – F (áp lực ngang, ổn định đất) giữ giải tích |
+| Phần 4 | A, B giữ; C: cặp N – M bất lợi nhất + biểu đồ tương tác với mọi điểm nội lực ETABS |
+| Phần 5 | Giữ nguyên |
+
+- Tên file thêm đuôi `_ETABS`. Chưa có kết quả ETABS (hoặc kết quả lưu theo cách cũ) → báo lỗi, không xuất nhầm bản giải tích;
+  kết quả ETABS không khớp thông số hiện tại → hỏi trước khi xuất.
+- Hình (mặt bằng mô hình, bao P – M – V, tương tác) vẽ SVG trong app rồi chuyển PNG như các hình khác của thuyết minh.
+- Test: `tests/bao-cao-etabs.test.js` (kết quả ETABS giả lập cùng quy luật với cầu nối giả lập).
 
 ## Chạy thử bước 1
 1. Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới (đợi mô hình hiện ra).

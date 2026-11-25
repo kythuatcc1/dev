@@ -6,7 +6,9 @@
 //   CHƯƠNG I. TỔNG QUAN (cơ sở tính toán, tiêu chuẩn, thông số cẩu tháp)
 //   CHƯƠNG II. TÍNH TOÁN MÓNG CẨU THÁP
 //     PHẦN 1. Sức chịu tải cọc (tạm: giá trị thiết kế nhập tay – GĐ4 bổ sung chi tiết)
-//     PHẦN 2. Tính toán móng cẩu tháp: A (GĐ3.1) → B…F (GĐ3.2)
+//     PHẦN 2. Tính toán móng cẩu tháp: A → F;  PHẦN 3 tải ngang; PHẦN 4 tương tác; PHẦN 5 ổn định – lún
+//   Phương pháp ETABS (s.tinhToan.phuongPhap = 'etabs', kq.etabs): giữ khung trên, thêm A.5 – A.7 (mô hình, tổ hợp, nội lực)
+//   và thay nội dung B, D, F, Phần 3 (A – D), Phần 4 (C) theo nội lực ETABS – trình bày như phụ lục của file PDF tham khảo.
 (function (MCT) {
   'use strict';
 
@@ -367,7 +369,9 @@
     out.push(doan('Tiêu chuẩn tham khảo:'));
     out = out.concat(gachDau(s.baoCao.tieuChuan));
     out.push(doan('Phần mềm áp dụng:'));
-    out = out.concat(gachDau(s.baoCao.phanMem));
+    var phanMem = s.baoCao.phanMem || '';
+    if (etabsCua(s, kq) && !/etabs/i.test(phanMem)) phanMem += '\nETABS (Computers and Structures, Inc.) – phân tích mô hình móng cọc cẩu tháp.';
+    out = out.concat(gachDau(phanMem));
 
     out.push(phan('PHẦN 3. THÔNG SỐ CẨU THÁP'));
     out.push(doan(s.baoCao.ghiChuGio || '', { italics: true }));
@@ -656,6 +660,12 @@
       { nhan: '', ky: 'a=', gt: g(r.aDai), dv: 'mm', nhap: true }, { nhan: '', ky: 'R_{sw}=', gt: g(r.Rsw), dv: 'MPa' },
       { nhan: 'Khả năng chịu cắt của bê tông và thép:', ky: '[Q]=', gt: f(r.Qgh, 2), dv: 'kN', kl: okKl(r.okQ) }
     ]));
+    return out.concat(phan3OnDinh(r, hinh));
+  }
+
+  // Phần 3, mục E – F: áp lực ngang và ổn định đất nền quanh cọc (giải tích, dùng cho cả hai phương pháp)
+  function phan3OnDinh(r, hinh) {
+    var out = [];
     out.push(muc('E. ÁP LỰC NGANG DỌC THEO THÂN CỌC'));
     out = out.concat(hinhAnh(hinh.sigma, 300, 'Biểu đồ áp lực ngang dọc thân cọc'));
     out.push(bangThongSo([
@@ -684,7 +694,7 @@
   }
 
   // ---------------- Chương II – Phần 4: biểu đồ tương tác ----------------
-  function phan4TuongTac(s, kq, hinh) {
+  function phan4TuongTac(s, kq, hinh, E) {
     var x = D();
     var r = kq.TT;
     var out = [phan('PHẦN 4. TÍNH TOÁN BIỂU ĐỒ TƯƠNG TÁC CỌC', true)];
@@ -709,6 +719,7 @@
       { nhan: 'Hệ số điều kiện làm việc của bê tông:', ky: 'γ_{cb}=', gt: f(r.gammaCb, 2) },
       { nhan: 'Hệ số kể đến phương pháp thi công:', ky: "γ'_{cb}=", gt: f(r.gammaCb2, 2) }
     ]));
+    if (E) return out.concat(phan4NoiLucEtabs(E, hinh));
     out.push(muc('C. NGOẠI LỰC TÁC DỤNG VÀO CỌC'));
     out.push(bangDayDu(['', 'Đơn vị', 'Nén (P_{max})', 'Kéo (P_{min})'], [
       ['Moment', 'M (kNm)', f(r.diemNoiLuc[0].M, 2), f(r.diemNoiLuc[1].M, 2)],
@@ -1147,6 +1158,289 @@
     return out;
   }
 
+  // =============== PHƯƠNG PHÁP ETABS ===============
+  // Giữ khung form CC1; nội dung các đầu mục kiểm tra trình bày theo phụ lục tính toán của file PDF tham khảo
+  // "260917_MD3_1_BCTT mong cau thap FULL": mô hình (mục 3), tổ hợp (2.3), kết quả nội lực (4), kiểm tra cọc (6.1),
+  // kiểm tra đài (6.2), kiểm tra P–M. kq.etabs = { m, t, kE, F } do app gắn khi chọn phương pháp ETABS.
+  function etabsCua(s, kq) {
+    return s.tinhToan && s.tinhToan.phuongPhap === 'etabs' && kq.etabs && kq.etabs.kE && kq.etabs.kE.hopLe ? kq.etabs : null;
+  }
+
+  function gach(text) { return p('-\t' + text, { indent: { left: 720, hanging: 360 }, spacing: { after: 60, line: 312 }, align: D().AlignmentType.JUSTIFIED }); }
+
+  // Nhiều ảnh cạnh nhau trên một dòng
+  function hinhNgang(ds, rongPx, goiY, chuThichHinh) {
+    var x = D();
+    var co = ds.filter(function (h) { return h && h.data; });
+    var out = [];
+    if (!co.length) out.push(oHinh(goiY + ' (biểu đồ được chèn khi xuất từ app trong trình duyệt)', 2600));
+    else {
+      var runs = [];
+      co.forEach(function (h, i) {
+        if (i) runs.push(new x.TextRun({ text: '   ' }));
+        runs.push(new x.ImageRun({ type: 'png', data: h.data, transformation: { width: rongPx, height: Math.round(rongPx * h.h / h.w) } }));
+      });
+      out.push(new x.Paragraph({ alignment: x.AlignmentType.CENTER, keepNext: true, spacing: { before: 80, after: 40 }, children: runs }));
+    }
+    if (chuThichHinh) out.push(chuThich(chuThichHinh));
+    return out;
+  }
+
+  function cocChinh(E) {   // cọc có mômen lớn nhất – dùng cho biểu đồ bao
+    var ck = E.kE.cocKiemTra;
+    return E.kE.coc.filter(function (c) { return ck.Mmax && c.ten === ck.Mmax.coc; })[0] || E.kE.coc[0];
+  }
+
+  // Phần 2, mục A.5 – A.7: mô hình, tải trọng & tổ hợp, kết quả nội lực
+  function phan2MucAEtabs(s, kq, hinh, E) {
+    var x = D(), m = E.m, t = E.t, kE = E.kE, ts = m.thongSo;
+    var out = [];
+    out.push(tieuMuc('A.5. Mô hình tính toán (phần mềm ETABS)'));
+    out.push(doan('Sử dụng phần mềm ETABS kết hợp với các thông số đầu vào để kiểm tra khả năng chịu lực của móng cẩu tháp. Mô hình gồm:'));
+    out.push(gach('Đài móng: phần tử tấm vỏ dày (thick shell) kích thước ' + g(ts.X) + ' × ' + g(ts.Y) + ' m, dày H = ' + g(ts.H) +
+      ' m, đặt tại mặt phẳng giữa đài (cao độ ' + f(ts.zGiua, 2) + ' m); lưới chia ' + (ts.nx - 1) + ' × ' + (ts.ny - 1) + ' ô (≤ ' + g(ts.luoi) + ' m).'));
+    out.push(gach('Cọc: ' + ts.soCoc + ' cọc, phần tử thanh tiết diện tròn D = ' + g(ts.D * 1000) + ' mm, chia đoạn ' + g(ts.buocCoc) +
+      ' m từ đáy đài (cao độ ' + f(ts.zDay, 2) + ' m) tới mũi cọc (cao độ ' + f(ts.zMui, 2) + ' m); đoạn cọc nằm trong đài mô hình bằng thanh cứng.'));
+    out.push(gach('Đất nền: lò xo ngang tại các nút cọc, độ cứng K = k·z·b_{p}·l (TCVN 10304:2025, phụ lục A); k là hệ số nền tỉ lệ của lớp đất (bảng A.1), ' +
+      'z tính từ ' + (ts.batDauLoXo === 'day-ho' ? 'đáy hố đào' : 'đáy đài') + ' (cao độ ' + f(ts.zBatDau, 2) + ' m), b_{p} = ' + g(ts.bp) + ' m, l là đoạn cọc nút lò xo đảm nhận.'));
+    out.push(gach('Mũi cọc: gối chặn chuyển vị đứng.'));
+    out.push(gach('Tải trọng cẩu tháp đặt tại một điểm ở tâm đài.'));
+    out = out.concat(hinhAnh(hinh.etabsMatBang, 430, 'Mặt bằng mô hình đài', 'Hình A.1 Mặt bằng đài trong mô hình ETABS (lưới tấm vỏ, cọc, điểm đặt tải)'));
+    out.push(bangDayDu(['Cao độ (m)', 'Độ sâu z (m)', 'Lớp đất', 'Hệ số nền tỉ lệ k (kN/m^{4})', 'Đoạn cọc l (m)', 'Độ cứng lò xo K (kN/m)'],
+      m.bangLoXo.map(function (r) { return [f(r.caoDo, 2), f(r.doSau, 2), String(r.lop), f(r.k, 0), f(r.l, 2), f(r.K, 0)]; }),
+      [1500, 1500, 1300, 2000, 1500, 1838], { giuChung: false, fillTieuDe: 'F2F2F2' }));
+    out.push(chuThich('Bảng A.1 Độ cứng lò xo đất ngang tại nút cọc (gán cho cả hai phương X, Y)'));
+
+    out.push(tieuMuc('A.6. Tải trọng và tổ hợp tải trọng'));
+    out.push(doan('Tải trọng cẩu tháp đặt tại tâm đài, tách theo thành phần. Giá trị bằng tải quy đổi ở mục A.2 chia hệ số n = ' + g(t.n) +
+      ' (tổ hợp nhân lại n). Mômen đặt tại tâm đài cộng thêm H × ' + g(t.tayDon) + ' m do tải trọng cẩu tháp đặt tại mặt đài còn điểm đặt tải ở mặt phẳng giữa đài.'));
+    var TP = ['F_{X}', 'F_{Y}', 'F_{Z}', 'M_{X}', 'M_{Y}', 'M_{Z}'];
+    out.push(bangDayDu(['Load pattern', 'Nội dung', 'Thành phần', 'Giá trị'],
+      t.mauTai.map(function (pt) {
+        var k = pt.luc ? pt.luc.giaTri.map(function (v, i) { return v ? i : -1; }).filter(function (i) { return i >= 0; })[0] : -1;
+        return [pt.ten, pt.moTa, pt.luc ? TP[k] : 'Bản thân', pt.luc ? f(pt.luc.giaTri[k], 2) + (k < 3 ? ' kN' : ' kNm') : '× ' + g(pt.banThan)];
+      }), [1500, 4638, 1500, 2000], { canhTrai: [1], fillTieuDe: 'F2F2F2' }));
+    out.push(chuThich('Bảng A.2 Tải trọng tác dụng tại tâm đài (load pattern)'));
+    out.push(nhanNghieng('Trong đó:'));
+    out.push(gach('DEAD – trọng lượng bản thân của đài móng và cọc;'));
+    out.push(gach('FX1, FX2, FY1, FY2 – tải trọng theo phương ngang X và Y, giá trị bằng lực cắt H ở trạng thái làm việc (1) và không làm việc (2) (kN);'));
+    out.push(gach('FZ1, FZ2 – tải trọng theo phương đứng, giá trị bằng lực dọc N ở trạng thái làm việc và không làm việc (kN);'));
+    out.push(gach('MX1, MY1, MX2, MY2 – mômen theo phương X và Y, giá trị bằng mômen M ở trạng thái làm việc và không làm việc (kNm);'));
+    if (t.mauTai.some(function (pt) { return pt.ten === 'MZ1'; })) out.push(gach('MZ1 – mômen xoắn ở trạng thái làm việc (kNm).'));
+    out.push(doan('Tổ hợp theo hướng θ của tải trọng (θ đo từ trục X ngược chiều kim đồng hồ; lực ngang và mômen lật cùng hướng θ): ' +
+      g(t.thongKe.soHuong) + ' hướng gồm 8 hướng mỗi 45° và hướng bất lợi của từng cọc (hướng từ tâm đài tới cọc: cọc nén nhiều nhất; ' +
+      'hướng ngược lại: cọc kéo nhiều nhất). Hệ số: tĩnh tải ' + g(t.heSo.tinhTaiNen) + ' (cọc nén) / ' + g(t.heSo.tinhTaiKeo) +
+      ' (cọc kéo); lực đứng của cẩu ' + g(t.n) + ' (cọc nén) / ' + g(t.heSo.fzKeo) + ' (cọc kéo); lực ngang, mômen nhân n·cosθ, n·sinθ.'));
+    [['lv', 'nen', 'Trường hợp cẩu tháp làm việc – các tổ hợp tính toán cho cọc chịu nén', '1'],
+      ['lv', 'keo', 'Trường hợp cẩu tháp làm việc – các tổ hợp tính toán cho cọc chịu kéo', '1'],
+      ['klv', 'nen', 'Trường hợp cẩu tháp không làm việc – các tổ hợp tính toán cho cọc chịu nén', '2'],
+      ['klv', 'keo', 'Trường hợp cẩu tháp không làm việc – các tổ hợp tính toán cho cọc chịu kéo', '2']].forEach(function (nh) {
+      var ca = ['DEAD', 'FX', 'FY', 'FZ', 'MX', 'MY'].map(function (c) { return c === 'DEAD' ? c : c + nh[3]; });
+      if (nh[0] === 'lv' && t.mauTai.some(function (pt) { return pt.ten === 'MZ1'; })) ca.push('MZ1');
+      var ds = t.toHop.filter(function (c) { return c.trangThai === nh[0] && c.kieu === nh[1]; });
+      var wTen = 2150, wGoc = 1000, wc = Math.floor((RONG - wTen - wGoc) / ca.length);
+      out.push(nhanNghieng(nh[2] + ':'));
+      out.push(bangDayDu(['Tổ hợp', 'θ (°)'].concat(ca), ds.map(function (c) {
+        return [c.ten, f(c.goc, 2)].concat(ca.map(function (k) {
+          var x2 = c.ds.filter(function (d) { return d.ca === k; })[0];
+          return x2 ? f(x2.heSo, 3) : '0';
+        }));
+      }), [wTen, wGoc].concat(new Array(ca.length).fill(wc)), { fillTieuDe: 'F4B183' }));
+    });
+    out.push(p('BAO = ENVELOPE (' + t.toHop.filter(function (c) { return c.loai === 0; }).map(function (c) { return c.ten; }).slice(0, 2).join(', ') +
+      ', …, ' + t.toHop[t.toHop.length - 2].ten + ')', { bold: true, align: x.AlignmentType.CENTER, spacing: { before: 100 } }));
+
+    out.push(tieuMuc('A.7. Kết quả nội lực cọc'));
+    var ck = kE.cocKiemTra;
+    out.push(doan('Nội lực cọc lấy từ kết quả phân tích ETABS, bao mọi tổ hợp, từ đáy đài (cao độ ' + f(ts.zDay, 2) +
+      ' m) tới mũi cọc (đoạn cọc nằm trong đài không xét). Lực dọc: nén dương; mômen M = √(M_{2}^{2} + M_{3}^{2}), lực cắt V = √(V_{2}^{2} + V_{3}^{2}).'));
+    out.push(bangDayDu(['Cọc', 'Nén đầu cọc (kN)', 'Tổ hợp', 'P đầu cọc nhỏ nhất (kN)', 'M_{max} (kNm)', 'tại z (m)', 'V_{max} (kN)', 'tại z (m)'],
+      kE.coc.map(function (c) {
+        return [c.ten, f(c.dauNen.gt, 0), c.dauNen.toHop, f(-c.dauKeo.gt, 0), f(c.Mmax.gt, 1), f(c.Mmax.z, 2), f(c.Vmax.gt, 1), f(c.Vmax.z, 2)];
+      }), [700, 1150, 2200, 1350, 1100, 900, 1100, 1138], { fillTieuDe: 'F2F2F2' }));
+    out.push(chuThich('Bảng A.3 Nội lực cọc từ đáy đài tới mũi cọc (ETABS, bao mọi tổ hợp)'));
+    var c0 = cocChinh(E);
+    out = out.concat(hinhNgang([hinh.etabsP, hinh.etabsM, hinh.etabsV], 200, 'Biểu đồ bao nội lực cọc',
+      'Hình A.2 Bao lực dọc nén, mômen, lực cắt cọc ' + c0.ten + ' theo chiều sâu (mọi tổ hợp)'));
+    return out;
+  }
+
+  // Phần 2, mục B: tải trọng tác dụng lên cọc (bảng như PDF 6.1)
+  function phan2MucBEtabs(s, kq, E) {
+    var x = D(), ck = E.kE.cocKiemTra, B = kq.B;
+    var out = [muc('B. KIỂM TRA TẢI TRỌNG TÁC DỤNG LÊN CỌC')];
+    out.push(bangThongSo([
+      { nhan: 'Số lượng cọc trong đài:', ky: 'n=', gt: String(B.n), dv: 'cọc' },
+      { nhan: 'Sức chịu tải của cọc khi chịu nén:', ky: 'Q_{a}=', gt: f(ck.Qa, 0), dv: 'kN' },
+      { nhan: "Sức chịu tải của cọc khi chịu kéo:", ky: "Q_{a}'=", gt: f(-ck.QaKeo, 0), dv: 'kN' }
+    ]));
+    out.push(p('Lực dọc tại đầu cọc (cao độ đáy đài ' + f(E.m.thongSo.zDay, 2) + ' m) lấy từ kết quả ETABS, bao mọi tổ hợp (mục A.6, A.7). ' +
+      'Quy ước: nén dương, kéo âm.', { indent: { left: 360 }, align: x.AlignmentType.JUSTIFIED }));
+    out.push(bangDayDu(['Cọc', 'P_{max} (kN)', 'Tổ hợp', 'P_{min} (kN)', 'Tổ hợp', 'Q_{a} (kN)', "Q_{a}' (kN)", 'Kiểm tra'],
+      E.kE.coc.map(function (c) {
+        var ok = c.dauNen.gt <= ck.Qa && -c.dauKeo.gt >= -ck.QaKeo;
+        return [c.ten, f(c.dauNen.gt, 0), c.dauNen.toHop, f(-c.dauKeo.gt, 0), c.dauKeo.toHop, f(ck.Qa, 0), f(-ck.QaKeo, 0), okKl(ok)];
+      }), [650, 1000, 2150, 1000, 2150, 950, 950, 788], { fillTieuDe: 'F2F2F2' }));
+    out.push(p('Tải trọng lớn nhất và nhỏ nhất tác dụng lên cọc:', { indent: { left: 360 }, spacing: { before: 120, after: 40 }, keepNext: true }));
+    out.push(dongKiemTra([
+      { ky: 'P_{max}', trai: f(ck.Pnen.gt, 0), dv: 'kN', dau: ck.okNen ? '<' : '>', phai: f(ck.Qa, 0), ok: ck.okNen },
+      { ky: 'P_{min}', trai: f(ck.PminCC1, 0), dv: 'kN', dau: ck.PminCC1 >= -ck.QaKeo ? '>' : '<', phai: f(-ck.QaKeo, 0), ok: ck.PminCC1 >= -ck.QaKeo }
+    ]));
+    return out;
+  }
+
+  // Phần 2, mục D: cốt thép và lực cắt đài (bảng như PDF 6.2, 6.3)
+  function phan2MucDEtabs(s, kq, E) {
+    var x = D(), d = E.kE.dai;
+    var out = [muc('D. TÍNH CỐT THÉP CHO ĐÀI MÓNG')];
+    out.push(p('Mômen, lực cắt trong đài lấy từ kết quả ETABS: tích phân nội lực tấm vỏ (M_{11}, V_{13} theo phương X; M_{22}, V_{23} theo phương Y) ' +
+      'trên mặt cắt suốt bề rộng đài tại mỗi đường lưới, lấy bao mọi tổ hợp. Mômen dương: thớ dưới chịu kéo.', { indent: { left: 360 }, align: x.AlignmentType.JUSTIFIED }));
+    out.push(p('α_{m} = M/(R_{b}·b·h_{0}^{2});   ξ = 1 − √(1 − 2α_{m});   A_{s} = ξ·R_{b}·b·h_{0}/R_{s};   b: bề rộng mặt cắt',
+      { italics: true, size: 22, indent: { left: 360 } }));
+    out.push(bangThongSo([
+      { nhan: 'Bê tông đài móng:', gt: s.dai.beTong, nhap: true },
+      { nhan: 'Cường độ chịu nén tính toán:', ky: 'R_{b}=', gt: g(d.Rb), dv: 'MPa' },
+      { nhan: 'Cường độ chịu kéo tính toán:', ky: 'R_{bt}=', gt: g(d.Rbt), dv: 'MPa' },
+      { nhan: 'Cốt thép đài móng:', gt: s.dai.cotThep, nhap: true },
+      { nhan: 'Cường độ chịu kéo tính toán:', ky: 'R_{s}=', gt: g(d.Rs), dv: 'MPa' },
+      { nhan: 'Chiều cao làm việc (h_{0} = H − a):', ky: 'h_{0}=', gt: f(d.h0 * 1000, 0), dv: 'mm' }
+    ]));
+    function giaTri(l, k) {
+      if (!l.can) return k === 'M' ? '0' : k === 'kt' ? 'OK' : '-';
+      var c = l.can, ch = l.chon;
+      switch (k) {
+        case 'M': return f(l.M, 1);
+        case 'vt': return f(l.viTri, 3);
+        case 'b': return f(c.b * 1000, 0);
+        case 'h': return f(E.m.thongSo.H * 1000, 0);
+        case 'h0': return f(c.h0 * 1000, 0);
+        case 'a': return f(c.alpha, 4);
+        case 'xi': return c.duTietDien ? f(c.xi, 4) : '-';
+        case 'As': return c.duTietDien ? f(c.AsMet, 1) : 'α_{m}>0.5';
+        case 'chon': return ch ? 'Ø' + g(ch.d) + 'a' + g(ch.s) : '-';
+        case 'AsC': return ch ? f(ch.AsMet, 1) : '-';
+        case 'mu': return ch ? f(ch.AsMet / (c.h0 * 1e6) * 100, 3) : '-';
+        case 'kt': return okKl(l.ok);
+      }
+      return '';
+    }
+    var DONG = [['Mômen', 'M', 'kNm'], ['Mặt cắt tại', 'vt', 'm'], ['b', 'b', 'mm'], ['h', 'h', 'mm'], ['h_{0}', 'h0', 'mm'], ['α_{m}', 'a', ''],
+      ['ξ', 'xi', ''], ['A_{s,tt}', 'As', 'mm^{2}/m'], ['Chọn', 'chon', ''], ['A_{s} chọn', 'AsC', 'mm^{2}/m'], ['μ', 'mu', '%'], ['Kiểm tra', 'kt', '']];
+    [['X', d.X], ['Y', d.Y]].forEach(function (h, i) {
+      out.push(nhanNghieng('Thép theo phương ' + h[0] + ' (mặt cắt vuông góc trục ' + h[0] + '):'));
+      out.push(bangDayDu(['Thông số', 'Thép lớp dưới', 'Đơn vị', 'Thép lớp trên', 'Đơn vị'],
+        DONG.map(function (r) { return [r[0], giaTri(h[1].duoi, r[1]), r[2], giaTri(h[1].tren, r[1]), r[2]]; }),
+        [2400, 2100, 1300, 2100, 1300], { fillTieuDe: 'F2F2F2' }));
+      out.push(chuThich('Bảng D.' + (i + 1) + ' Kiểm tra đài chịu uốn phương ' + h[0]));
+    });
+    out.push(nhanNghieng('Kiểm tra đài chịu cắt (bê tông không có cốt đai, Q_{b} = 0,5·R_{bt}·b·h_{0} – TCVN 5574:2018):'));
+    out.push(bangDayDu(['Phương', 'V (kN)', 'Mặt cắt tại (m)', 'b (m)', 'h_{0} (m)', 'Q_{b} (kN)', 'Kiểm tra'],
+      [['X', d.X.catKT], ['Y', d.Y.catKT]].filter(function (h) { return h[1]; }).map(function (h) {
+        var c = h[1];
+        return [h[0], f(c.V, 1), f(c.viTri, 3), f(c.b, 3), f(d.h0, 3), f(c.Qb, 1), okKl(c.ok)];
+      }), [1100, 1400, 1500, 1300, 1300, 1600, 1438], { fillTieuDe: 'F2F2F2' }));
+    out.push(chuThich('Bảng D.3 Kiểm tra đài chịu cắt'));
+    return out;
+  }
+
+  // Phần 2, mục F: kết luận theo phương pháp ETABS
+  function phan2MucFEtabs(s, kq, E) {
+    var x = D(), F = E.F;
+    var out = [muc('F. KẾT LUẬN')];
+    if (!F || !F.hopLe) { out.push(doan('Chưa đủ số liệu để kết luận.')); return out; }
+    function gt(v) {
+      if (!v || v.v === null || v.v === undefined) return '-';
+      return v.k + ' = ' + (typeof v.v === 'number' ? f(v.v, Math.abs(v.v) < 10 ? 3 : 1) : String(v.v)) + ' ' + v.dv;
+    }
+    function mucCua(m2) {   // dòng kiểm tra bổ sung từ ETABS → ghi theo vị trí trình bày trong thuyết minh
+      if (m2.ma !== 'ETABS') return m2.ma;
+      if (/^Đài/.test(m2.ten)) return 'D';
+      if (/Tương tác/.test(m2.ten)) return 'Phần 4';
+      return 'Phần 3';
+    }
+    out.push(bangDayDu(['Mục', 'Kiểm tra', 'Giá trị', '', 'Giới hạn', 'Kết quả'],
+      F.ds.map(function (m2) { return [mucCua(m2), m2.ten, gt(m2.trai), m2.dau, gt(m2.phai), okKl(m2.ok)]; }),
+      [1000, 2300, 2500, 400, 2500, 938], { canhTrai: [1], giuChung: false, fillTieuDe: 'F2F2F2' }));
+    out.push(chuThich('Bảng F.1 Tổng hợp các kiểm tra (mục B, D và kiểm tra ngang theo nội lực ETABS; mục C, E theo giải tích)'));
+    out.push(p(F.ketLuan, { bold: true, color: F.ok ? MAU.ok : MAU.fail, indent: { left: 360 }, spacing: { before: 60 } }));
+    return out;
+  }
+
+  // Phần 3: cọc chịu tải ngang theo ETABS (mục A – D), mục E – F giữ giải tích
+  function phan3TaiNgangEtabs(s, kq, hinh, E) {
+    var x = D(), ck = E.kE.cocKiemTra, cv = E.kE.chuyenVi, TN = kq.TN, ts = E.m.thongSo;
+    var out = [phan('PHẦN 3. KIỂM TRA CỌC CHỊU TẢI NGANG', true)];
+    out.push(doan('Nội lực, chuyển vị cọc lấy từ mô hình ETABS (Phần 2, mục A.5) có lò xo đất ngang tại các nút cọc, bao mọi tổ hợp tải trọng (mục A.6).'));
+    out.push(muc('A. THÔNG SỐ ĐẦU VÀO'));
+    out.push(bangThongSo([
+      { nhan: 'Đường kính cọc:', ky: 'D=', gt: g(ts.D * 1000), dv: 'mm' },
+      { nhan: 'Bề rộng quy ước của cọc:', ky: 'b_{p}=', gt: g(ts.bp), dv: 'm' },
+      { nhan: 'Lò xo đất bắt đầu từ cao độ:', ky: 'z_{0}=', gt: f(ts.zBatDau, 2), dv: 'm' },
+      { nhan: 'Giới hạn chuyển vị đầu cọc:', ky: '[Δ]=', gt: g(cv.gioiHanDelta), dv: 'mm', nhap: true },
+      { nhan: 'Giới hạn góc xoay đầu cọc:', ky: '[ψ]=', gt: g(cv.gioiHanPsi), dv: 'độ', nhap: true }
+    ]));
+    out.push(muc('B. CHUYỂN VỊ NGANG VÀ GÓC XOAY ĐẦU CỌC'));
+    out.push(bangDayDu(['Vị trí', 'Δ (mm)', 'Tổ hợp', 'ψ (độ)', 'Tổ hợp'],
+      cv.nut.map(function (n) {
+        return [n.nhan, n.Delta ? f(n.Delta.gt, 2) : '-', n.Delta ? n.Delta.toHop : '', n.psi ? f(n.psi.gt, 4) : '-', n.psi ? n.psi.toHop : ''];
+      }), [2000, 1300, 2500, 1300, 2538], { fillTieuDe: 'F2F2F2' }));
+    out.push(bangThongSo([
+      { nhan: 'Chuyển vị ngang lớn nhất (Δ = √(U_{X}^{2} + U_{Y}^{2})):', ky: 'Δ=', gt: f(cv.DeltaMax.gt, 2), dv: 'mm', kl: okKl(cv.okDelta), gtDam: true },
+      { nhan: 'Góc xoay lớn nhất (ψ = √(R_{X}^{2} + R_{Y}^{2})):', ky: 'ψ=', gt: f(cv.psiMax.gt, 4), dv: 'độ', kl: okKl(cv.okPsi), gtDam: true }
+    ]));
+    out.push(muc('C. MOMENT DỌC THEO THÂN CỌC'));
+    out = out.concat(hinhAnh(hinh.etabsM, 300, 'Biểu đồ bao mômen dọc thân cọc'));
+    out.push(bangThongSo([
+      { nhan: 'Moment lớn nhất dọc theo thân cọc:', ky: 'M_{max}=', gt: f(ck.Mmax.gt, 2), dv: 'kNm', gtDam: true },
+      { nhan: 'Tại cọc:', ky: '', gt: ck.Mmax.coc, gtRong: true },
+      { nhan: 'Cao độ:', ky: 'z=', gt: f(ck.Mmax.z, 2), dv: 'm' },
+      { nhan: 'Tổ hợp:', ky: '', gt: ck.Mmax.toHop, gtRong: true }
+    ]));
+    out.push(muc('D. LỰC CẮT DỌC THEO THÂN CỌC'));
+    out = out.concat(hinhAnh(hinh.etabsV, 300, 'Biểu đồ bao lực cắt dọc thân cọc'));
+    var dong = [
+      { nhan: 'Lực cắt lớn nhất dọc theo thân cọc:', ky: 'Q_{max}=', gt: f(ck.Vmax.gt, 2), dv: 'kN', gtDam: true },
+      { nhan: 'Tại cọc:', ky: '', gt: ck.Vmax.coc, gtRong: true },
+      { nhan: 'Cao độ:', ky: 'z=', gt: f(ck.Vmax.z, 2), dv: 'm' },
+      { nhan: 'Tổ hợp:', ky: '', gt: ck.Vmax.toHop, gtRong: true }
+    ];
+    if (TN && TN.hopLe) {
+      dong = dong.concat([
+        { nhan: 'Khả năng chịu cắt của bê tông:' },
+        { nhan: 'Q_{min} = φ_{b3}R_{bt}A_{b0}', thut: 720, ky: 'Q_{min}=', gt: f(TN.Qmin, 2), dv: 'kN' },
+        { nhan: '', ky: 'φ_{b3}=', gt: g(TN.phiB3) }, { nhan: '', ky: 'R_{bt}=', gt: f(TN.Rbt, 3), dv: 'MPa' }, { nhan: '', ky: 'A_{b0}=', gt: f(TN.Ab0, 3), dv: 'm2' },
+        { nhan: 'Khả năng chịu cắt của thép đai:', ky: '', gt: TN.thepDai, nhap: true, gtRong: true },
+        { nhan: '', ky: 'Q_{steel}=', gt: f(TN.Qsteel, 2), dv: 'kN' }, { nhan: '', ky: 'd=', gt: g(TN.dDai), dv: 'mm', nhap: true },
+        { nhan: '', ky: 'a=', gt: g(TN.aDai), dv: 'mm', nhap: true }, { nhan: '', ky: 'R_{sw}=', gt: g(TN.Rsw), dv: 'MPa' },
+        { nhan: 'Khả năng chịu cắt của bê tông và thép:', ky: '[Q]=', gt: f(TN.Qgh, 2), dv: 'kN', kl: okKl(ck.okCat) }
+      ]);
+    }
+    out.push(bangThongSo(dong));
+    if (TN && TN.bang) {
+      out.push(p('Áp lực ngang và ổn định đất nền quanh cọc tính theo phương pháp giải tích (TCVN 10304:2025 phụ lục A):',
+        { italics: true, indent: { left: 360 }, spacing: { before: 120 } }));
+      out = out.concat(phan3OnDinh(TN, hinh));
+    }
+    return out;
+  }
+
+  // Phần 4, mục C: các cặp nội lực (N, M) từ ETABS (như hình Check P–M của PDF)
+  function phan4NoiLucEtabs(E, hinh) {
+    var x = D(), ck = E.kE.cocKiemTra, tt = ck.tuongTac;
+    var out = [muc('C. NGOẠI LỰC TÁC DỤNG VÀO CỌC')];
+    out.push(p('Các cặp nội lực (N, M) tại mọi mặt cắt của các cọc, mọi tổ hợp lấy từ kết quả ETABS; M = √(M_{2}^{2} + M_{3}^{2}), N nén dương. ' +
+      'Cặp bất lợi nhất (tỉ số M/M_{gh} lớn nhất):', { indent: { left: 360 }, align: x.AlignmentType.JUSTIFIED }));
+    if (tt) {
+      out.push(bangDayDu(['N (kN)', 'M (kNm)', 'M_{gh} (kNm)', 'M/M_{gh}', 'Cọc', 'Cao độ (m)', 'Tổ hợp'],
+        [[f(tt.N, 1), f(tt.M, 1), f(tt.Mgh, 1), f(tt.tiSo, 3), tt.coc, f(tt.z, 2), tt.toHop]], [1300, 1300, 1400, 1200, 900, 1300, 2238]));
+    }
+    out = out.concat(hinhAnh(hinh.etabsTuongTac, 380, 'Biểu đồ tương tác', 'Hình 4.1 Kiểm tra P–M cọc (các điểm nội lực ETABS)'));
+    out.push(p(ck.okTuongTac ? 'Các cặp nội lực (M, N) đều nằm trong biểu đồ tương tác: cọc đủ khả năng chịu lực.' :
+      'Có cặp nội lực (M, N) nằm ngoài biểu đồ tương tác: cọc KHÔNG đủ khả năng chịu lực.',
+      { bold: true, color: ck.okTuongTac ? MAU.ok : MAU.fail, indent: { left: 360 } }));
+    return out;
+  }
+
   // ---------------- Tài liệu ----------------
   function kieuChu() {
     var hd = function (id, ten, co, giua) {
@@ -1171,6 +1465,10 @@
     hinh = hinh || {};
     var x = D();
     if (!kq.A || !kq.A.hopLe) throw new Error('Mục A chưa hợp lệ: ' + ((kq.A && kq.A.loi) || []).join('; '));
+    var E = etabsCua(s, kq);
+    if (s.tinhToan && s.tinhToan.phuongPhap === 'etabs' && !E) {
+      throw new Error('Đang chọn phương pháp ETABS nhưng chưa có kết quả ETABS – chạy phân tích ở trang Kết quả ETABS hoặc chọn phương pháp Giải tích.');
+    }
     var tenTM = s.duAn.tenMong + ' ' + kq.A.cau.ten;
     var hangMuc = 'Thuyết minh tính toán móng cẩu tháp ' + tenTM;
 
@@ -1187,13 +1485,14 @@
       .concat(chuong('CHƯƠNG II. TÍNH TOÁN MÓNG CẨU THÁP ' + tenTM))
       .concat(phan1SCT(s, kq, hinh))
       .concat(phan2MucA(s, kq))
-      .concat(phan2MucB(s, kq))
+      .concat(E ? phan2MucAEtabs(s, kq, hinh, E) : [])
+      .concat(E ? phan2MucBEtabs(s, kq, E) : phan2MucB(s, kq))
       .concat(phan2MucC(s, kq))
-      .concat(phan2MucD(s, kq))
+      .concat(E ? phan2MucDEtabs(s, kq, E) : phan2MucD(s, kq))
       .concat(phan2MucE(s, kq))
-      .concat(phan2MucF(s, kq))
-      .concat(phan3TaiNgang(s, kq, hinh))
-      .concat(phan4TuongTac(s, kq, hinh))
+      .concat(E ? phan2MucFEtabs(s, kq, E) : phan2MucF(s, kq))
+      .concat(E ? phan3TaiNgangEtabs(s, kq, hinh, E) : phan3TaiNgang(s, kq, hinh))
+      .concat(phan4TuongTac(s, kq, hinh, E))
       .concat(phan5Lun(s, kq));
 
     // Hai bảng liền nhau (không có đoạn văn ở giữa) sẽ bị Word/LibreOffice gộp thành một bảng
@@ -1229,7 +1528,8 @@
   }
 
   function tenFile(s, kq) {
-    var ten = ['Thuyet_minh_mong_cau_thap', s.duAn.tenMong, kq.A && kq.A.cau ? kq.A.cau.ten : ''].filter(Boolean).join('_');
+    var ten = ['Thuyet_minh_mong_cau_thap', s.duAn.tenMong, kq.A && kq.A.cau ? kq.A.cau.ten : '',
+      s.tinhToan && s.tinhToan.phuongPhap === 'etabs' ? 'ETABS' : ''].filter(Boolean).join('_');
     return ten.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
       .replace(/[^A-Za-z0-9._-]+/g, '_') + '.docx';
   }
