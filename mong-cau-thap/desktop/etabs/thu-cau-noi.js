@@ -89,6 +89,11 @@ const ca = [
     assert.strictEqual(g.soThanh, moHinh.thanh.length);
     assert.strictEqual(g.soVo, moHinh.vo.length);
     assert.strictEqual(g.soLoXo, moHinh.loXo.length);
+    // lò xo: thuộc tính lò xo điểm có tên, gán cho điểm; không gán theo hệ tổng thể (giao diện ETABS không có, làm văng ETABS)
+    assert.strictEqual(g.soThuocTinhLoXo, moHinh.thuocTinhLoXo.length);
+    assert.strictEqual(g.soLoXoTheoThuocTinh, moHinh.loXo.length);
+    assert.strictEqual(g.soLoXoTongThe, 0);
+    assert.match(k.thongTin.cachGanLoXo, /PropPointSpring/);
     assert.strictEqual(g.soGoi, 3);
     assert.deepStrictEqual(g.tietDienThanh.sort(), ['COC', 'COC_TRONG_DAI']);
     // tải trọng: dùng lại pattern "Dead" có sẵn (không tạo trùng "DEAD"), 11 pattern tải cẩu có lực tại tâm đài
@@ -101,6 +106,14 @@ const ca = [
     assert.strictEqual(k.thongTin.fileMoHinh, fileEdb);
     assert.ok(k.buoc.every(function (b) { return b.ok; }));
     assert.ok(fs.existsSync(path.dirname(fileEdb)), 'chưa tạo thư mục lưu');
+  }],
+  ['dựng mô hình: ETABS không có PropPointSpring → SetSpring theo trục cục bộ', 'lo-xo-cu', { lenh: 'dung-mo-hinh', duLieu: { moHinh: duLieuMoHinh, fileMoHinh: fileEdb } }, function (k) {
+    assert.strictEqual(k.ok, true, k.loi);
+    const g = JSON.parse(fs.readFileSync(fileGhi, 'utf8'));
+    assert.strictEqual(g.soLoXo, moHinh.loXo.length);
+    assert.strictEqual(g.soThuocTinhLoXo, 0);
+    assert.strictEqual(g.soLoXoTongThe, 0);
+    assert.match(k.thongTin.cachGanLoXo, /SetSpring theo truc cuc bo.*PropPointSpring khong co/);
   }],
   ['dựng mô hình: SetStories_2 chỉ nhận "None"', 'tang-loi', { lenh: 'dung-mo-hinh', duLieu: { moHinh: duLieuMoHinh, fileMoHinh: fileEdb } }, function (k) {
     assert.strictEqual(k.ok, true, k.loi);

@@ -78,12 +78,16 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
   thanh cứng `COC_TRONG_DAI` (hệ số độ cứng ×100, khối lượng và trọng lượng = 0 vì đã tính trong đài).
 - **Lò xo đất ngang:** K = k·z·b<sub>p</sub>·l tại mỗi nút cọc dưới cao độ bắt đầu, gán cả U1 và U2; k theo lớp (bảng A.1),
   b<sub>p</sub> như phần sức chịu tải; cao độ bắt đầu: đáy đài (mặc định) hoặc đáy hố đào (chèn thêm nút tại cao độ này).
+- **Lò xo trong ETABS:** gán bằng thuộc tính lò xo điểm có tên (Define → Spring Properties → Point Springs; xem bằng
+  Display → Show Assigns → Joint → Springs). Bản đầu gán bằng `SetSpring` theo hệ tổng thể – kiểu lò xo giao diện ETABS không có
+  (chỉ có theo trục cục bộ) và bấm xem lò xo làm ETABS văng; mô hình dựng trước bản sửa cần dựng lại.
 - **Mũi cọc:** gối chặn UZ.
 - **Điểm đặt tải:** một điểm ở tâm đài – nút tâm (0; 0) của tấm vỏ ở mặt phẳng giữa đài (như file PDF).
 - **Tầng ETABS:** mỗi cao độ nút là một tầng, đáy công trình ở mũi cọc; tầng trên cùng `GIUA_DAI`, rồi `DAY_DAI`, `DAY_HO`, `Zm13p6`…
 - **Lệnh cầu nối:** `InitializeNewModel(kN_m_C)` → `File.NewBlank` → `Story.SetStories_2` (dự phòng SimilarToStory "None",
   `SetStories`, `NewGridOnly`) → vật liệu, tiết diện → `PointObj.AddCartesian` → `FrameObj.AddByPoint` → `AreaObj.AddByPoint`
-  → `SetSpring`, `SetRestraint` → `File.Save` (mặc định `Documents\MongCauThap\MCT_<tên móng>_<cẩu>.EDB`) → đếm lại.
+  → lò xo: `PropPointSpring.SetPointSpringProp` (mỗi độ cứng một thuộc tính `LX_<K>`, hệ "Local") + `PointObj.SetSpringAssignment`
+  (bản ETABS không có hai lệnh này: `SetSpring` theo trục cục bộ) → `SetRestraint` → `File.Save` (mặc định `Documents\MongCauThap\MCT_<tên móng>_<cẩu>.EDB`) → đếm lại.
   Mỗi lệnh kiểm tra mã trả về, lỗi thì dừng và báo đúng lệnh, tham số.
 
 ## Bước 3 – tải trọng và tổ hợp (`js/calc/etabs-tai-trong.js`)

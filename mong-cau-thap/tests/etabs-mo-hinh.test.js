@@ -66,6 +66,15 @@ test('Lò xo đất từ đáy đài: K = k·z·bp·l, k theo lớp', () => {
   gan(r(-34.6).K, 10000 * 32 * 1.8 * 0.5, 'K tại mũi');
   assert.equal(m.loXo.length, 3 * m.bangLoXo.length);
   m.loXo.forEach((l) => { assert.equal(l.k[0], l.k[1]); assert.deepEqual(l.k.slice(2), [0, 0, 0, 0]); });
+  // mỗi độ cứng một thuộc tính lò xo điểm "LX_<K>"; mọi lò xo trỏ tới thuộc tính có cùng độ cứng
+  const tt = new Map(m.thuocTinhLoXo.map((p) => [p.ten, p.k]));
+  assert.equal(tt.size, m.thuocTinhLoXo.length);
+  assert.equal(tt.size, new Set(m.bangLoXo.filter((r) => r.K > 0).map((r) => Math.round(r.K))).size);
+  m.loXo.forEach((l) => {
+    assert.equal(l.thuocTinh, 'LX_' + Math.round(l.k[0]));
+    assert.ok(Math.abs(tt.get(l.thuocTinh)[0] - l.k[0]) < 0.5);
+  });
+  assert.deepEqual(MCT.calc.duLieuGuiEtabs(m, null).thuocTinhLoXo, m.thuocTinhLoXo);
 });
 
 test('Lò xo từ đáy hố đào: có nút tại −13, z tính từ −13', () => {

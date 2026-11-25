@@ -111,13 +111,20 @@
     var loXoTheoCao = {};
     bangLoXo.forEach(function (r) { loXoTheoCao[r.caoDo] = r.K; });
 
-    var loXo = [], gioiHan = [];
+    // Lò xo gán bằng thuộc tính lò xo điểm có tên (Point Spring Property, hệ trục cục bộ của điểm) như khi gán trong
+    // giao diện ETABS – mỗi độ cứng một thuộc tính "LX_<K kN/m>"; điểm mới tạo có trục cục bộ trùng trục tổng thể.
+    var loXo = [], gioiHan = [], thuocTinhLoXo = [], daCoThuocTinh = {};
+    function thuocTinh(K) {
+      var tenTT = 'LX_' + Math.round(K);
+      if (!daCoThuocTinh[tenTT]) { daCoThuocTinh[tenTT] = true; thuocTinhLoXo.push({ ten: tenTT, k: [K, K, 0, 0, 0, 0] }); }
+      return tenTT;
+    }
     coc.forEach(function (p) {
       var ten = capDo.map(function (z, j) { return j === 0 ? timNutDai(p.x, p.y) : p.ten + '_' + tenSo(z); });
       capDo.forEach(function (z, j) {
         if (j > 0) diem.push({ ten: ten[j], x: p.x, y: p.y, z: z });
         var K = loXoTheoCao[z];
-        if (K > 0) loXo.push({ diem: ten[j], k: [K, K, 0, 0, 0, 0] });
+        if (K > 0) loXo.push({ diem: ten[j], k: [K, K, 0, 0, 0, 0], thuocTinh: thuocTinh(K) });
         if (j > 0) thanh.push({ ten: p.ten + '_' + j, dau: ten[j - 1], cuoi: ten[j], tietDien: j === 1 ? 'COC_TRONG_DAI' : 'COC' });
       });
       p.thanh = capDo.slice(1).map(function (z, j) { return p.ten + '_' + (j + 1); });   // từ trên xuống
@@ -161,6 +168,7 @@
       ],
       tietDienVo: [{ ten: 'DAI', vatLieu: tenBtDai, day: H }],
       diem: diem, thanh: thanh, vo: vo, loXo: loXo, gioiHan: gioiHan,
+      thuocTinhLoXo: thuocTinhLoXo,
       coc: coc, nutTai: nutTai, xs: xs, ys: ys, capDo: capDo, bangLoXo: bangLoXo,
       thongKe: { soTang: tang.length, soDiem: diem.length, soThanh: thanh.length, soVo: vo.length, soLoXo: loXo.length }
     };
@@ -170,7 +178,7 @@
   function duLieuGuiEtabs(m, t) {
     return {
       tang: m.tang, vatLieu: m.vatLieu, tietDienThanh: m.tietDienThanh, tietDienVo: m.tietDienVo,
-      diem: m.diem, thanh: m.thanh, vo: m.vo, loXo: m.loXo, gioiHan: m.gioiHan,
+      diem: m.diem, thanh: m.thanh, vo: m.vo, loXo: m.loXo, thuocTinhLoXo: m.thuocTinhLoXo, gioiHan: m.gioiHan,
       mauTai: t && t.hopLe ? t.mauTai : [], toHop: t && t.hopLe ? t.toHop : []
     };
   }

@@ -30,7 +30,8 @@ namespace MctEtabs
             ["File"] = "cFile", ["Story"] = "cStory", ["PropMaterial"] = "cPropMaterial", ["PropFrame"] = "cPropFrame",
             ["PropArea"] = "cPropArea", ["PointObj"] = "cPointObj", ["FrameObj"] = "cFrameObj", ["AreaObj"] = "cAreaObj",
             ["LoadPatterns"] = "cLoadPatterns", ["RespCombo"] = "cCombo", ["View"] = "cView", ["Analyze"] = "cAnalyze",
-            ["Results"] = "cAnalysisResults", ["Setup"] = "cAnalysisResultsSetup", ["PointElm"] = "cPointElm"
+            ["Results"] = "cAnalysisResults", ["Setup"] = "cAnalysisResultsSetup", ["PointElm"] = "cPointElm",
+            ["PropPointSpring"] = "cPropPointSpring"
         };
 
         object Con(string duongDan)
@@ -66,6 +67,43 @@ namespace MctEtabs
 
     internal static class LenhDungMoHinh
     {
+        /// <summary>
+        /// Lò xo đất: tạo thuộc tính lò xo điểm có tên (Point Spring Property, hệ trục cục bộ) rồi gán cho điểm – giống gán trong
+        /// giao diện ETABS (Define → Spring Properties → Point Springs, Assign → Joint → Springs). Lò xo gán bằng SetSpring theo hệ
+        /// tổng thể không có trong giao diện ETABS (chỉ có lò xo theo trục cục bộ) – xem lò xo kiểu đó làm ETABS văng.
+        /// Bản ETABS không có PropPointSpring / SetSpringAssignment: dùng SetSpring theo trục cục bộ của điểm (trùng trục tổng thể).
+        /// </summary>
+        static string GanLoXo(BoGoiEtabs e, JsonObject m, JsonArray ds, Func<JsonNode, string> ten)
+        {
+            string lyDo = null;
+            var dsTT = m["thuocTinhLoXo"] as JsonArray;
+            if (dsTT != null && dsTT.Count > 0 && ds.All(l => l["thuocTinh"] != null))
+            {
+                try
+                {
+                    foreach (JsonNode t in dsTT)
+                    {
+                        double[] k = ((JsonArray)t["k"]).Select(x => (double)x).ToArray();
+                        // SpringOption 1 = độ cứng nhập trực tiếp; CSys "Local" = trục cục bộ của điểm
+                        e.Goi("PropPointSpring", "cPropPointSpring", "SetPointSpringProp", new object[] { (string)t["ten"], 1, k, "Local" }, true);
+                    }
+                    foreach (JsonNode l in ds)
+                        e.Goi("PointObj", "cPointObj", "SetSpringAssignment", new object[] { ten(l["diem"]), (string)l["thuocTinh"], "Objects" });
+                    return dsTT.Count + " thuoc tinh lo xo diem LX_<K> (PropPointSpring), gan bang SetSpringAssignment";
+                }
+                catch (Exception ex) when (!(ex is OutOfMemoryException))
+                {
+                    lyDo = Api.GocLoi(ex).Message;
+                }
+            }
+            foreach (JsonNode l in ds)
+            {
+                double[] k = ((JsonArray)l["k"]).Select(x => (double)x).ToArray();
+                e.Goi("PointObj", "cPointObj", "SetSpring", new object[] { ten(l["diem"]), k, "Objects", true, true }, true);
+            }
+            return "SetSpring theo truc cuc bo cua diem" + (lyDo != null ? " (khong tao duoc thuoc tinh lo xo: " + lyDo + ")" : "");
+        }
+
         public static void Chay(KetQua kq, YeuCau yc)
         {
             if (yc.DuLieu?["moHinh"] is not JsonObject m)
@@ -167,12 +205,9 @@ namespace MctEtabs
                 // 8. Lò xo đất ngang
                 buoc = "lo-xo";
                 var dsLoXo = (JsonArray)m["loXo"];
-                foreach (JsonNode l in dsLoXo)
-                {
-                    double[] k = ((JsonArray)l["k"]).Select(x => (double)x).ToArray();
-                    e.Goi("PointObj", "cPointObj", "SetSpring", new object[] { Ten(l["diem"]), k, "Objects", false, true }, true);
-                }
-                kq.GhiBuoc(buoc, true, dsLoXo.Count + " lo xo");
+                string cachLoXo = GanLoXo(e, m, dsLoXo, Ten);
+                kq.Dat("cachGanLoXo", cachLoXo);
+                kq.GhiBuoc(buoc, true, dsLoXo.Count + " lo xo – " + cachLoXo);
 
                 // 9. Gối mũi cọc
                 buoc = "goi";

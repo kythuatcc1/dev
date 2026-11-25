@@ -8,6 +8,7 @@
 //   treo             GetObject không trả lời (giống ETABS đang mở hộp thoại)
 //   thieu-giao-dien  giống máy thật thiếu đăng ký type library: GetOAPIVersionNumber được, lấy SapModel báo E_NOINTERFACE
 //   tang-loi         SetStories_2 với SimilarToStory "" trả mã lỗi 1 (chỉ nhận "None")
+//   lo-xo-cu         bản ETABS không có SapModel.PropPointSpring (cầu nối phải dùng SetSpring theo trục cục bộ)
 // MCT_GIA_LAP_GHI: file JSON ghi lại mô hình giả lập sau lệnh Save (để kiểm tra)
 // MCT_GIA_LAP_MO : file .EDB giả lập đã lưu – nạp lại khi gắn (giống ETABS thật vẫn mở mô hình giữa các lệnh)
 using System;
@@ -54,6 +55,7 @@ namespace ETABSv1
         cAnalyze Analyze { get; }
         cAnalysisResults Results { get; }
         cPointElm PointElm { get; }
+        cPropPointSpring PropPointSpring { get; }
         int SetPresentUnits(eUnits Units);
         int InitializeNewModel(eUnits Units = eUnits.kip_in_F);
         int GetVersion(ref string Version, ref double MyVersionNumber);
@@ -94,9 +96,15 @@ namespace ETABSv1
         int Count();
         int AddCartesian(double X, double Y, double Z, ref string Name, string UserName = "", string CSys = "Global", bool MergeOff = false, int MergeNumber = 0);
         int SetSpring(string Name, ref double[] k, eItemType ItemType = eItemType.Objects, bool IsLocalCSys = false, bool Replace = false);
+        int SetSpringAssignment(string Name, string SpringProp, eItemType ItemType = eItemType.Objects);
         int SetRestraint(string Name, ref bool[] Value, eItemType ItemType = eItemType.Objects);
         int SetLoadForce(string Name, string LoadPat, ref double[] Value, bool Replace = false, string CSys = "Global", eItemType ItemType = eItemType.Objects);
         int GetCoordCartesian(string Name, ref double X, ref double Y, ref double Z, string CSys = "Global");
+    }
+    public interface cPropPointSpring
+    {
+        int SetPointSpringProp(string Name, int SpringOption, ref double[] k, string CSys = "Local", string SoilProfile = "", string Footing = "",
+                               double Period = 0, int Color = -1, string Notes = "", string GUID = "");
     }
     public interface cPointElm { int GetCoordCartesian(string Name, ref double X, ref double Y, ref double Z, string CSys = "Global"); }
     public interface cAnalyze
@@ -159,6 +167,8 @@ namespace ETABSv1
         public List<string[]> Thanh = new List<string[]>();
         public List<string[]> Vo = new List<string[]>();
         public Dictionary<string, double[]> LoXo = new Dictionary<string, double[]>();
+        public Dictionary<string, double[]> ThuocTinhLoXo = new Dictionary<string, double[]>();
+        public int LoXoTheoThuocTinh, LoXoTongThe;   // số lần gán theo thuộc tính / theo hệ tổng thể (giao diện ETABS không có)
         public Dictionary<string, bool[]> Goi = new Dictionary<string, bool[]>();
         public List<string> Mau = new List<string>();                       // load pattern (= load case cùng tên)
         public Dictionary<string, double> BanThan = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
@@ -227,7 +237,7 @@ namespace ETABSv1
     }
 
     public class wSapModel : cSapModel, cFile, cStory, cPropMaterial, cPropFrame, cPropArea, cPointObj, cFrameObj, cAreaObj, cLoadPatterns, cCombo, cView,
-                             cAnalyze, cAnalysisResults, cAnalysisResultsSetup, cPointElm
+                             cAnalyze, cAnalysisResults, cAnalysisResultsSetup, cPointElm, cPropPointSpring
     {
         private readonly MoHinh _goc;
         internal wSapModel(MoHinh goc) { _goc = goc; }
@@ -238,6 +248,15 @@ namespace ETABSv1
         public cPropMaterial PropMaterial { get { _ = M; return this; } }
         public cPropFrame PropFrame { get { _ = M; return this; } }
         public cPropArea PropArea { get { _ = M; return this; } }
+        public cPropPointSpring PropPointSpring
+        {
+            get
+            {
+                _ = M;
+                if (Environment.GetEnvironmentVariable("MCT_GIA_LAP") == "lo-xo-cu") throw new NotImplementedException("PropPointSpring khong co trong ban ETABS nay");
+                return this;
+            }
+        }
         public cPointObj PointObj { get { _ = M; return this; } }
         public cFrameObj FrameObj { get { _ = M; return this; } }
         public cAreaObj AreaObj { get { _ = M; return this; } }
@@ -364,7 +383,8 @@ namespace ETABSv1
                 string ds(IEnumerable<string> x) => "[" + string.Join(",", x.Select(v => "\"" + v.Replace("\\", "\\\\") + "\"")) + "]";
                 System.IO.File.WriteAllText(ghi, "{\"file\":\"" + FileName.Replace("\\", "\\\\") + "\",\"donVi\":\"" + M.DonVi + "\",\"caoDoDay\":" + M.CaoDoDay.ToString(System.Globalization.CultureInfo.InvariantCulture) +
                     ",\"soTang\":" + M.CaoTang.Count + ",\"soDiem\":" + M.Diem.Count + ",\"soThanh\":" + M.Thanh.Count + ",\"soVo\":" + M.Vo.Count +
-                    ",\"soLoXo\":" + M.LoXo.Count + ",\"soGoi\":" + M.Goi.Count + ",\"vatLieu\":" + ds(M.VatLieu) + ",\"tietDienThanh\":" + ds(M.TietDienThanh) +
+                    ",\"soLoXo\":" + M.LoXo.Count + ",\"soThuocTinhLoXo\":" + M.ThuocTinhLoXo.Count + ",\"soLoXoTheoThuocTinh\":" + M.LoXoTheoThuocTinh +
+                    ",\"soLoXoTongThe\":" + M.LoXoTongThe + ",\"soGoi\":" + M.Goi.Count + ",\"vatLieu\":" + ds(M.VatLieu) + ",\"tietDienThanh\":" + ds(M.TietDienThanh) +
                     ",\"mau\":" + ds(M.Mau) + ",\"banThanDead\":" + (M.BanThan.TryGetValue("Dead", out double bt) ? bt : -1).ToString(System.Globalization.CultureInfo.InvariantCulture) +
                     ",\"soToHop\":" + M.ToHop.Count + ",\"soThanhPhanBAO\":" + (M.ToHop.TryGetValue("BAO", out var bao) ? bao.Count : -1) +
                     ",\"tongFZ1\":" + (M.TongLuc.TryGetValue("FZ1", out double[] f) ? f[2] : 0).ToString(System.Globalization.CultureInfo.InvariantCulture) +
@@ -416,7 +436,27 @@ namespace ETABSv1
             return 0;
         }
         public int SetSpring(string Name, ref double[] k, eItemType ItemType = eItemType.Objects, bool IsLocalCSys = false, bool Replace = false)
-        { if (!M.Diem.ContainsKey(Name) || k == null || k.Length != 6) return 1; M.LoXo[Name] = k; return 0; }
+        {
+            if (!M.Diem.ContainsKey(Name) || k == null || k.Length != 6) return 1;
+            M.LoXo[Name] = k;
+            if (!IsLocalCSys) M.LoXoTongThe++;
+            return 0;
+        }
+        public int SetSpringAssignment(string Name, string SpringProp, eItemType ItemType = eItemType.Objects)
+        {
+            if (!M.Diem.ContainsKey(Name) || !M.ThuocTinhLoXo.TryGetValue(SpringProp ?? "", out double[] k)) return 1;
+            M.LoXo[Name] = k; M.LoXoTheoThuocTinh++;
+            return 0;
+        }
+
+        // cPropPointSpring
+        public int SetPointSpringProp(string Name, int SpringOption, ref double[] k, string CSys = "Local", string SoilProfile = "", string Footing = "",
+                                      double Period = 0, int Color = -1, string Notes = "", string GUID = "")
+        {
+            if (string.IsNullOrEmpty(Name) || SpringOption != 1 || k == null || k.Length != 6 || k.Any(v => v < 0)) return 1;
+            M.ThuocTinhLoXo[Name] = (double[])k.Clone();
+            return 0;
+        }
         public int SetRestraint(string Name, ref bool[] Value, eItemType ItemType = eItemType.Objects)
         { if (!M.Diem.ContainsKey(Name) || Value == null || Value.Length != 6) return 1; M.Goi[Name] = Value; return 0; }
 

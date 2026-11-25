@@ -1747,12 +1747,15 @@
       var matBang = '<section class="card"><h2>Mặt bằng đài trong mô hình</h2>' + svgMatBangEtabs(m) + '</section>';
       var bang = '<section class="card"><h2>Lò xo đất ngang tại nút cọc</h2>' +
         '<p>K = k·z·b<sub>p</sub>·l (TCVN 10304:2025 phụ lục A); k theo lớp đất (bảng A.1), z tính từ cao độ bắt đầu lò xo, ' +
-        'l là đoạn cọc nút đảm nhận. Gán cho cả hai phương X và Y, giống nhau ở mọi cọc.</p>' +
+        'l là đoạn cọc nút đảm nhận. Gán cho cả hai phương U1, U2 (trục cục bộ của điểm, trùng X, Y), giống nhau ở mọi cọc.</p>' +
+        '<p class="hint">Trong ETABS: mỗi độ cứng là một thuộc tính lò xo điểm (Define → Spring Properties → Point Springs) tên ' +
+        '<code>LX_&lt;K&gt;</code>, gán cho điểm bằng Assign → Joint → Springs – xem bằng Display → Show Assigns → Joint → Springs.</p>' +
         '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Cao độ (m)</th><th>z (m)</th><th>Lớp</th>' +
-        '<th>k (kN/m⁴)</th><th>l (m)</th><th>K (kN/m)</th></tr></thead><tbody>' +
+        '<th>k (kN/m⁴)</th><th>l (m)</th><th>K (kN/m)</th><th>Thuộc tính ETABS</th></tr></thead><tbody>' +
         m.bangLoXo.map(function (r) {
           return '<tr><td class="r">' + so(r.caoDo, 2) + '</td><td class="r">' + so(r.doSau, 2) + '</td><td class="c">' + esc(r.lop) +
-            '</td><td class="r">' + so(r.k, 0) + '</td><td class="r">' + so(r.l, 2) + '</td><td class="r">' + so(r.K, 0) + '</td></tr>';
+            '</td><td class="r">' + so(r.k, 0) + '</td><td class="r">' + so(r.l, 2) + '</td><td class="r">' + so(r.K, 0) + '</td><td class="c">' +
+            (r.K > 0 ? 'LX_' + Math.round(r.K) : '–') + '</td></tr>';
         }).join('') + '</tbody></table></div></section>';
       return kq + thongSo + matBang + bang;
     }
