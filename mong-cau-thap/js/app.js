@@ -1301,11 +1301,21 @@
         return '<tr><td class="c">' + (b.ok ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-fail">Lỗi</span>') +
           '</td><td>' + esc(TEN_BUOC_ETABS[b.ten] || b.ten) + '</td><td>' + esc(b.chiTiet) + '</td></tr>';
       }).join('');
+      var thu = (r.thuHam || []).map(function (h) {
+        return '<tr><td class="c">' + (h.ok ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-fail">Lỗi</span>') +
+          '</td><td class="nowrap">' + esc(h.ten) + '</td><td>' + esc(h.ok ? h.ketQua : h.loi + (h.hresult ? ' (' + h.hresult + ')' : '')) + '</td></tr>';
+      }).join('');
+      var goiY = r.goiY === 'mo-mo-hinh'
+        ? '<div class="ghi-chu-lech"><h3>ETABS chưa mở mô hình</h3><p>Gắn được vào ETABS nhưng các hàm đọc mô hình đều lỗi. ' +
+          'Thường do ETABS đang ở màn hình khởi động. Vào <strong>File → New Model</strong> (chọn mô hình trống, đơn vị kN-m) ' +
+          'hoặc mở một file .EDB, rồi bấm Kiểm tra kết nối lần nữa.</p></div>' : '';
       return '<section class="card"><h2>Kết quả</h2>' +
         '<div class="ket-luan-lon ' + (r.ok ? 'ok' : 'fail') + '">' +
-        (r.ok ? 'Đã kết nối được ETABS' : 'Chưa kết nối được: ' + esc(r.loi || '')) + '</div>' +
+        (r.ok ? 'Đã kết nối được ETABS' : 'Chưa kết nối được: ' + esc(r.loi || '')) + '</div>' + goiY +
         (buoc ? '<div class="table-wrap"><table class="tbl compact"><thead><tr><th></th><th>Bước</th><th>Chi tiết</th></tr></thead><tbody>' +
           buoc + '</tbody></table></div>' : '') +
+        (thu ? '<h3>Thử từng hàm API</h3><div class="table-wrap"><table class="tbl compact"><thead><tr><th></th><th>Hàm</th><th>Kết quả / lỗi</th></tr></thead><tbody>' +
+          thu + '</tbody></table></div>' : '') +
         '<div class="table-wrap"><table class="tbl compact"><tbody>' +
         dongTT('Phiên bản ETABS', t.etabsPhienBan) + dongTT('Phiên bản API', t.apiPhienBan) +
         dongTT('File mô hình đang mở', t.fileMoHinh || (r.ok ? '(mô hình chưa lưu)' : null)) +
