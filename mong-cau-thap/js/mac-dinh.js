@@ -56,6 +56,10 @@
       L1L2: 1700, L2: 300, L3: 250, eta1: 1.5, eta2: 0.9, alpha1: 1, k0: 1.35, nv: 1
     },
     // Nội dung chữ của thuyết minh (mỗi dòng là một gạch đầu dòng)
+    // Phương pháp tính dùng cho kết luận và thuyết minh: 'giai-tich' (form CC1 / Excel) | 'etabs' (nội lực ETABS)
+    tinhToan: {
+      phuongPhap: 'giai-tich'
+    },
     // Kết nối ETABS (chỉ dùng trong chương trình Windows)
     etabs: {
       duongDan: '',         // thư mục cài ETABS; để trống thì tự tìm

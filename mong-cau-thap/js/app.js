@@ -781,10 +781,14 @@
 
   TRANG['ket-luan'] = {
     tieuDe: 'F. Kết luận',
-    moTa: 'Tổng hợp các kiểm tra của sheet Cau thap.',
-    nhap: function () { return ''; },
+    moTa: 'Tổng hợp các kiểm tra của sheet Cau thap (giải tích) hoặc theo nội lực ETABS.',
+    nhap: function () {
+      return '<section class="card"><h2>Phương pháp tính</h2>' + oPhuongPhap() +
+        '<p class="hint">Giải tích: như form CC1 (Excel). ETABS: mục B, D lấy theo nội lực ETABS, thêm kiểm tra cọc chịu cắt, ' +
+        'tương tác N–M, chuyển vị, góc xoay, đài chịu cắt từ ETABS; mục C, E giữ theo giải tích.</p></section>';
+    },
     ketQua: function () {
-      var r = kqF;
+      var r = ketLuanHienTai();
       if (!r || !r.hopLe) return loiHtml(r);
       var nhomTruoc = '';
       var rows = r.ds.map(function (m) {
@@ -793,7 +797,8 @@
           m.trang + '">' + m.ma + '</button></td>' : '';
         nhomTruoc = m.ma;
         return '<tr' + (m.ok ? '' : ' class="dong-fail"') + '>' + dauNhom +
-          '<td>' + esc(m.ten) + (m.boSung ? ' <span class="nhan-bo-sung" title="Excel không có kiểm tra này">app bổ sung</span>' : '') + '</td>' +
+          '<td>' + esc(m.ten) + (m.boSung ? ' <span class="nhan-bo-sung" title="Excel không có kiểm tra này">app bổ sung</span>' : '') +
+          (m.etabs ? ' <span class="nhan-bo-sung" title="Lấy theo nội lực ETABS">ETABS</span>' : '') + '</td>' +
           '<td class="r nowrap">' + soCoDonVi(m.trai) + '</td><td class="c">' + m.dau + '</td>' +
           '<td class="r nowrap">' + soCoDonVi(m.phai) + '</td><td class="c">' + nhanKetLuan(m.ok) + '</td>' +
           '<td class="c muted">' + (m.oExcel || '–') + '</td></tr>';
@@ -801,7 +806,11 @@
       var bang = '<div class="table-wrap"><table class="tbl"><thead><tr><th>Mục</th><th>Kiểm tra</th><th>Giá trị</th><th></th>' +
         '<th>Giới hạn</th><th>Kết quả</th><th>Ô Excel</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
 
-      var ghiChu = ghiChuLech('Khác với ô D143 của Excel',
+      var ghiChu = r.phuongPhap === 'etabs'
+        ? ghiChuLech('Kết luận theo phương pháp ETABS',
+          '<p>Mục B (tải trọng lên cọc) và D (thép đài) lấy theo nội lực ETABS; thêm cọc chịu cắt, tương tác N–M, chuyển vị, góc xoay và đài chịu cắt từ ETABS. ' +
+          'Mục C (xuyên thủng) và E (bulong) giữ theo giải tích.</p><p>Kết luận theo giải tích (form CC1): <strong>' + esc(r.ketLuanGiaiTich) + '</strong>.</p>') + canhBaoEtabsCu()
+        : ghiChuLech('Khác với ô D143 của Excel',
         '<p>Công thức kết luận của Excel (ô D143) chỉ gồm <strong>12 kiểm tra</strong> của mục B, D, E, vì Excel không tính xuyên thủng đài.</p>' +
         '<p>App <strong>bổ sung mục C</strong> (xuyên thủng đài, TCVN 5574:2018 mục 8.1.6.2.1) vào kết luận chung.</p>' +
         '<p>Kết luận theo đúng Excel (không có mục C): <strong>' + esc(r.ketLuanExcel) + '</strong>' +
@@ -1267,7 +1276,16 @@
   var etabsDangKyKq = null;    // kết quả lệnh đăng ký / gỡ đăng ký giao diện gần nhất
   var etabsDangChay = false;
   var etabsDungKq = null;      // kết quả lệnh dựng mô hình gần nhất
-  var etabsPhanTichKq = null;  // kết quả lệnh phân tích gần nhất (nội lực thô từ ETABS)
+  var etabsPhanTichKq = null;  // kết quả lệnh phân tích gần nhất (các bước; nội lực thô chỉ giữ trong bộ nhớ)
+  // Tóm tắt nội lực ETABS lưu trên máy: { vanTay, thoiDiem, file, tomTat } – dùng cho kiểm tra, kết luận, thuyết minh
+  var KHOA_ETABS = 'mong-cau-thap.etabs.v1';
+  var etabsLuu = (function () {
+    try { var t = JSON.parse(localStorage.getItem(KHOA_ETABS) || 'null'); return t && t.tomTat ? t : null; } catch (e) { return null; }
+  })();
+  function luuKetQuaEtabs(gt) {
+    etabsLuu = gt;
+    try { localStorage.setItem(KHOA_ETABS, JSON.stringify(gt)); return true; } catch (e) { return false; }
+  }
 
   function coChuongTrinh() { return !!(window.mctDesktop && window.mctDesktop.etabs); }
 
@@ -1600,12 +1618,69 @@
 
   var etabsKqDem = { nguon: null, trangThai: null, kq: null };   // bộ nhớ đệm: chỉ tính lại khi kết quả hoặc thông số đổi
   function ketQuaEtabsHienTai() {
-    if (!etabsPhanTichKq || !etabsPhanTichKq.ok || !etabsPhanTichKq.ketQua) return null;
+    if (!etabsLuu || !etabsLuu.tomTat || !tatCa) return null;
     var tt = JSON.stringify(state);
-    if (etabsKqDem.nguon === etabsPhanTichKq && etabsKqDem.trangThai === tt) return etabsKqDem.kq;
-    var m = moHinhEtabs(), t = taiTrongEtabs(m);
-    etabsKqDem = { nguon: etabsPhanTichKq, trangThai: tt, kq: MCT.calc.ketQuaEtabs(etabsPhanTichKq.ketQua, m, t, state, tatCa) };
+    if (etabsKqDem.nguon === etabsLuu && etabsKqDem.trangThai === tt) return etabsKqDem.kq;
+    etabsKqDem = { nguon: etabsLuu, trangThai: tt, kq: MCT.calc.kiemTraEtabs(etabsLuu.tomTat, state, tatCa) };
     return etabsKqDem.kq;
+  }
+
+  // Kết quả ETABS có còn khớp thông số hiện tại không (so dấu vân tay lúc phân tích)
+  function etabsConKhop() {
+    if (!etabsLuu) return false;
+    var m = moHinhEtabs(), t = taiTrongEtabs(m);
+    return t.hopLe && etabsLuu.vanTay === vanTayMoHinh(m, t);
+  }
+
+  function laEtabs() { return state.tinhToan && state.tinhToan.phuongPhap === 'etabs'; }
+
+  function ketLuanHienTai() {
+    return laEtabs() ? MCT.calc.ketLuanEtabs(kqF, ketQuaEtabsHienTai()) : kqF;
+  }
+
+  function oPhuongPhap() {
+    return '<div class="params">' + oChon('tinhToan.phuongPhap', [
+      { v: 'giai-tich', t: 'Giải tích – form CC1 (Excel)' },
+      { v: 'etabs', t: 'ETABS – nội lực từ mô hình ETABS' }], 'Phương pháp tính cho kết luận và thuyết minh', '', '', false, true) + '</div>';
+  }
+
+  function canhBaoEtabsCu() {
+    if (!etabsLuu) return '';
+    return etabsConKhop() ? '' : '<div class="ghi-chu-lech"><h3>Kết quả ETABS chưa cập nhật</h3><p>Kết quả ETABS đang lưu được tính lúc ' +
+      esc(new Date(etabsLuu.thoiDiem).toLocaleString('vi-VN')) + ' với thông số khác thông số hiện tại. Dựng lại mô hình và chạy phân tích để cập nhật.</p></div>';
+  }
+
+  // Khung "phương pháp ETABS" ở đầu các trang B, D, tải ngang, tương tác
+  function khungEtabs(trang) {
+    if (!laEtabs() || ['coc', 'thep', 'tai-ngang', 'tuong-tac'].indexOf(trang) < 0) return '';
+    var r = ketQuaEtabsHienTai();
+    var dau = '<section class="card khung-etabs"><h2>Đang dùng phương pháp ETABS</h2>';
+    if (!r || !r.hopLe) {
+      return dau + '<p>Chưa có kết quả ETABS. Vào <button type="button" class="link" data-trang="etabs-ket-qua">Kết quả ETABS</button> để chạy phân tích, ' +
+        'hoặc chọn lại phương pháp Giải tích ở trang Kết luận.</p></section>';
+    }
+    var ck = r.cocKiemTra, cv = r.chuyenVi, d = r.dai, noiDung = '';
+    if (trang === 'coc') {
+      noiDung = dongKiemTra('<i>P</i><sub>nén</sub> = ' + so(ck.Pnen.gt) + ' kN (' + esc(ck.Pnen.coc) + ', ' + esc(ck.Pnen.toHop) + ')', ck.okNen ? '≤' : '>',
+        '<i>Q</i><sub>a</sub> = ' + so(ck.Qa) + ' kN', ck.okNen) +
+        dongKiemTra('<i>P</i><sub>min</sub> = ' + so(ck.PminCC1) + ' kN', ck.PminCC1 >= -ck.QaKeo ? '≥' : '<', '−<i>Q</i><sub>a</sub>\' = ' + so(-ck.QaKeo) + ' kN',
+          ck.PminCC1 >= -ck.QaKeo);
+    } else if (trang === 'thep') {
+      noiDung = '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Lớp</th><th>M (kNm)</th><th>A<sub>s</sub> cần (mm²/m)</th><th>A<sub>s</sub> chọn (mm²/m)</th><th></th></tr></thead><tbody>' +
+        [d.X.duoi, d.Y.duoi, d.X.tren, d.Y.tren].map(function (l) {
+          return '<tr><td>' + esc(l.ten) + '</td><td class="r">' + so(l.M) + '</td><td class="r">' + (l.can ? (l.can.duTietDien ? so(l.can.AsMet, 0) : 'α<sub>m</sub> > 0,5') : '0') +
+            '</td><td class="r">' + (l.chon ? so(l.chon.AsMet, 0) : '–') + '</td><td class="c">' + nhanOk(l.ok) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    } else if (trang === 'tai-ngang') {
+      noiDung = (ck.Qgh !== null ? dongKiemTra('<i>V</i><sub>max</sub> = ' + so(ck.Vmax.gt) + ' kN', ck.okCat ? '≤' : '>', '[<i>Q</i>] = ' + so(ck.Qgh) + ' kN', ck.okCat) : '') +
+        dongKiemTra('Δ = ' + so(cv.DeltaMax.gt) + ' mm', cv.okDelta ? '≤' : '>', '[Δ] = ' + so(cv.gioiHanDelta, 1) + ' mm', cv.okDelta) +
+        dongKiemTra('ψ = ' + so(cv.psiMax.gt, 4) + '°', cv.okPsi ? '≤' : '>', '[ψ] = ' + so(cv.gioiHanPsi, 2) + '°', cv.okPsi);
+    } else if (trang === 'tuong-tac' && ck.tuongTac) {
+      noiDung = dongKiemTra('N = ' + so(ck.tuongTac.N) + ' kN, M = ' + so(ck.tuongTac.M) + ' kNm (' + esc(ck.tuongTac.coc) + ')', ck.okTuongTac ? '≤' : '>',
+        '<i>M</i><sub>gh</sub> = ' + so(ck.tuongTac.Mgh) + ' kNm', ck.okTuongTac);
+    }
+    return dau + '<p>Kết luận lấy theo nội lực ETABS (chi tiết ở <button type="button" class="link" data-trang="etabs-ket-qua">Kết quả ETABS</button>). ' +
+      'Phần tính giải tích bên dưới để tham khảo.</p>' + canhBaoEtabsCu() + '<div class="kiem-tra-dong">' + noiDung + '</div></section>';
   }
 
   function nhanOk(ok) {
@@ -1618,7 +1693,9 @@
     nhap: function () {
       var m = moHinhEtabs(), t = taiTrongEtabs(m);
       var khop = t.hopLe && state.etabs.vanTayDung === vanTayMoHinh(m, t);
-      return '<section class="card"><h2>Chạy phân tích</h2>' +
+      return '<section class="card"><h2>Phương pháp tính</h2>' + oPhuongPhap() +
+        '<p class="hint">Chọn ETABS: các mục B (tải trọng lên cọc), D (thép đài), cọc chịu tải ngang, tương tác và kết luận dùng nội lực ETABS.</p></section>' +
+        '<section class="card"><h2>Chạy phân tích</h2>' +
         (khop ? '<p>Mô hình trong ETABS khớp thông số hiện tại (đã dựng ' + esc(etabsDungKq && etabsDungKq.thongTin ? etabsDungKq.thongTin.fileMoHinh || '' : 'trước đó') + ').</p>'
           : '<div class="ghi-chu-lech"><h3>Chưa dựng mô hình theo thông số hiện tại</h3><p>Thông số đã thay đổi sau lần dựng mô hình gần nhất (hoặc chưa dựng). ' +
             'Vào trang Mô hình ETABS hoặc Tải trọng &amp; tổ hợp, bấm Dựng mô hình trong ETABS trước khi phân tích.</p></div>') +
@@ -1636,11 +1713,14 @@
         var tt = p.thongTin || {};
         html += '<section class="card"><h2>Lệnh phân tích</h2><div class="ket-luan-lon ' + (p.ok ? 'ok' : 'fail') + '">' +
           (p.ok ? 'Đã lấy nội lực từ ETABS (' + esc(tt.thoiGianGiay) + ' giây)' : 'Chưa phân tích được: ' + esc(p.loi || '')) + '</div>' +
-          (p.ok ? '' : goiYEtabs(p)) + '<details class="more"' + (p.ok ? '' : ' open') + '><summary>Các bước</summary>' + bangBuocEtabs(p) + '</details></section>';
+          (p.ok ? '' : goiYEtabs(p)) + (p.ghiChuLuu ? '<p class="hint">' + esc(p.ghiChuLuu) + '</p>' : '') +
+          '<details class="more"' + (p.ok ? '' : ' open') + '><summary>Các bước</summary>' + bangBuocEtabs(p) + '</details></section>';
       }
       var r = ketQuaEtabsHienTai();
       if (!r) return html;
       if (!r.hopLe) return html + loiHtml(r);
+      html += canhBaoEtabsCu() + '<p class="hint">Kết quả ETABS tính lúc ' + esc(new Date(etabsLuu.thoiDiem).toLocaleString('vi-VN')) +
+        (etabsLuu.file ? ' – ' + esc(etabsLuu.file) : '') + '. Đã lưu trên máy; đổi thép chọn, Qa… thì kiểm tra tự tính lại, không cần chạy ETABS.</p>';
       var ck = r.cocKiemTra, cv = r.chuyenVi, d = r.dai;
       function gtTh(o, dv, so_) { return o ? so(o.gt, so_ === undefined ? 2 : so_) + (dv ? ' ' + dv : '') : '–'; }
       function th(o) { return o ? esc(o.toHop) : ''; }
@@ -1762,7 +1842,19 @@
         etabsDungKq = kq;
         if (kq.ok && etabsVanTayGui) { state.etabs.vanTayDung = etabsVanTayGui; luu(); }
       }
-      else if (lenh === 'phan-tich') etabsPhanTichKq = kq;
+      else if (lenh === 'phan-tich') {
+        if (kq.ok && kq.ketQua) {
+          var m3 = moHinhEtabs(), t3 = taiTrongEtabs(m3);
+          var tomTat = MCT.calc.tomTatEtabs(kq.ketQua, m3, t3);
+          if (tomTat.hopLe) {
+            var daLuu = luuKetQuaEtabs({ vanTay: vanTayMoHinh(m3, t3), thoiDiem: new Date().toISOString(),
+              file: kq.thongTin && kq.thongTin.fileMoHinh, tomTat: tomTat });
+            if (!daLuu) kq.ghiChuLuu = 'Không lưu được kết quả trên máy (bộ nhớ trình duyệt đầy) – kết quả chỉ giữ tới khi đóng chương trình.';
+          }
+          delete kq.ketQua;   // nội lực thô lớn: chỉ giữ bản tóm tắt
+        }
+        etabsPhanTichKq = kq;
+      }
       else etabsDangKyKq = kq;
       etabsDangChay = false;
       datTrangThai(lenh === 'kiem-tra' ? (kq.ok ? 'Đã kết nối ETABS' : 'Chưa kết nối được ETABS')
@@ -1774,12 +1866,20 @@
   }
 
   function trangThaiMuc(id) {
+    if (laEtabs() && ['coc', 'thep', 'tai-ngang', 'tuong-tac'].indexOf(id) >= 0) {
+      var r = ketQuaEtabsHienTai();
+      if (!r || !r.hopLe) return null;
+      var ck = r.cocKiemTra, cv = r.chuyenVi, d = r.dai;
+      if (id === 'coc') return ck.okNen !== false && ck.PminCC1 >= -ck.QaKeo;
+      if (id === 'thep') return [d.X.duoi, d.Y.duoi, d.X.tren, d.Y.tren].every(function (l) { return l.ok; });
+      if (id === 'tai-ngang') return ck.okCat !== false && cv.okDelta !== false && cv.okPsi !== false;
+      return ck.okTuongTac !== false;
+    }
     switch (id) {
       case 'coc': return kqB && kqB.hopLe ? kqB.kiemTraNen.ok && kqB.kiemTraKeo.ok : null;
       case 'xuyen': return kqC && kqC.hopLe ? kqC.ok : null;
       case 'thep': return kqD && kqD.hopLe ? kqD.tatCaOk : null;
       case 'bulong': return kqE && kqE.hopLe ? kqE.tatCaOk : null;
-      case 'ket-luan': return kqF && kqF.hopLe ? kqF.ok : null;
       case 'sct': return tatCa && tatCa.SCT && tatCa.SCT.hopLe ? true : null;
       case 'dia-chat': return tatCa && tatCa.DC && tatCa.DC.hopLe ? true : null;
       case 'tai-ngang': return tatCa && tatCa.TN && tatCa.TN.hopLe ? tatCa.TN.tatCaOk : null;
@@ -1791,6 +1891,7 @@
         var kqE = ketQuaEtabsHienTai();
         return kqE && kqE.hopLe ? kqE.tatCaOk : (etabsPhanTichKq && !etabsPhanTichKq.ok ? false : null);
       }
+      case 'ket-luan': { var F2 = ketLuanHienTai(); return F2 && F2.hopLe ? F2.ok : null; }
       case 'tuong-tac': return tatCa && tatCa.TT && tatCa.TT.hopLe && tatCa.TT.diemNoiLuc.length ? tatCa.TT.tatCaOk : null;
       default: return undefined;
     }
@@ -1820,7 +1921,7 @@
 
   function veKetQua() {
     var el = $('#vung-ket-qua');
-    if (el) el.innerHTML = TRANG[trangHienTai].ketQua();
+    if (el) el.innerHTML = khungEtabs(trangHienTai) + TRANG[trangHienTai].ketQua();
     veDanhMuc();
     $('#brand-sub').textContent = [state.duAn.ten, state.duAn.hangMuc].filter(Boolean).join(' · ');
   }

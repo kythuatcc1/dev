@@ -96,3 +96,36 @@ test('Đài: mômen, lực cắt mặt cắt = ∫ trên suốt bề rộng; th�
 test('Thiếu kết quả thì báo lỗi', () => {
   assert.equal(MCT.calc.ketQuaEtabs(null, m, t, s, kq).hopLe, false);
 });
+
+test('Tóm tắt lưu được (JSON) và kiểm tra lại cho cùng kết quả; kích thước gọn', () => {
+  const tt = MCT.calc.tomTatEtabs(raw, m, t);
+  const chuoi = JSON.stringify(tt);
+  assert.ok(chuoi.length < 1.5e6, 'tóm tắt quá lớn: ' + chuoi.length);
+  const lai = MCT.calc.kiemTraEtabs(JSON.parse(chuoi), s, kq);
+  gan(lai.cocKiemTra.Pnen.gt, r.cocKiemTra.Pnen.gt, 'Pnén');
+  gan(lai.cocKiemTra.tuongTac.tiSo, r.cocKiemTra.tuongTac.tiSo, 'tỉ số N–M');
+  gan(lai.dai.X.duoi.can.As, r.dai.X.duoi.can.As, 'As');
+  gan(lai.chuyenVi.DeltaMax.gt, r.chuyenVi.DeltaMax.gt, 'Δ');
+  // đổi thông số (thép chọn) → kiểm tra tính lại theo thông số mới, không cần chạy ETABS lại
+  const s2 = JSON.parse(JSON.stringify(s)); s2.thep.duoiX = { d: 10, s: 300 };
+  const lai2 = MCT.calc.kiemTraEtabs(JSON.parse(chuoi), s2, kq);
+  gan(lai2.dai.X.duoi.chon.AsMet, Math.PI * 100 / 4 * 1000 / 300, 'As chọn mới');
+});
+
+test('Kết luận theo phương pháp ETABS: B, D theo ETABS, thêm kiểm tra ngang, giữ C và E', () => {
+  const F = MCT.calc.ketLuanEtabs(kq.F, r);
+  assert.equal(F.hopLe, true);
+  assert.equal(F.phuongPhap, 'etabs');
+  const ten = F.ds.map((x) => x.ten);
+  assert.ok(F.ds.some((x) => x.ten === 'Tải trọng nén lên cọc' && x.etabs));
+  assert.ok(F.ds.some((x) => x.ten === 'Thép lớp dưới phương X' && x.etabs));
+  assert.ok(ten.includes('Xuyên thủng đài do chân cẩu'), 'giữ mục C');
+  assert.equal(F.ds.filter((x) => x.ma === 'E').length, 6, 'giữ 6 kiểm tra bulong');
+  assert.ok(ten.includes('Chuyển vị ngang') && ten.includes('Góc xoay') && ten.includes('Cọc chịu cắt') && ten.includes('Tương tác N–M cọc'));
+  assert.equal(F.ds.filter((x) => x.ma === 'B').length, 2);
+  assert.equal(F.ds.filter((x) => x.ma === 'D').length, 4);
+  // số liệu giả lập: chuyển vị 48 mm > 10 mm → không đủ
+  assert.equal(F.ok, false);
+  assert.equal(F.ketLuanGiaiTich, kq.F.ketLuan);
+  assert.equal(MCT.calc.ketLuanEtabs(kq.F, null).hopLe, false, 'chưa có kết quả ETABS');
+});

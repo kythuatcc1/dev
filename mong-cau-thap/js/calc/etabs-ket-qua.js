@@ -55,38 +55,33 @@
     return d > 0 && s > 0 ? { d: d, s: s, AsMet: Math.PI * d * d / 4 * 1000 / s } : null;
   }
 
+  function tron(v, so) { var k = Math.pow(10, so); return Math.round(v * k) / k; }
+
   /**
+   * Giai đoạn 1 – tóm tắt nội lực (chỉ phụ thuộc mô hình; gọn để lưu lại trên máy).
    * @param {object} raw ketQua cầu nối trả về: { toHop[], coc[{ten, dong[[z, ci, P, V2, V3, T, M2, M3]]}],
    *                     chuyenVi{nut[], dong[[i, ci, U1, U2, U3, R1, R2, R3]]}, dai{nut[[x, y]], dong[[ni, ci, M11, M22, M12, V13, V23]]} }
    */
-  function ketQuaEtabs(raw, m, t, s, kq) {
+  function tomTatEtabs(raw, m, t) {
     var loi = [];
     if (!raw || !raw.coc || !raw.toHop) loi.push('Chưa có kết quả phân tích ETABS.');
     if (!m || !m.hopLe) loi.push('Mô hình ETABS chưa hợp lệ.');
     if (!t || !t.hopLe) loi.push('Tải trọng ETABS chưa hợp lệ.');
     if (loi.length) return { hopLe: false, loi: loi };
-    var A = kq.A, TT = kq.TT, TN = kq.TN;
-    var thongTinToHop = {};
-    t.toHop.forEach(function (c) { thongTinToHop[c.ten] = c; });
-    var toHop = raw.toHop.map(function (ten) { return thongTinToHop[ten] || { ten: ten }; });
-    function tenTH(ci) { return toHop[ci] ? toHop[ci].ten : String(ci); }
+    function tenTH(ci) { return raw.toHop[ci] !== undefined ? raw.toHop[ci] : String(ci); }
     var zDau = m.thongSo.zDay;
-    var Mgh = TT && TT.hopLe ? taoMgh(TT) : null;
 
-    // ---------------- Cọc ----------------
-    var tongNen = null, tongKeo = null, MmaxAll = null, VmaxAll = null, tuongTacXau = null, diemTT = [];
     var coc = raw.coc.map(function (c) {
-      var tram = {};   // z → bao
-      var dauNen = null, dauKeo = null, Mmax = null, Vmax = null;
+      var tram = {}, dauNen = null, dauKeo = null, Mmax = null, Vmax = null, capNM = [];
       c.dong.forEach(function (r) {
         var z = r[0], ci = r[1], P = r[2], V = Math.sqrt(r[3] * r[3] + r[4] * r[4]), M = Math.sqrt(r[6] * r[6] + r[7] * r[7]);
         var kz = z.toFixed(3);
-        var b = tram[kz] || (tram[kz] = { z: z, Pmin: Infinity, Pmax: -Infinity, M: 0, V: 0, cap: [] });
+        var b = tram[kz] || (tram[kz] = { z: z, Pmin: Infinity, Pmax: -Infinity, M: 0, V: 0 });
         if (P < b.Pmin) b.Pmin = P;
         if (P > b.Pmax) b.Pmax = P;
         if (M > b.M) b.M = M;
         if (V > b.V) b.V = V;
-        b.cap.push([-P, M, ci]);
+        capNM.push([tron(-P, 2), tron(M, 2), ci, tron(z, 3)]);
         if (Math.abs(z - zDau) < 1e-3) {
           if (dauNen === null || -P > dauNen.gt) dauNen = { gt: -P, toHop: tenTH(ci) };
           if (dauKeo === null || P > dauKeo.gt) dauKeo = { gt: P, toHop: tenTH(ci) };
@@ -95,61 +90,21 @@
         if (Vmax === null || V > Vmax.gt) Vmax = { gt: V, z: z, toHop: tenTH(ci) };
       });
       var doc = Object.keys(tram).map(function (k) { return tram[k]; }).sort(function (a, b) { return b.z - a.z; });
-      // tương tác N–M: kiểm tra mọi cặp; giữ cặp đại diện để vẽ
-      doc.forEach(function (b) {
-        var nMin = null, nMax = null, mMax = null;
-        b.cap.forEach(function (p) {
-          if (Mgh) {
-            var gh = Mgh(p[0]), tiSo = gh > 0 ? p[1] / gh : Infinity;
-            if (tuongTacXau === null || tiSo > tuongTacXau.tiSo) tuongTacXau = { tiSo: tiSo, N: p[0], M: p[1], Mgh: gh, coc: c.ten, z: b.z, toHop: tenTH(p[2]) };
-          }
-          if (nMin === null || p[0] < nMin[0]) nMin = p;
-          if (nMax === null || p[0] > nMax[0]) nMax = p;
-          if (mMax === null || p[1] > mMax[1]) mMax = p;
-        });
-        [nMin, nMax, mMax].forEach(function (p) { if (p) diemTT.push({ N: p[0], M: p[1] }); });
-        delete b.cap;
-      });
-      if (dauNen && hon(tongNen && tongNen.gt, dauNen.gt)) tongNen = { gt: dauNen.gt, toHop: dauNen.toHop, coc: c.ten };
-      if (dauKeo && hon(tongKeo && tongKeo.gt, dauKeo.gt)) tongKeo = { gt: dauKeo.gt, toHop: dauKeo.toHop, coc: c.ten };
-      if (Mmax && hon(MmaxAll && MmaxAll.gt, Mmax.gt)) MmaxAll = Object.assign({ coc: c.ten }, Mmax);
-      if (Vmax && hon(VmaxAll && VmaxAll.gt, Vmax.gt)) VmaxAll = Object.assign({ coc: c.ten }, Vmax);
-      return { ten: c.ten, dauNen: dauNen, dauKeo: dauKeo, Mmax: Mmax, Vmax: Vmax, doc: doc };
+      return { ten: c.ten, dauNen: dauNen, dauKeo: dauKeo, Mmax: Mmax, Vmax: Vmax, doc: doc, capNM: capNM };
     });
-    var Qa = kq.B.Qa, QaKeo = Math.abs(kq.B.QaKeo);   // như mục B (tự tính từ sức chịu tải cọc hoặc nhập tay)
-    var Qgh = TN && TN.hopLe ? TN.Qgh : null;
-    var cocKiemTra = {
-      Pnen: tongNen, Pkeo: tongKeo && tongKeo.gt > 0 ? tongKeo : null, Qa: Qa, QaKeo: QaKeo,
-      okNen: tongNen ? tongNen.gt <= Qa : null,
-      okKeo: tongKeo ? tongKeo.gt <= QaKeo : null,
-      Mmax: MmaxAll, Vmax: VmaxAll, Qgh: Qgh, okCat: Qgh !== null && VmaxAll ? VmaxAll.gt <= Qgh : null,
-      tuongTac: tuongTacXau, okTuongTac: tuongTacXau ? tuongTacXau.tiSo <= 1 : null
-    };
 
-    // ---------------- Chuyển vị ----------------
-    var tn = s.taiNgang || {};
-    var gDelta = Number(tn.gioiHanChuyenVi) * 10, gPsi = Number(tn.gioiHanGocXoay);   // mm, độ
     var cv = (raw.chuyenVi && raw.chuyenVi.nut || []).map(function (ten, i) {
-      return { ten: ten, nhan: i === 0 ? 'Tâm đài' : 'Đầu cọc ' + m.coc[i - 1].ten, Delta: null, psi: null };
+      return { ten: ten, nhan: i === 0 ? 'Tâm đài' : 'Đầu cọc ' + (m.coc[i - 1] ? m.coc[i - 1].ten : i), Delta: null, psi: null };
     });
     (raw.chuyenVi && raw.chuyenVi.dong || []).forEach(function (r) {
       var n = cv[r[0]];
       if (!n) return;
-      var D = Math.sqrt(r[2] * r[2] + r[3] * r[3]) * 1000, p = Math.sqrt(r[5] * r[5] + r[6] * r[6]) * 180 / Math.PI;
+      var D = Math.sqrt(r[2] * r[2] + r[3] * r[3]) * 1000, ps = Math.sqrt(r[5] * r[5] + r[6] * r[6]) * 180 / Math.PI;
       if (n.Delta === null || D > n.Delta.gt) n.Delta = { gt: D, toHop: tenTH(r[1]), U1: r[2] * 1000, U2: r[3] * 1000 };
-      if (n.psi === null || p > n.psi.gt) n.psi = { gt: p, toHop: tenTH(r[1]), rad: p * Math.PI / 180 };
+      if (n.psi === null || ps > n.psi.gt) n.psi = { gt: ps, toHop: tenTH(r[1]) };
     });
-    var DeltaMax = null, psiMax = null;
-    cv.forEach(function (n) {
-      if (n.Delta && hon(DeltaMax && DeltaMax.gt, n.Delta.gt)) DeltaMax = Object.assign({ nut: n.nhan }, n.Delta);
-      if (n.psi && hon(psiMax && psiMax.gt, n.psi.gt)) psiMax = Object.assign({ nut: n.nhan }, n.psi);
-    });
-    var chuyenVi = {
-      nut: cv, DeltaMax: DeltaMax, psiMax: psiMax, gioiHanDelta: gDelta, gioiHanPsi: gPsi,
-      okDelta: DeltaMax ? DeltaMax.gt <= gDelta : null, okPsi: psiMax ? psiMax.gt <= gPsi : null
-    };
 
-    // ---------------- Đài: mặt cắt suốt bề rộng ----------------
+    // Đài: mặt cắt suốt bề rộng, bao theo tổ hợp
     var nut = (raw.dai && raw.dai.nut) || [];
     var giaTri = {};   // ni → ci → [M11, M22, M12, V13, V23]
     ((raw.dai && raw.dai.dong) || []).forEach(function (r) { (giaTri[r[0]] || (giaTri[r[0]] = {}))[r[1]] = r.slice(2); });
@@ -180,16 +135,85 @@
         });
         if (dong.Mmax) cat.push(dong);
       });
-      cat.sort(function (a, b) { return a.viTri - b.viTri; });
-      var duong_ = null, am = null, vmax = null;
+      return cat.sort(function (a, b) { return a.viTri - b.viTri; });
+    }
+    return {
+      hopLe: true, loi: [],
+      toHop: raw.toHop.slice(),
+      thongSo: { zDay: zDau, X: m.thongSo.X, Y: m.thongSo.Y, H: m.thongSo.H, soCoc: m.coc.length },
+      coc: coc,
+      chuyenVi: { nut: cv },
+      dai: { X: { cat: catTheo(0, { M: 0, V: 3 }) }, Y: { cat: catTheo(1, { M: 1, V: 4 }) } }
+    };
+  }
+
+  /** Giai đoạn 2 – kiểm tra theo thông số hiện tại (Qa, biểu đồ tương tác, giới hạn chuyển vị, thép chọn…). */
+  function kiemTraEtabs(tt, s, kq) {
+    if (!tt || !tt.hopLe) return { hopLe: false, loi: (tt && tt.loi) || ['Chưa có kết quả phân tích ETABS.'] };
+    var A = kq.A, TT = kq.TT, TN = kq.TN;
+    if (!A || !A.hopLe || !kq.B || !kq.B.hopLe) return { hopLe: false, loi: ['Mục A, B chưa hợp lệ.'] };
+    var Mgh = TT && TT.hopLe ? taoMgh(TT) : null;
+
+    // ---------------- Cọc ----------------
+    var tongNen = null, tongKeo = null, MmaxAll = null, VmaxAll = null, tuongTacXau = null, diemTT = [];
+    tt.coc.forEach(function (c) {
+      if (c.dauNen && hon(tongNen && tongNen.gt, c.dauNen.gt)) tongNen = { gt: c.dauNen.gt, toHop: c.dauNen.toHop, coc: c.ten };
+      if (c.dauKeo && hon(tongKeo && tongKeo.gt, c.dauKeo.gt)) tongKeo = { gt: c.dauKeo.gt, toHop: c.dauKeo.toHop, coc: c.ten };
+      if (c.Mmax && hon(MmaxAll && MmaxAll.gt, c.Mmax.gt)) MmaxAll = Object.assign({ coc: c.ten }, c.Mmax);
+      if (c.Vmax && hon(VmaxAll && VmaxAll.gt, c.Vmax.gt)) VmaxAll = Object.assign({ coc: c.ten }, c.Vmax);
+      var theoTram = {};
+      c.capNM.forEach(function (p) {
+        if (Mgh) {
+          var gh = Mgh(p[0]), tiSo = gh > 0 ? p[1] / gh : Infinity;
+          if (tuongTacXau === null || tiSo > tuongTacXau.tiSo) {
+            tuongTacXau = { tiSo: tiSo, N: p[0], M: p[1], Mgh: gh, coc: c.ten, z: p[3], toHop: tt.toHop[p[2]] };
+          }
+        }
+        var b = theoTram[p[3]] || (theoTram[p[3]] = { nMin: p, nMax: p, mMax: p });
+        if (p[0] < b.nMin[0]) b.nMin = p;
+        if (p[0] > b.nMax[0]) b.nMax = p;
+        if (p[1] > b.mMax[1]) b.mMax = p;
+      });
+      Object.keys(theoTram).forEach(function (k) {
+        var b = theoTram[k];
+        [b.nMin, b.nMax, b.mMax].forEach(function (p) { diemTT.push({ N: p[0], M: p[1] }); });
+      });
+    });
+    var Qa = kq.B.Qa, QaKeo = Math.abs(kq.B.QaKeo);   // như mục B (tự tính từ sức chịu tải cọc hoặc nhập tay)
+    var Qgh = TN && TN.hopLe ? TN.Qgh : null;
+    var cocKiemTra = {
+      Pnen: tongNen, Pkeo: tongKeo && tongKeo.gt > 0 ? tongKeo : null, Qa: Qa, QaKeo: QaKeo,
+      PminCC1: tongKeo ? -tongKeo.gt : null,          // lực đầu cọc nhỏ nhất, quy ước CC1 (nén dương, kéo âm)
+      okNen: tongNen ? tongNen.gt <= Qa : null,
+      okKeo: tongKeo ? tongKeo.gt <= QaKeo : null,
+      Mmax: MmaxAll, Vmax: VmaxAll, Qgh: Qgh, okCat: Qgh !== null && VmaxAll ? VmaxAll.gt <= Qgh : null,
+      tuongTac: tuongTacXau, okTuongTac: tuongTacXau ? tuongTacXau.tiSo <= 1 : null
+    };
+
+    // ---------------- Chuyển vị ----------------
+    var tn = s.taiNgang || {};
+    var gDelta = Number(tn.gioiHanChuyenVi) * 10, gPsi = Number(tn.gioiHanGocXoay);   // mm, độ
+    var DeltaMax = null, psiMax = null;
+    tt.chuyenVi.nut.forEach(function (n) {
+      if (n.Delta && hon(DeltaMax && DeltaMax.gt, n.Delta.gt)) DeltaMax = Object.assign({ nut: n.nhan }, n.Delta);
+      if (n.psi && hon(psiMax && psiMax.gt, n.psi.gt)) psiMax = Object.assign({ nut: n.nhan }, n.psi);
+    });
+    var chuyenVi = {
+      nut: tt.chuyenVi.nut, DeltaMax: DeltaMax, psiMax: psiMax, gioiHanDelta: gDelta, gioiHanPsi: gPsi,
+      okDelta: DeltaMax ? DeltaMax.gt <= gDelta : null, okPsi: psiMax ? psiMax.gt <= gPsi : null
+    };
+
+    // ---------------- Đài ----------------
+    function cucTri(cat) {
+      var duong = null, am = null, vmax = null;
       cat.forEach(function (d) {
-        if (d.Mmax.gt > 0 && hon(duong_ && duong_.gt, d.Mmax.gt)) duong_ = { gt: d.Mmax.gt, viTri: d.viTri, b: d.b, toHop: d.Mmax.toHop };
+        if (d.Mmax.gt > 0 && hon(duong && duong.gt, d.Mmax.gt)) duong = { gt: d.Mmax.gt, viTri: d.viTri, b: d.b, toHop: d.Mmax.toHop };
         if (d.Mmin.gt < 0 && hon(am && -am.gt, -d.Mmin.gt)) am = { gt: d.Mmin.gt, viTri: d.viTri, b: d.b, toHop: d.Mmin.toHop };
         if (hon(vmax && vmax.gt, d.Vmax.gt)) vmax = { gt: d.Vmax.gt, viTri: d.viTri, b: d.b, toHop: d.Vmax.toHop };
       });
-      return { cat: cat, Mduong: duong_, Mam: am, Vmax: vmax };
+      return { cat: cat, Mduong: duong, Mam: am, Vmax: vmax };
     }
-    var datX = catTheo(0, { M: 0, V: 3 }), datY = catTheo(1, { M: 1, V: 4 });
+    var datX = cucTri(tt.dai.X.cat), datY = cucTri(tt.dai.Y.cat);
     var vl = A.vatLieu, H = A.dai.H, a = vl.a_cm / 100, h0 = H - a;
     var Rb = vl.Rb, Rbt = vl.Rbt, Rs = vl.Rs;
     function lop(dl, khoaChon, ten) {
@@ -209,8 +233,6 @@
       X: Object.assign(datX, { duoi: lop(datX.Mduong, 'duoiX', 'Lớp dưới theo X'), tren: lop(datX.Mam, 'trenX', 'Lớp trên theo X'), catKT: cat(datX.Vmax) }),
       Y: Object.assign(datY, { duoi: lop(datY.Mduong, 'duoiY', 'Lớp dưới theo Y'), tren: lop(datY.Mam, 'trenY', 'Lớp trên theo Y'), catKT: cat(datY.Vmax) })
     };
-    dai.ok = [dai.X.duoi, dai.X.tren, dai.Y.duoi, dai.Y.tren].every(function (l) { return l.ok; }) &&
-      [dai.X.catKT, dai.Y.catKT].every(function (c) { return !c || c.ok; });
 
     var ketLuan = [
       { ten: 'Cọc chịu nén (đầu cọc)', ok: cocKiemTra.okNen },
@@ -224,12 +246,64 @@
     ];
     return {
       hopLe: true, loi: [],
-      toHop: toHop, coc: coc, cocKiemTra: cocKiemTra, diemTuongTac: diemTT,
+      toHop: tt.toHop, coc: tt.coc, cocKiemTra: cocKiemTra, diemTuongTac: diemTT,
       chuyenVi: chuyenVi, dai: dai, ketLuan: ketLuan,
       tatCaOk: ketLuan.every(function (k) { return k.ok !== false; })
     };
   }
 
+  /** Tóm tắt + kiểm tra trong một bước. */
+  function ketQuaEtabs(raw, m, t, s, kq) {
+    var tt = tomTatEtabs(raw, m, t);
+    return tt.hopLe ? kiemTraEtabs(tt, s, kq) : tt;
+  }
+
+  /**
+   * Kết luận (mục F) theo phương pháp ETABS: các dòng mục B (cọc nén/kéo) và D (thép đài) lấy theo ETABS;
+   * thêm cọc chịu cắt, tương tác N–M, chuyển vị, góc xoay, đài chịu cắt từ ETABS; giữ mục C, E.
+   */
+  function ketLuanEtabs(F, kE) {
+    if (!F || !F.hopLe) return F;
+    if (!kE || !kE.hopLe) return { hopLe: false, loi: ['Chưa có kết quả ETABS: vào trang Kết quả ETABS, chạy phân tích (hoặc chọn phương pháp Giải tích).'], ds: [] };
+    var ck = kE.cocKiemTra, cv = kE.chuyenVi, d = kE.dai;
+    function muc(ma, trang, ten, trai, dau, phai, ok) {
+      return { ma: ma, trang: trang, ten: ten, trai: trai, dau: dau, phai: phai, ok: !!ok, oExcel: null, etabs: true };
+    }
+    function thep(l, ten) {
+      return muc('D', 'etabs-ket-qua', ten, { v: l.can ? l.can.AsMet : 0, k: 'As,cal', dv: 'mm²/m' }, '≤',
+        { v: l.chon ? l.chon.AsMet : 0, k: 'As,design', dv: 'mm²/m' }, l.ok);
+    }
+    var B = [
+      muc('B', 'etabs-ket-qua', 'Tải trọng nén lên cọc', { v: ck.Pnen ? ck.Pnen.gt : 0, k: 'Pmax', dv: 'kN' }, '≤', { v: ck.Qa, k: 'Qa', dv: 'kN' }, ck.okNen),
+      muc('B', 'etabs-ket-qua', 'Tải trọng kéo lên cọc', { v: ck.PminCC1, k: 'Pmin', dv: 'kN' }, '≥', { v: -ck.QaKeo, k: "Qa'", dv: 'kN' },
+        ck.PminCC1 === null || ck.PminCC1 >= -ck.QaKeo)
+    ];
+    var D = [thep(d.X.duoi, 'Thép lớp dưới phương X'), thep(d.Y.duoi, 'Thép lớp dưới phương Y'),
+      thep(d.X.tren, 'Thép lớp trên phương X'), thep(d.Y.tren, 'Thép lớp trên phương Y')];
+    var ngang = [
+      muc('ETABS', 'etabs-ket-qua', 'Cọc chịu cắt', { v: ck.Vmax ? ck.Vmax.gt : 0, k: 'Vmax', dv: 'kN' }, '≤', { v: ck.Qgh, k: '[Q]', dv: 'kN' }, ck.okCat),
+      muc('ETABS', 'etabs-ket-qua', 'Tương tác N–M cọc', { v: ck.tuongTac ? ck.tuongTac.M : 0, k: 'M', dv: 'kNm' }, '≤',
+        { v: ck.tuongTac ? ck.tuongTac.Mgh : 0, k: 'Mgh', dv: 'kNm' }, ck.okTuongTac),
+      muc('ETABS', 'etabs-ket-qua', 'Chuyển vị ngang', { v: cv.DeltaMax ? cv.DeltaMax.gt : 0, k: 'Δ', dv: 'mm' }, '≤', { v: cv.gioiHanDelta, k: '[Δ]', dv: 'mm' }, cv.okDelta),
+      muc('ETABS', 'etabs-ket-qua', 'Góc xoay', { v: cv.psiMax ? cv.psiMax.gt : 0, k: 'ψ', dv: '°' }, '≤', { v: cv.gioiHanPsi, k: '[ψ]', dv: '°' }, cv.okPsi)
+    ];
+    [['X', d.X.catKT], ['Y', d.Y.catKT]].forEach(function (x) {
+      if (x[1]) ngang.push(muc('ETABS', 'etabs-ket-qua', 'Đài chịu cắt phương ' + x[0], { v: x[1].V, k: 'V', dv: 'kN' }, '≤', { v: x[1].Qb, k: 'Qb', dv: 'kN' }, x[1].ok));
+    });
+    var giu = F.ds.filter(function (m) { return m.ma === 'C' || m.ma === 'E'; });
+    var ds = B.concat(giu.filter(function (m) { return m.ma === 'C'; }), D, giu.filter(function (m) { return m.ma === 'E'; }), ngang);
+    var ok = ds.every(function (m) { return m.ok; });
+    return {
+      hopLe: true, loi: [], phuongPhap: 'etabs', ds: ds, ok: ok,
+      ketLuan: ok ? 'Móng cẩu tháp đủ khả năng chịu lực' : 'Móng cẩu tháp KHÔNG đủ khả năng chịu lực',
+      okExcel: F.okExcel, ketLuanExcel: F.ketLuanExcel, ketLuanGiaiTich: F.ketLuan, okGiaiTich: F.ok,
+      soFail: ds.filter(function (m) { return !m.ok; }).length
+    };
+  }
+
   MCT.calc.duLieuPhanTich = duLieuPhanTich;
+  MCT.calc.tomTatEtabs = tomTatEtabs;
+  MCT.calc.kiemTraEtabs = kiemTraEtabs;
   MCT.calc.ketQuaEtabs = ketQuaEtabs;
+  MCT.calc.ketLuanEtabs = ketLuanEtabs;
 })(globalThis.MCT = globalThis.MCT || {});

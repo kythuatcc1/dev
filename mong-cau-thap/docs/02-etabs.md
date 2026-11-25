@@ -65,8 +65,8 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 | 1 | Kết nối: trang "Kết nối ETABS", lệnh `kiem-tra` (phiên bản, file mô hình, đơn vị, số phần tử, load pattern) | ✔ Đã chạy trên máy thật (ETABS 23.2.0, API 2.014) sau khi chạy RegisterETABS.exe bằng quyền Administrator |
 | 2 | Dựng mô hình (lệnh `dung-mo-hinh`, trang "Mô hình ETABS", `js/calc/etabs-mo-hinh.js`) | ✔ Chạy trên máy thật (ETABS 23, MC205B: 51 tầng, 202 điểm, 153 thanh, 36 ô vỏ, 117 lò xo, 4,3 giây) |
 | 3 | Tải trọng & tổ hợp (trang "Tải trọng & tổ hợp", gán cùng lệnh `dung-mo-hinh`) | ✔ Chạy trên máy thật (12 load pattern, 49 tổ hợp) |
-| 4 | Chạy phân tích, lấy nội lực (lệnh `phan-tich`, trang "Kết quả ETABS", `js/calc/etabs-ket-qua.js`) | Đã làm – chờ chạy thử trên máy thật |
-| 5 | Chọn phương pháp; kiểm tra cọc nén/kéo, tải ngang (cắt, P–M), thép đài, chuyển vị/góc xoay theo form CC1 | Chờ |
+| 4 | Chạy phân tích, lấy nội lực (lệnh `phan-tich`, trang "Kết quả ETABS", `js/calc/etabs-ket-qua.js`) | Đã làm (thử với ETABS giả lập) – chờ chạy thử trên máy thật |
+| 5 | Chọn phương pháp (Giải tích / ETABS) cho kết luận; B, D, tải ngang, tương tác dùng nội lực ETABS | Đã làm |
 | 6 | Thuyết minh form CC1 cho phương pháp ETABS | Chờ |
 | 7 | Tự cập nhật: đổi thông số → dựng lại, chạy lại, lấy kết quả | Chờ |
 
@@ -110,6 +110,16 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
   trên y = const (thép theo Y), quy ước CSI M > 0 thớ dưới chịu kéo; thép như mục D với b = bề rộng mặt cắt;
   lực cắt so với Qb = 0,5·Rbt·b·h0 (như PDF).
 - App ghi dấu vân tay mô hình + tải trọng khi dựng, cảnh báo nếu thông số đổi mà chưa dựng lại.
+
+## Bước 5 – chọn phương pháp tính
+- `state.tinhToan.phuongPhap`: `giai-tich` (mặc định, form CC1) hoặc `etabs`; chọn ở trang Kết luận hoặc Kết quả ETABS.
+- Kết quả ETABS lưu gọn trên máy (`localStorage` khoá `mong-cau-thap.etabs.v1`: dấu vân tay, thời điểm, file, `tomTatEtabs`
+  – bao nội lực cọc, mọi cặp N–M, chuyển vị lớn nhất, bao mômen/lực cắt từng mặt cắt đài). Kiểm tra (`kiemTraEtabs`) tính lại
+  theo thông số hiện tại (Qa, thép chọn, biểu đồ tương tác, giới hạn chuyển vị) mà không cần chạy lại ETABS; nếu mô hình/tải
+  trọng đã đổi so với lúc phân tích thì app cảnh báo kết quả chưa cập nhật.
+- Phương pháp ETABS (`ketLuanEtabs`): mục B (nén/kéo đầu cọc) và D (4 lớp thép đài) lấy theo ETABS; thêm cọc chịu cắt,
+  tương tác N–M, chuyển vị, góc xoay, đài chịu cắt; giữ C (xuyên thủng) và E (bulong). Các trang B, D, tải ngang, tương tác
+  hiện khung "Đang dùng phương pháp ETABS", dấu ✓/✗ ở danh mục theo ETABS.
 
 ## Chạy thử bước 1
 1. Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới (đợi mô hình hiện ra).

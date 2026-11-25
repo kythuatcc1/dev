@@ -252,3 +252,5 @@ ul.basis li { margin: 3px 0; }
   .num { min-width: 0; text-align: left; }
   .topbar-actions .btn { display: none; }
 }
+/* Khung "đang dùng phương pháp ETABS" ở đầu các trang B, D, tải ngang, tương tác */
+.khung-etabs { border-left: 4px solid #2a9bb8; }
