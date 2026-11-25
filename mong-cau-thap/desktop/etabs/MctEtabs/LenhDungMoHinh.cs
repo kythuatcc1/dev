@@ -73,7 +73,7 @@ namespace MctEtabs
         /// tổng thể không có trong giao diện ETABS (chỉ có lò xo theo trục cục bộ) – xem lò xo kiểu đó làm ETABS văng.
         /// Bản ETABS không có PropPointSpring / SetSpringAssignment: dùng SetSpring theo trục cục bộ của điểm (trùng trục tổng thể).
         /// </summary>
-        static string GanLoXo(BoGoiEtabs e, JsonObject m, JsonArray ds, Func<JsonNode, string> ten)
+        internal static string GanLoXo(BoGoiEtabs e, JsonObject m, JsonArray ds, Func<JsonNode, string> ten)
         {
             string lyDo = null;
             var dsTT = m["thuocTinhLoXo"] as JsonArray;
@@ -135,29 +135,11 @@ namespace MctEtabs
 
                 // 3. Vật liệu bê tông
                 buoc = "vat-lieu";
-                foreach (JsonNode v in (JsonArray)m["vatLieu"])
-                {
-                    string ten = (string)v["ten"];
-                    e.Goi("PropMaterial", "cPropMaterial", "SetMaterial", new object[] { ten, "Concrete" });
-                    e.Goi("PropMaterial", "cPropMaterial", "SetMPIsotropic", new object[] { ten, (double)v["E"], (double)v["nu"], (double)v["alpha"] });
-                    e.Goi("PropMaterial", "cPropMaterial", "SetWeightAndMass", new object[] { ten, 1, (double)v["gamma"] });
-                }
-                kq.GhiBuoc(buoc, true, string.Join(", ", ((JsonArray)m["vatLieu"]).Select(v => (string)v["ten"] + " E=" + (double)v["E"] + " kN/m2")));
+                kq.GhiBuoc(buoc, true, DatVatLieu(e, m));
 
                 // 4. Tiết diện thanh (cọc, đoạn cọc trong đài, liên kết cứng) và tấm đài
                 buoc = "tiet-dien";
-                foreach (JsonNode t in (JsonArray)m["tietDienThanh"])
-                {
-                    string ten = (string)t["ten"], vl = (string)t["vatLieu"];
-                    if ((string)t["loai"] == "tron") e.Goi("PropFrame", "cPropFrame", "SetCircle", new object[] { ten, vl, (double)t["D"] });
-                    else e.Goi("PropFrame", "cPropFrame", "SetRectangle", new object[] { ten, vl, (double)t["cao"], (double)t["rong"] });
-                    if (t["heSo"] is JsonArray hs)
-                        e.Goi("PropFrame", "cPropFrame", "SetModifiers", new object[] { ten, hs.Select(x => (double)x).ToArray() }, true);
-                }
-                foreach (JsonNode t in (JsonArray)m["tietDienVo"])
-                    e.Goi("PropArea", "cPropArea", "SetSlab", new object[] { (string)t["ten"], "Slab", "ShellThick", (string)t["vatLieu"], (double)t["day"] });
-                kq.GhiBuoc(buoc, true, "Thanh: " + string.Join(", ", ((JsonArray)m["tietDienThanh"]).Select(t => (string)t["ten"])) +
-                                       "; vo: " + string.Join(", ", ((JsonArray)m["tietDienVo"]).Select(t => (string)t["ten"] + " day " + (double)t["day"] + " m")));
+                kq.GhiBuoc(buoc, true, DatTietDien(e, m));
 
                 // 5. Điểm (giữ tên ETABS trả về để nối thanh, vỏ)
                 buoc = "diem";
@@ -211,66 +193,15 @@ namespace MctEtabs
 
                 // 9. Gối mũi cọc
                 buoc = "goi";
-                var dsGoi = (JsonArray)m["gioiHan"];
-                foreach (JsonNode g in dsGoi)
-                {
-                    bool[] gt = ((JsonArray)g["giaTri"]).Select(x => (bool)x).ToArray();
-                    e.Goi("PointObj", "cPointObj", "SetRestraint", new object[] { Ten(g["diem"]), gt, "Objects" }, true);
-                }
-                kq.GhiBuoc(buoc, true, dsGoi.Count + " goi");
+                kq.GhiBuoc(buoc, true, DatGoi(e, m, Ten));
 
                 // 10. Load pattern và tải đặt tại tâm đài
                 buoc = "tai-trong";
-                var dsMau = m["mauTai"] as JsonArray ?? new JsonArray();
-                var tenMau = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                if (dsMau.Count > 0)
-                {
-                    var coSan = DanhSachMau(e);
-                    int soLuc = 0;
-                    foreach (JsonNode p in dsMau)
-                    {
-                        string ma = (string)p["ten"], loai = (string)p["loai"];
-                        double banThan = (double)p["banThan"];
-                        string tonTai = coSan.FirstOrDefault(x => string.Equals(x, ma, StringComparison.OrdinalIgnoreCase));
-                        if (tonTai != null)
-                        {
-                            try { e.Goi("LoadPatterns", "cLoadPatterns", "SetLoadType", new object[] { tonTai, loai }); } catch { /* giữ loại cũ */ }
-                            e.Goi("LoadPatterns", "cLoadPatterns", "SetSelfWTMultiplier", new object[] { tonTai, banThan });
-                            tenMau[ma] = tonTai;
-                        }
-                        else
-                        {
-                            e.Goi("LoadPatterns", "cLoadPatterns", "Add", new object[] { ma, loai, banThan, true });
-                            tenMau[ma] = ma;
-                        }
-                        if (p["luc"] is JsonObject luc)
-                        {
-                            double[] gt = ((JsonArray)luc["giaTri"]).Select(x => (double)x).ToArray();
-                            e.Goi("PointObj", "cPointObj", "SetLoadForce", new object[] { Ten(luc["diem"]), tenMau[ma], gt, true, "Global", "Objects" }, true);
-                            soLuc++;
-                        }
-                    }
-                    kq.Dat("loadPatterns", tenMau.Values.ToList());
-                    kq.GhiBuoc(buoc, true, dsMau.Count + " load pattern (" + string.Join(", ", tenMau.Values) + "); " + soLuc + " luc tai tam dai");
-                }
+                var tenMau = DatTaiTrong(kq, e, m, Ten);
 
                 // 11. Tổ hợp tải trọng (các tổ hợp tuyến tính + BAO envelope)
                 buoc = "to-hop";
-                var dsToHop = m["toHop"] as JsonArray ?? new JsonArray();
-                foreach (JsonNode c in dsToHop)
-                {
-                    string tenTh = (string)c["ten"];
-                    e.Goi("RespCombo", "cCombo", "Add", new object[] { tenTh, (int)c["loai"] });
-                    foreach (JsonNode x in (JsonArray)c["ds"])
-                    {
-                        bool laToHop = x["toHop"] != null;
-                        string tenCa = laToHop ? (string)x["toHop"] : (string)x["ca"];
-                        if (!laToHop && tenMau.TryGetValue(tenCa, out string thuc)) tenCa = thuc;
-                        e.Goi("RespCombo", "cCombo", "SetCaseList", new object[] { tenTh, laToHop ? "LoadCombo" : "LoadCase", tenCa, (double)x["heSo"] }, true);
-                    }
-                }
-                kq.Dat("soToHop", dsToHop.Count);
-                if (dsToHop.Count > 0) kq.GhiBuoc(buoc, true, dsToHop.Count + " to hop (" + (string)dsToHop[0]["ten"] + " … " + (string)dsToHop[dsToHop.Count - 1]["ten"] + ")");
+                DatToHop(kq, e, m, tenMau);
 
                 // 12. Hiển thị và lưu file
                 buoc = "luu";
@@ -300,7 +231,102 @@ namespace MctEtabs
             }
         }
 
-        static List<string> DanhSachMau(BoGoiEtabs e)
+        // ---------- Các bước dùng chung cho dựng mô hình và cập nhật mô hình ----------
+        internal static string DatVatLieu(BoGoiEtabs e, JsonObject m)
+        {
+            foreach (JsonNode v in (JsonArray)m["vatLieu"])
+            {
+                string ten = (string)v["ten"];
+                e.Goi("PropMaterial", "cPropMaterial", "SetMaterial", new object[] { ten, "Concrete" });
+                e.Goi("PropMaterial", "cPropMaterial", "SetMPIsotropic", new object[] { ten, (double)v["E"], (double)v["nu"], (double)v["alpha"] });
+                e.Goi("PropMaterial", "cPropMaterial", "SetWeightAndMass", new object[] { ten, 1, (double)v["gamma"] });
+            }
+            return string.Join(", ", ((JsonArray)m["vatLieu"]).Select(v => (string)v["ten"] + " E=" + (double)v["E"] + " kN/m2"));
+        }
+
+        internal static string DatTietDien(BoGoiEtabs e, JsonObject m)
+        {
+            foreach (JsonNode t in (JsonArray)m["tietDienThanh"])
+            {
+                string ten = (string)t["ten"], vl = (string)t["vatLieu"];
+                if ((string)t["loai"] == "tron") e.Goi("PropFrame", "cPropFrame", "SetCircle", new object[] { ten, vl, (double)t["D"] });
+                else e.Goi("PropFrame", "cPropFrame", "SetRectangle", new object[] { ten, vl, (double)t["cao"], (double)t["rong"] });
+                if (t["heSo"] is JsonArray hs)
+                    e.Goi("PropFrame", "cPropFrame", "SetModifiers", new object[] { ten, hs.Select(x => (double)x).ToArray() }, true);
+            }
+            foreach (JsonNode t in (JsonArray)m["tietDienVo"])
+                e.Goi("PropArea", "cPropArea", "SetSlab", new object[] { (string)t["ten"], "Slab", "ShellThick", (string)t["vatLieu"], (double)t["day"] });
+            return "Thanh: " + string.Join(", ", ((JsonArray)m["tietDienThanh"]).Select(t => (string)t["ten"])) +
+                   "; vo: " + string.Join(", ", ((JsonArray)m["tietDienVo"]).Select(t => (string)t["ten"] + " day " + (double)t["day"] + " m"));
+        }
+
+        internal static string DatGoi(BoGoiEtabs e, JsonObject m, Func<JsonNode, string> ten)
+        {
+            var dsGoi = (JsonArray)m["gioiHan"];
+            foreach (JsonNode g in dsGoi)
+            {
+                bool[] gt = ((JsonArray)g["giaTri"]).Select(x => (bool)x).ToArray();
+                e.Goi("PointObj", "cPointObj", "SetRestraint", new object[] { ten(g["diem"]), gt, "Objects" }, true);
+            }
+            return dsGoi.Count + " goi";
+        }
+
+        /// <summary>Load pattern (dùng lại pattern có sẵn cùng tên, không phân biệt hoa thường) và lực tại tâm đài (thay lực cũ).</summary>
+        internal static Dictionary<string, string> DatTaiTrong(KetQua kq, BoGoiEtabs e, JsonObject m, Func<JsonNode, string> ten)
+        {
+            var dsMau = m["mauTai"] as JsonArray ?? new JsonArray();
+            var tenMau = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (dsMau.Count == 0) return tenMau;
+            var coSan = DanhSachMau(e);
+            int soLuc = 0;
+            foreach (JsonNode p in dsMau)
+            {
+                string ma = (string)p["ten"], loai = (string)p["loai"];
+                double banThan = (double)p["banThan"];
+                string tonTai = coSan.FirstOrDefault(x => string.Equals(x, ma, StringComparison.OrdinalIgnoreCase));
+                if (tonTai != null)
+                {
+                    try { e.Goi("LoadPatterns", "cLoadPatterns", "SetLoadType", new object[] { tonTai, loai }); } catch { /* giữ loại cũ */ }
+                    e.Goi("LoadPatterns", "cLoadPatterns", "SetSelfWTMultiplier", new object[] { tonTai, banThan });
+                    tenMau[ma] = tonTai;
+                }
+                else
+                {
+                    e.Goi("LoadPatterns", "cLoadPatterns", "Add", new object[] { ma, loai, banThan, true });
+                    tenMau[ma] = ma;
+                }
+                if (p["luc"] is JsonObject luc)
+                {
+                    double[] gt = ((JsonArray)luc["giaTri"]).Select(x => (double)x).ToArray();
+                    e.Goi("PointObj", "cPointObj", "SetLoadForce", new object[] { ten(luc["diem"]), tenMau[ma], gt, true, "Global", "Objects" }, true);
+                    soLuc++;
+                }
+            }
+            kq.Dat("loadPatterns", tenMau.Values.ToList());
+            kq.GhiBuoc("tai-trong", true, dsMau.Count + " load pattern (" + string.Join(", ", tenMau.Values) + "); " + soLuc + " luc tai tam dai");
+            return tenMau;
+        }
+
+        internal static void DatToHop(KetQua kq, BoGoiEtabs e, JsonObject m, Dictionary<string, string> tenMau)
+        {
+            var dsToHop = m["toHop"] as JsonArray ?? new JsonArray();
+            foreach (JsonNode c in dsToHop)
+            {
+                string tenTh = (string)c["ten"];
+                e.Goi("RespCombo", "cCombo", "Add", new object[] { tenTh, (int)c["loai"] });
+                foreach (JsonNode x in (JsonArray)c["ds"])
+                {
+                    bool laToHop = x["toHop"] != null;
+                    string tenCa = laToHop ? (string)x["toHop"] : (string)x["ca"];
+                    if (!laToHop && tenMau.TryGetValue(tenCa, out string thuc)) tenCa = thuc;
+                    e.Goi("RespCombo", "cCombo", "SetCaseList", new object[] { tenTh, laToHop ? "LoadCombo" : "LoadCase", tenCa, (double)x["heSo"] }, true);
+                }
+            }
+            kq.Dat("soToHop", dsToHop.Count);
+            if (dsToHop.Count > 0) kq.GhiBuoc("to-hop", true, dsToHop.Count + " to hop (" + (string)dsToHop[0]["ten"] + " … " + (string)dsToHop[dsToHop.Count - 1]["ten"] + ")");
+        }
+
+        internal static List<string> DanhSachMau(BoGoiEtabs e)
         {
             var a = new object[] { 0, null };
             try { e.Goi("LoadPatterns", "cLoadPatterns", "GetNameList", a, true); } catch { return new List<string>(); }
@@ -352,7 +378,7 @@ namespace MctEtabs
             throw new LoiEtabs("Khong dat duoc tang: " + string.Join(" | ", loi));
         }
 
-        static string DuongDanLuu(YeuCau yc)
+        internal static string DuongDanLuu(YeuCau yc)
         {
             string file = (string)yc.DuLieu?["fileMoHinh"];
             if (string.IsNullOrWhiteSpace(file))

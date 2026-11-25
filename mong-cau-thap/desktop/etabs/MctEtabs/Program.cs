@@ -64,6 +64,7 @@ namespace MctEtabs
                     case "kiem-tra": LenhKiemTra.Chay(kq, yc); break;
                     case "dang-ky-giao-dien": LenhDangKy.Chay(kq, yc, false); break;
                     case "dung-mo-hinh": LenhDungMoHinh.Chay(kq, yc); break;
+                    case "cap-nhat-mo-hinh": LenhCapNhatMoHinh.Chay(kq, yc); break;
                     case "phan-tich": LenhPhanTich.Chay(kq, yc); break;
                     case "go-dang-ky-giao-dien": LenhDangKy.Chay(kq, yc, true); break;
                     default: kq.Dung("doc-yeu-cau", "Lenh chua ho tro: " + yc.Lenh); break;

@@ -78,7 +78,9 @@
       heSoTinhTaiNen: 1.1,  // hệ số tĩnh tải trong tổ hợp cọc nén (PDF)
       heSoTinhTaiKeo: 0.9,  // hệ số tĩnh tải trong tổ hợp cọc kéo (PDF)
       heSoFzKeo: 0.9,       // hệ số lực đứng của cẩu trong tổ hợp cọc kéo (PDF)
-      vanTayDung: ''        // dấu vân tay mô hình + tải trọng của lần dựng gần nhất (app tự ghi)
+      vanTayDung: '',       // dấu vân tay mô hình + tải trọng của lần dựng / cập nhật gần nhất (app tự ghi)
+      vanTayHinhHoc: '',    // dấu vân tay hình học (tầng, điểm, thanh, vỏ) của lần dựng gần nhất – trùng thì cập nhật được
+      fileDung: ''          // file .EDB của lần dựng gần nhất (app tự ghi)
     },
     // Dầm giằng các cọc (chỉ dùng trong mô hình ETABS). ds: danh sách dầm; mau: thông số mặc định khi thêm dầm.
     //   tuCoc, denCoc: số thứ tự cọc (1, 2…); z: cao độ tim dầm (m, so với MĐTN); b, h: bề rộng, chiều cao (m);

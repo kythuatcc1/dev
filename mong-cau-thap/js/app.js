@@ -1524,6 +1524,8 @@
     'doc-mo-hinh': 'Đọc mô hình đang mở', 'he-dieu-hanh': 'Hệ điều hành', 'cau-noi': 'Chạy cầu nối',
     'net8': '.NET 8', 'loi-chung': 'Lỗi khác', 'tim-tlb': 'Tìm type library (.tlb)', 'dang-ky': 'Đăng ký giao diện',
     'go-dang-ky': 'Gỡ đăng ký giao diện', 'kiem-tra-dang-ky': 'Kiểm tra đăng ký',
+    'mo-file': 'Mở file mô hình đã dựng', 'mo-khoa': 'Mở khoá mô hình', 'kiem-tra-hinh-hoc': 'Hình học trùng thông số',
+    'xoa-to-hop-cu': 'Xoá tổ hợp cũ của app', 'noi-luc-dam': 'Nội lực dầm giằng',
     'mo-hinh-moi': 'Mô hình mới', 'tang': 'Tầng (cao độ nút)', 'vat-lieu': 'Vật liệu', 'tiet-dien': 'Tiết diện',
     'diem': 'Điểm', 'thanh': 'Thanh cọc', 'vo': 'Vỏ (tấm đài)', 'lo-xo': 'Lò xo đất', 'goi': 'Gối mũi cọc',
     'luu': 'Lưu file .EDB', 'kiem-tra-so-luong': 'Kiểm tra số lượng trong ETABS',
@@ -1547,6 +1549,8 @@
     var dk = t.registerEtabs ? '<code>' + esc(t.registerEtabs) + '</code>' : '<code>RegisterETABS.exe</code> trong thư mục cài ETABS';
     var GOI_Y = {
       'mo-etabs': ['Chưa mở ETABS', 'Mở ETABS v23 (mở mô hình hoặc New Model) rồi bấm Kiểm tra kết nối.'],
+      'dung-lai': ['Cần dựng lại mô hình', 'Hình học (đài, cọc, lưới chia, dầm giằng…) đã đổi so với mô hình trong ETABS, hoặc không còn file đã dựng – ' +
+        'không cập nhật tại chỗ được. Bấm <strong>Dựng lại mô hình mới</strong> ở trang Mô hình ETABS.'],
       'tim-dll': ['Không thấy thư viện API', 'Nhập thư mục cài ETABS vào ô phía trên, ví dụ <code>C:\\Program Files\\Computers and Structures\\ETABS 23</code>.'],
       'mo-mo-hinh': ['ETABS chưa mở mô hình', 'Đã gắn được vào ETABS nhưng chưa có mô hình. Vào <strong>File → New Model</strong> ' +
         '(mô hình trống, đơn vị kN-m) hoặc mở một file .EDB, đợi mô hình hiện ra rồi bấm Kiểm tra kết nối.'],
@@ -1786,6 +1790,26 @@
   }
 
   function nutDungMoHinh() {
+    if (!coChuongTrinh()) return '<p class="hint">Nút dựng / cập nhật mô hình chỉ có trong chương trình MongCauThap.exe (Windows, có ETABS v22/v23).</p>';
+    var tm = trangThaiMoHinh(), tat = etabsDangChay ? ' disabled' : '';
+    var trangThai = tm.khop ? '<div class="alert alert-info">Mô hình trong ETABS khớp thông số hiện tại: ' + esc(state.etabs.fileDung) + '</div>'
+      : tm.capNhatDuoc ? '<p>Thông số đã đổi nhưng hình học (đài, cọc, lưới, dầm giằng) giữ nguyên: <strong>cập nhật</strong> mô hình trong file đang có ' +
+        '(' + esc(state.etabs.fileDung) + ') – không phải dựng lại.</p>'
+      : tm.daDung ? '<p>Hình học đã đổi so với mô hình đã dựng (' + esc(state.etabs.fileDung) + '): cần <strong>dựng lại</strong> mô hình.</p>' : '';
+    if (tm.capNhatDuoc && !tm.khop) {
+      return trangThai + '<p class="hang-nut"><button type="button" class="btn" data-action="etabs-cap-nhat-mo-hinh"' + tat + '>' +
+        (etabsDangChay ? 'Đang xử lý…' : 'Cập nhật mô hình trong ETABS') + '</button>' +
+        '<button type="button" class="btn btn-ghost" data-action="etabs-dung-mo-hinh"' + tat + '>Dựng lại mô hình mới</button></p>' +
+        '<p class="hint">Cập nhật: sửa vật liệu, tiết diện, lò xo đất, tải trọng, tổ hợp ngay trong file .EDB đang có. Dựng lại: tạo mô hình mới (ETABS đóng mô hình đang mở).</p>';
+    }
+    if (tm.khop) {
+      return trangThai + '<p class="hang-nut"><button type="button" class="btn btn-ghost" data-action="etabs-dung-mo-hinh"' + tat + '>' +
+        (etabsDangChay ? 'Đang xử lý…' : 'Dựng lại mô hình mới') + '</button></p>';
+    }
+    return trangThai + nutDungMoHinhMoi();
+  }
+
+  function nutDungMoHinhMoi() {
     return coChuongTrinh()
       ? '<p><button type="button" class="btn" data-action="etabs-dung-mo-hinh"' + (etabsDangChay ? ' disabled' : '') + '>' +
         (etabsDangChay ? 'Đang dựng mô hình…' : 'Dựng mô hình trong ETABS') + '</button></p>' +
@@ -1912,7 +1936,24 @@
     }
   };
 
-  var etabsVanTayGui = null;
+  var etabsVanTayGui = null, etabsHinhHocGui = null;
+
+  // Dấu vân tay hình học: tầng, toạ độ điểm, hai đầu thanh, nút ô vỏ. Trùng với lần dựng gần nhất → cập nhật mô hình tại chỗ được.
+  function vanTayHinhHoc(m) {
+    var chuoi = JSON.stringify({ tang: m.tang, diem: m.diem, thanh: m.thanh.map(function (t) { return [t.ten, t.dau, t.cuoi]; }),
+      vo: m.vo.map(function (v) { return [v.ten].concat(v.diem); }) }), h = 0;
+    for (var i = 0; i < chuoi.length; i++) h = (h * 31 + chuoi.charCodeAt(i)) | 0;
+    return chuoi.length + ':' + (h >>> 0).toString(16);
+  }
+
+  // Trạng thái mô hình trong ETABS so với thông số hiện tại
+  function trangThaiMoHinh() {
+    var m = moHinhEtabs(), t = m.hopLe ? taiTrongEtabs(m) : { hopLe: false };
+    var hopLe = m.hopLe && t.hopLe;
+    var khop = hopLe && state.etabs.vanTayDung === vanTayMoHinh(m, t);
+    var capNhatDuoc = hopLe && !!state.etabs.fileDung && state.etabs.vanTayHinhHoc === vanTayHinhHoc(m);
+    return { m: m, t: t, hopLe: hopLe, khop: khop, capNhatDuoc: capNhatDuoc, daDung: !!state.etabs.fileDung };
+  }
   // Dấu vân tay của mô hình + tải trọng: so với lần dựng mô hình gần nhất để biết ETABS có còn khớp thông số không
   function vanTayMoHinh(m, t) {
     var chuoi = JSON.stringify(MCT.calc.duLieuGuiEtabs(m, t)), h = 0;
@@ -2020,7 +2061,9 @@
           : '<div class="ghi-chu-lech"><h3>Chưa dựng mô hình theo thông số hiện tại</h3><p>Thông số đã thay đổi sau lần dựng mô hình gần nhất (hoặc chưa dựng). ' +
             'Vào trang Mô hình ETABS hoặc Tải trọng &amp; tổ hợp, bấm Dựng mô hình trong ETABS trước khi phân tích.</p></div>') +
         (coChuongTrinh()
-          ? '<p><button type="button" class="btn" data-action="etabs-phan-tich"' + (etabsDangChay ? ' disabled' : '') + '>' +
+          ? '<p class="hang-nut">' + (khop ? '' : '<button type="button" class="btn" data-action="etabs-cap-nhat-phan-tich"' + (etabsDangChay ? ' disabled' : '') + '>' +
+              (trangThaiMoHinh().capNhatDuoc ? 'Cập nhật mô hình và chạy lại phân tích' : 'Dựng mô hình và chạy phân tích') + '</button>') +
+            '<button type="button" class="btn' + (khop ? '' : ' btn-ghost') + '" data-action="etabs-phan-tich"' + (etabsDangChay ? ' disabled' : '') + '>' +
             (etabsDangChay ? 'Đang phân tích…' : 'Chạy phân tích và lấy nội lực') + '</button></p>' +
             '<p class="hint">ETABS chạy phân tích mô hình đang mở (bỏ trường hợp Modal), rồi app đọc nội lực của ' +
             (t.hopLe ? t.thongKe.soToHop : '') + ' tổ hợp. Thường mất 20 giây – vài phút.</p>'
@@ -2173,7 +2216,7 @@
       }).join('') + '</section>';
   }
 
-  function etabsChay(lenh) {
+  function etabsChay(lenh, sau) {
     if (!coChuongTrinh() || etabsDangChay) return;
     if (lenh === 'dang-ky-giao-dien' && !window.confirm('Đăng ký giao diện API (type library) của ETABS cho tài khoản Windows này?\n\n' +
         'Chỉ ghi vào phần registry của tài khoản bạn, không cần quyền Administrator. Gỡ lại được bằng nút "Gỡ đăng ký".')) return;
@@ -2190,6 +2233,17 @@
       if (!tt.hopLe) { datTrangThai('Tải trọng chưa hợp lệ: ' + tt.loi.join(' ')); return; }
       duLieu = { moHinh: MCT.calc.duLieuGuiEtabs(m, tt), tenFile: tenFileMoHinh(), fileMoHinh: file };
       etabsVanTayGui = vanTayMoHinh(m, tt);
+      etabsHinhHocGui = vanTayHinhHoc(m);
+    }
+    if (lenh === 'cap-nhat-mo-hinh') {
+      var tm = trangThaiMoHinh();
+      if (!tm.hopLe) { datTrangThai('Mô hình hoặc tải trọng chưa hợp lệ.'); return; }
+      if (!tm.capNhatDuoc) { datTrangThai('Hình học đã đổi hoặc chưa dựng mô hình – cần dựng lại mô hình.'); return; }
+      if (!window.confirm('Cập nhật mô hình trong file đang có?\n\n' + state.etabs.fileDung + '\n\nApp sửa vật liệu, tiết diện, lò xo đất, tải trọng và tổ hợp ' +
+          'theo thông số hiện tại (hình học giữ nguyên). Nếu ETABS đang mở mô hình khác, ETABS sẽ mở file này (mô hình đang mở KHÔNG được lưu). ' +
+          'Kết quả phân tích cũ trong ETABS bị xoá.')) return;
+      duLieu = { moHinh: MCT.calc.duLieuGuiEtabs(tm.m, tm.t), fileMoHinh: state.etabs.fileDung };
+      etabsVanTayGui = vanTayMoHinh(tm.m, tm.t);
     }
     if (lenh === 'phan-tich') {
       var m2 = moHinhEtabs(), t2 = taiTrongEtabs(m2);
@@ -2201,10 +2255,11 @@
     etabsDangChay = true;
     if (/^etabs/.test(trangHienTai)) veTrang();
     datTrangThai(lenh === 'kiem-tra' ? 'Đang kết nối ETABS…' : lenh === 'dung-mo-hinh' ? 'Đang dựng mô hình trong ETABS…'
+      : lenh === 'cap-nhat-mo-hinh' ? 'Đang cập nhật mô hình trong ETABS…'
       : lenh === 'phan-tich' ? 'Đang chạy phân tích và lấy nội lực…' : 'Đang xử lý đăng ký giao diện ETABS…');
     Promise.resolve().then(function () {
       return window.mctDesktop.etabs({ lenh: lenh, duongDanEtabs: String(state.etabs.duongDan || '').trim(),
-        thoiGianToiDa: lenh === 'dung-mo-hinh' || lenh === 'phan-tich' ? 15 * 60 * 1000 : 90000, duLieu: duLieu });
+        thoiGianToiDa: lenh === 'dung-mo-hinh' || lenh === 'cap-nhat-mo-hinh' || lenh === 'phan-tich' ? 15 * 60 * 1000 : 90000, duLieu: duLieu });
     }).then(function (kq) {
       return kq || { ok: false, lenh: lenh, loi: 'Không nhận được kết quả.', buoc: [] };
     }, function (e) {
@@ -2214,7 +2269,17 @@
       if (lenh === 'kiem-tra') { etabsKq = kq; etabsDangKyKq = null; }
       else if (lenh === 'dung-mo-hinh') {
         etabsDungKq = kq;
+        if (kq.ok && etabsVanTayGui) {
+          state.etabs.vanTayDung = etabsVanTayGui;
+          state.etabs.vanTayHinhHoc = etabsHinhHocGui || '';
+          state.etabs.fileDung = (kq.thongTin && kq.thongTin.fileMoHinh) || '';
+          luu();
+        }
+      }
+      else if (lenh === 'cap-nhat-mo-hinh') {
+        etabsDungKq = kq;
         if (kq.ok && etabsVanTayGui) { state.etabs.vanTayDung = etabsVanTayGui; luu(); }
+        if (!kq.ok && kq.goiY === 'dung-lai') { state.etabs.vanTayHinhHoc = ''; luu(); }   // hình học trong ETABS đã khác: lần sau dựng lại
       }
       else if (lenh === 'phan-tich') {
         if (kq.ok && kq.ketQua) {
@@ -2233,10 +2298,20 @@
       etabsDangChay = false;
       datTrangThai(lenh === 'kiem-tra' ? (kq.ok ? 'Đã kết nối ETABS' : 'Chưa kết nối được ETABS')
         : lenh === 'dung-mo-hinh' ? (kq.ok ? 'Đã dựng mô hình trong ETABS' : 'Chưa dựng được mô hình')
+        : lenh === 'cap-nhat-mo-hinh' ? (kq.ok ? 'Đã cập nhật mô hình trong ETABS' : 'Chưa cập nhật được mô hình')
         : lenh === 'phan-tich' ? (kq.ok ? 'Đã lấy nội lực từ ETABS' : 'Chưa phân tích được')
         : (kq.ok ? 'Đã xử lý đăng ký giao diện ETABS' : 'Chưa đăng ký được giao diện ETABS'));
       if (/^etabs/.test(trangHienTai)) veTrang(); else veDanhMuc();
+      if (kq.ok && typeof sau === 'function') sau();
     });
+  }
+
+  // Cập nhật mô hình (hoặc dựng lại nếu hình học đổi) rồi chạy lại phân tích
+  function etabsCapNhatVaPhanTich() {
+    var tm = trangThaiMoHinh();
+    if (!tm.hopLe) { datTrangThai('Mô hình hoặc tải trọng chưa hợp lệ.'); return; }
+    if (tm.khop) etabsChay('phan-tich');
+    else etabsChay(tm.capNhatDuoc ? 'cap-nhat-mo-hinh' : 'dung-mo-hinh', function () { etabsChay('phan-tich'); });
   }
 
   function trangThaiMuc(id) {
@@ -2381,6 +2456,8 @@
       if (e.target.closest('[data-action="etabs-dang-ky"]')) etabsChay('dang-ky-giao-dien');
       if (e.target.closest('[data-action="etabs-go-dang-ky"]')) etabsChay('go-dang-ky-giao-dien');
       if (e.target.closest('[data-action="etabs-dung-mo-hinh"]')) etabsChay('dung-mo-hinh');
+      if (e.target.closest('[data-action="etabs-cap-nhat-mo-hinh"]')) etabsChay('cap-nhat-mo-hinh');
+      if (e.target.closest('[data-action="etabs-cap-nhat-phan-tich"]')) etabsCapNhatVaPhanTich();
       if (e.target.closest('[data-action="etabs-phan-tich"]')) etabsChay('phan-tich');
       var themDong = e.target.closest('[data-action="them-dong"]');
       var xoaDong = e.target.closest('[data-action="xoa-dong"]');

@@ -62,6 +62,7 @@ namespace ETABSv1
         string GetModelFilename(bool IncludePath = true);
         eUnits GetPresentUnits();
         bool GetModelIsLocked();
+        int SetModelIsLocked(bool LockIt);
     }
 
     public interface cFile
@@ -69,6 +70,7 @@ namespace ETABSv1
         int NewBlank();
         int NewGridOnly(int NumberStorys, double TypicalStoryHeight, double BottomStoryHeight, int NumberLinesX, int NumberLinesY, double SpacingX, double SpacingY);
         int Save(string FileName = "");
+        int OpenFile(string FileName);
     }
     public interface cStory
     {
@@ -146,11 +148,14 @@ namespace ETABSv1
         int Add(string Name, eLoadPatternType MyType, double SelfWTMultiplier = 0, bool AddAnalysisCase = true);
         int SetLoadType(string Name, eLoadPatternType MyType);
         int SetSelfWTMultiplier(string Name, double Val);
+        int Delete(string Name);
     }
     public interface cCombo
     {
         int Add(string Name, int ComboType);
         int SetCaseList(string Name, ref eCNameType CNameType, string CName, double SF);
+        int Delete(string Name);
+        int GetNameList(ref int NumberNames, ref string[] MyName);
     }
     public interface cView { int RefreshView(int Window = 0, bool Zoom = true); }
 
@@ -174,7 +179,7 @@ namespace ETABSv1
         public Dictionary<string, double> BanThan = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, double[]> TongLuc = new Dictionary<string, double[]>();   // tổng lực mỗi pattern
         public Dictionary<string, List<string>> ToHop = new Dictionary<string, List<string>>();
-        public bool DaPhanTich;
+        public bool DaPhanTich, Khoa;
         public Dictionary<string, int> TenVo = new Dictionary<string, int>();
         public List<string> ToHopXuat = new List<string>();
         public List<string> TatCaKhongChay = new List<string>();
@@ -269,7 +274,7 @@ namespace ETABSv1
         public int SetPresentUnits(eUnits Units) { M.DonVi = Units; return 0; }
 
         // cAnalyze – cần lưu file trước khi chạy (như ETABS)
-        public int RunAnalysis() { if (string.IsNullOrEmpty(M.File) || M.Thanh.Count == 0) return 1; M.DaPhanTich = true; return 0; }
+        public int RunAnalysis() { if (string.IsNullOrEmpty(M.File) || M.Thanh.Count == 0) return 1; M.DaPhanTich = true; M.Khoa = true; return 0; }
         public int SetRunCaseFlag(string Name, bool Run, bool All = false) { if (Name != "Modal") return 1; M.TatCaKhongChay.Add(Name); return 0; }
 
         // cAnalysisResultsSetup
@@ -366,7 +371,14 @@ namespace ETABSv1
         public int GetVersion(ref string Version, ref double MyVersionNumber) { _ = M; Version = "23.0.0"; MyVersionNumber = 23.0; return 0; }
         public string GetModelFilename(bool IncludePath = true) => IncludePath ? M.File : Path.GetFileName(M.File.Replace('\\', '/'));
         public eUnits GetPresentUnits() => M.DonVi;
-        public bool GetModelIsLocked() { _ = M; return false; }
+        public bool GetModelIsLocked() => M.Khoa;
+        public int SetModelIsLocked(bool LockIt) { M.Khoa = LockIt; if (!LockIt) M.DaPhanTich = false; return 0; }
+        public int OpenFile(string FileName)
+        {
+            if (string.IsNullOrWhiteSpace(FileName) || !System.IO.File.Exists(FileName)) return 1;
+            CopyTo(MoHinh.Nap(FileName), M);
+            return 0;
+        }
 
         // cFile
         public int NewBlank()
@@ -499,6 +511,17 @@ namespace ETABSv1
         }
         public int SetLoadType(string Name, eLoadPatternType MyType) => M.Mau.Contains(Name) ? 0 : 1;
         public int SetSelfWTMultiplier(string Name, double Val) { if (!M.Mau.Contains(Name)) return 1; M.BanThan[Name] = Val; return 0; }
+        int cLoadPatterns.Delete(string Name)
+        {   // như ETABS: không xoá được pattern đang nằm trong tổ hợp
+            if (!M.Mau.Contains(Name) || M.ToHop.Values.Any(ds => ds.Contains(Name))) return 1;
+            M.Mau.Remove(Name); M.BanThan.Remove(Name); M.TongLuc.Remove(Name); return 0;
+        }
+        int cCombo.Delete(string Name)
+        {   // không xoá được tổ hợp đang nằm trong tổ hợp khác
+            if (!M.ToHop.ContainsKey(Name) || M.ToHop.Any(kv => kv.Key != Name && kv.Value.Contains(Name))) return 1;
+            M.ToHop.Remove(Name); return 0;
+        }
+        int cCombo.GetNameList(ref int NumberNames, ref string[] MyName) { MyName = M.ToHop.Keys.ToArray(); NumberNames = MyName.Length; return 0; }
 
         // cCombo
         int cCombo.Add(string Name, int ComboType)
@@ -517,7 +540,7 @@ namespace ETABSv1
         public int SetLoadForce(string Name, string LoadPat, ref double[] Value, bool Replace = false, string CSys = "Global", eItemType ItemType = eItemType.Objects)
         {
             if (!M.Diem.ContainsKey(Name) || !M.Mau.Contains(LoadPat) || Value == null || Value.Length != 6) return 1;
-            if (!M.TongLuc.TryGetValue(LoadPat, out double[] t)) M.TongLuc[LoadPat] = t = new double[6];
+            if (!M.TongLuc.TryGetValue(LoadPat, out double[] t) || Replace) M.TongLuc[LoadPat] = t = new double[6];   // một điểm đặt tải
             for (int i = 0; i < 6; i++) t[i] += Value[i];
             return 0;
         }

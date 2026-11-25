@@ -19,6 +19,7 @@ const goc = path.join(__dirname, '..', '..', 'js');
 ['data/cau-thap', 'data/vat-lieu', 'data/bang-tra', 'data/mau-dia-chat', 'data/he-so-tai-ngang', 'mac-dinh', 'calc/dia-chat', 'calc/sct-coc',
   'calc/phan-a-tai-trong', 'calc/phan-b-tai-coc', 'calc/phan-c-xuyen-thung', 'calc/phan-d-thep-dai', 'calc/phan-e-bulong', 'calc/phan-f-ket-luan',
   'calc/tai-ngang', 'calc/tuong-tac', 'calc/lun', 'calc/tinh-tat-ca', 'calc/etabs-mo-hinh', 'calc/etabs-tai-trong', 'calc/etabs-ket-qua'].forEach((f) => require(path.join(goc, f + '.js')));
+require(path.join(goc, 'data/cau-thap-new-data.js'));
 const trangThai = JSON.parse(JSON.stringify(globalThis.MCT.macDinh));
 const ketQuaTinh = globalThis.MCT.calc.tinhTatCa(trangThai);
 const moHinh = globalThis.MCT.calc.taoMoHinhEtabs(trangThai, ketQuaTinh);
@@ -29,6 +30,15 @@ const trangThaiDam = JSON.parse(JSON.stringify(trangThai));
 trangThaiDam.damGiang.ds = [[1, 2], [2, 3], [3, 1]].map((c) => Object.assign({}, trangThaiDam.damGiang.mau, { tuCoc: c[0], denCoc: c[1] }));
 const moHinhDam = globalThis.MCT.calc.taoMoHinhEtabs(trangThaiDam, ketQuaTinh);
 const taiTrongDam = globalThis.MCT.calc.taiTrongEtabs(trangThaiDam, ketQuaTinh, moHinhDam);
+// Cập nhật: đổi cẩu (tải khác, không có mômen xoắn) – hình học giữ nguyên; đổi lưới đài – hình học khác
+function duLieuTheo(doi) {
+  const st = JSON.parse(JSON.stringify(trangThai));
+  doi(st);
+  const kqx = globalThis.MCT.calc.tinhTatCa(st), mx = globalThis.MCT.calc.taoMoHinhEtabs(st, kqx), tx = globalThis.MCT.calc.taiTrongEtabs(st, kqx, mx);
+  return { kq: kqx, m: mx, t: tx, gui: globalThis.MCT.calc.duLieuGuiEtabs(mx, tx) };
+}
+const capNhatCau = duLieuTheo((st) => { st.cau.ten = 'ZT6016-10 thân 1.6m'; st.cau.chieuCao = 45.6; });
+const capNhatLuoi = duLieuTheo((st) => { st.etabs.luoi = 0.5; });
 const fileGhi = path.join(tam, 'mo-hinh-gia-lap.json');
 const fileEdb = path.join(tam, 'Mô hình', 'CT1 thử.EDB');
 
@@ -156,6 +166,37 @@ const ca = [
     assert.ok(Math.abs(cuoi[0] - L) < 1e-3, 'vị trí cuối dầm = chiều dài dầm ' + cuoi[0] + ' / ' + L);
     assert.ok(k.buoc.some(function (b) { return b.ten === 'noi-luc-dam' && b.ok; }));
   }, fileEdb + '.dam.EDB'],
+  ['cập nhật mô hình: đổi cẩu – sửa tải, tổ hợp trong file đang có, xoá MZ1', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatCau.gui, fileMoHinh: fileEdb } }, function (k) {
+    assert.strictEqual(capNhatCau.m.hopLe, true);
+    assert.strictEqual(k.ok, true, k.loi);
+    assert.ok(k.buoc.some((b) => b.ten === 'kiem-tra-hinh-hoc' && b.ok), 'hình học trùng');
+    assert.ok(k.buoc.some((b) => b.ten === 'mo-file' && /Dang mo/.test(b.chiTiet)), 'dùng file đang mở');
+    assert.deepStrictEqual(k.thongTin.loadPatternDaXoa, ['MZ1']);
+    const g = JSON.parse(fs.readFileSync(fileGhi, 'utf8'));
+    assert.strictEqual(g.file, fileEdb);
+    assert.ok(!g.mau.includes('MZ1'));
+    assert.strictEqual(g.soToHop, capNhatCau.t.toHop.length);
+    assert.strictEqual(g.soThanhPhanBAO, capNhatCau.t.toHop.length - 1);
+    assert.ok(Math.abs(g.tongFZ1 + capNhatCau.kq.A.quyDoi.lv.N / 1.2) < 1e-6, 'FZ1 theo cẩu mới');
+    assert.strictEqual(g.soThuocTinhLoXo, capNhatCau.m.thuocTinhLoXo.length);
+    assert.strictEqual(g.soLoXoTongThe, 0);
+  }, fileEdb],
+  ['cập nhật mô hình: hình học khác (lưới đài 0,5 m) → yêu cầu dựng lại', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatLuoi.gui, fileMoHinh: fileEdb } }, function (k) {
+    assert.strictEqual(k.ok, false);
+    assert.strictEqual(k.buocLoi, 'kiem-tra-hinh-hoc');
+    assert.strictEqual(k.goiY, 'dung-lai');
+    assert.ok(k.thongTin.khacHinhHoc.length > 0);
+  }, fileEdb],
+  ['cập nhật mô hình: ETABS đang mở mô hình khác → tự mở đúng file', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: duLieuMoHinh, fileMoHinh: fileEdb } }, function (k) {
+    assert.strictEqual(k.ok, true, k.loi);
+    assert.ok(k.buoc.some((b) => b.ten === 'mo-file' && /Da mo/.test(b.chiTiet)));
+    const g = JSON.parse(fs.readFileSync(fileGhi, 'utf8'));
+    assert.ok(g.mau.includes('MZ1'), 'thêm lại MZ1 khi cẩu có mômen xoắn');
+  }],
+  ['cập nhật mô hình: không còn file đã dựng', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: duLieuMoHinh, fileMoHinh: path.join(tam, 'khong-co.EDB') } }, function (k) {
+    assert.strictEqual(k.ok, false);
+    assert.strictEqual(k.goiY, 'dung-lai');
+  }],
   ['phân tích khi ETABS đang mở mô hình khác', '', { lenh: 'phan-tich', duLieu: globalThis.MCT.calc.duLieuPhanTich(moHinh, taiTrong) }, function (k) {
     assert.strictEqual(k.ok, false);
     assert.strictEqual(k.buocLoi, 'kiem-tra-mo-hinh');
