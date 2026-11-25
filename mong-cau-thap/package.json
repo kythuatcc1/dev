@@ -5,6 +5,7 @@
   "description": "App tính toán móng cẩu tháp, chuyển từ file Excel CC1",
   "scripts": {
     "test": "node --test tests/*.test.js",
+    "dong-goi-exe": "npm --prefix desktop install && npm --prefix desktop run dong-goi",
     "trich-du-lieu": "python3 -I tools/trich-du-lieu-excel.py excel-goc/261005_CC1_Tinh_toan_mong_cau_thap_update_TCVN-LLT5020-10_r00.xlsm"
   }
 }

@@ -20,6 +20,7 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | GĐ6 | Ổn định – lún (móng khối quy ước, R theo TCVN 9362, lún cộng lớp) | ✔ |
 | GĐ7 | Biểu đồ tương tác, biểu đồ SPT | ✔ |
 | GĐ8 | Thuyết minh toàn bộ: Phần 1 SCT cọc, Phần 2 A → F, Phần 3 tải ngang, Phần 4 tương tác, Phần 5 ổn định – lún (kèm biểu đồ) | ✔ |
+| GĐ9 | Đóng gói chương trình Windows (.exe) bằng Electron | ✔ |
 
 ## Cấu trúc
 ```
@@ -33,7 +34,28 @@ js/bieu-do.js            biểu đồ SVG dùng chung (SPT, M/Q/σz, tương tá
 js/bao-cao/              tạo thuyết minh Word (.docx)
 vendor/                  thư viện docx 9.15.3 (MIT) – tạo file Word ngay trong trình duyệt, không cần mạng
 tools/                   script trích dữ liệu từ file Excel
+desktop/                 đóng gói thành chương trình Windows .exe (Electron)
 ```
+
+## Chương trình Windows (.exe)
+Có thể đóng gói app thành chương trình Windows chạy độc lập (dùng Electron, không cần trình duyệt, không cần mạng):
+
+1. Cài [Node.js](https://nodejs.org) bản 18 trở lên.
+2. Mở cửa sổ lệnh tại thư mục `mong-cau-thap` và chạy:
+   ```
+   npm run dong-goi-exe
+   ```
+   Lần đầu sẽ tải Electron (khoảng 100 MB).
+3. Kết quả: thư mục `desktop/dist/MongCauThap-win32-x64/`. Chạy file `MongCauThap.exe` trong đó.
+   Muốn chuyển sang máy khác thì nén cả thư mục này, gửi đi, giải nén rồi chạy `MongCauThap.exe`.
+
+Ghi chú:
+- Lệnh đóng gói chạy được trên Windows, macOS hoặc Linux (không cần Wine).
+- Chương trình chưa có chữ ký số nên lần đầu chạy Windows có thể hiện cảnh báo SmartScreen:
+  bấm **More info → Run anyway** (Thông tin thêm → Vẫn chạy).
+- Số liệu nhập lưu tại `%APPDATA%\MongCauThap`, riêng với số liệu khi mở `index.html` bằng trình duyệt.
+- Khi sửa code app (`index.html`, `css`, `js`) cần chạy lại lệnh đóng gói để cập nhật file .exe.
+- Mã nguồn vỏ chương trình ở `desktop/` (`main.js`: cửa sổ, menu, hộp thoại lưu thuyết minh; `dong-goi.js`: lệnh đóng gói; `icon.svg`: biểu tượng).
 
 ## Xuất thuyết minh
 Bấm **Xuất thuyết minh** ở góc trên. File .docx trình bày theo thuyết minh mẫu

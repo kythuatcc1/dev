@@ -1,0 +1,14 @@
+{
+  "name": "mong-cau-thap-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Đóng gói app móng cẩu tháp thành chương trình Windows (.exe)",
+  "scripts": {
+    "dong-goi": "node dong-goi.js",
+    "dong-goi-linux": "node dong-goi.js --linux"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "45.3.0"
+  }
+}
