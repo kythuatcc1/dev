@@ -21,6 +21,8 @@ namespace ETABSv1
     public enum eSlabType { Slab = 0, Drop = 1, Stiff = 2, Ribbed = 3, Waffle = 4, Mat = 5, Footing = 6 }
     public enum eShellType { ShellThin = 1, ShellThick = 2, Membrane = 3, Layered = 6 }
     public enum eItemType { Objects = 0, Group = 1, SelectedObjects = 2 }
+    public enum eLoadPatternType { Dead = 1, SuperDead = 2, Live = 3, ReduceLive = 4, Quake = 5, Wind = 6, Snow = 7, Other = 8 }
+    public enum eCNameType { LoadCase = 0, LoadCombo = 1 }
 
     public interface cHelper
     {
@@ -45,6 +47,7 @@ namespace ETABSv1
         cFrameObj FrameObj { get; }
         cAreaObj AreaObj { get; }
         cLoadPatterns LoadPatterns { get; }
+        cCombo RespCombo { get; }
         cView View { get; }
         int InitializeNewModel(eUnits Units = eUnits.kip_in_F);
         int GetVersion(ref string Version, ref double MyVersionNumber);
@@ -86,6 +89,7 @@ namespace ETABSv1
         int AddCartesian(double X, double Y, double Z, ref string Name, string UserName = "", string CSys = "Global", bool MergeOff = false, int MergeNumber = 0);
         int SetSpring(string Name, ref double[] k, eItemType ItemType = eItemType.Objects, bool IsLocalCSys = false, bool Replace = false);
         int SetRestraint(string Name, ref bool[] Value, eItemType ItemType = eItemType.Objects);
+        int SetLoadForce(string Name, string LoadPat, ref double[] Value, bool Replace = false, string CSys = "Global", eItemType ItemType = eItemType.Objects);
     }
     public interface cFrameObj
     {
@@ -97,7 +101,18 @@ namespace ETABSv1
         int Count(string MainName = "");
         int AddByPoint(int NumberPoints, ref string[] Point, ref string Name, string PropName = "Default", string UserName = "");
     }
-    public interface cLoadPatterns { int GetNameList(ref int NumberNames, ref string[] MyName); }
+    public interface cLoadPatterns
+    {
+        int GetNameList(ref int NumberNames, ref string[] MyName);
+        int Add(string Name, eLoadPatternType MyType, double SelfWTMultiplier = 0, bool AddAnalysisCase = true);
+        int SetLoadType(string Name, eLoadPatternType MyType);
+        int SetSelfWTMultiplier(string Name, double Val);
+    }
+    public interface cCombo
+    {
+        int Add(string Name, int ComboType);
+        int SetCaseList(string Name, ref eCNameType CNameType, string CName, double SF);
+    }
     public interface cView { int RefreshView(int Window = 0, bool Zoom = true); }
 
     /// <summary>Trạng thái mô hình giả lập.</summary>
@@ -114,6 +129,10 @@ namespace ETABSv1
         public List<string[]> Vo = new List<string[]>();
         public Dictionary<string, double[]> LoXo = new Dictionary<string, double[]>();
         public Dictionary<string, bool[]> Goi = new Dictionary<string, bool[]>();
+        public List<string> Mau = new List<string>();                       // load pattern (= load case cùng tên)
+        public Dictionary<string, double> BanThan = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, double[]> TongLuc = new Dictionary<string, double[]>();   // tổng lực mỗi pattern
+        public Dictionary<string, List<string>> ToHop = new Dictionary<string, List<string>>();
         public int SoDiemCu = 12, SoThanhCu = 99, SoVoCu = 1;
         public bool MoiTao;
     }
@@ -138,7 +157,7 @@ namespace ETABSv1
         public double GetOAPIVersionNumber() => _goc == null ? throw new NullReferenceException() : 2.14;
     }
 
-    public class wSapModel : cSapModel, cFile, cStory, cPropMaterial, cPropFrame, cPropArea, cPointObj, cFrameObj, cAreaObj, cLoadPatterns, cView
+    public class wSapModel : cSapModel, cFile, cStory, cPropMaterial, cPropFrame, cPropArea, cPointObj, cFrameObj, cAreaObj, cLoadPatterns, cCombo, cView
     {
         private readonly MoHinh _goc;
         internal wSapModel(MoHinh goc) { _goc = goc; }
@@ -153,6 +172,7 @@ namespace ETABSv1
         public cFrameObj FrameObj { get { _ = M; return this; } }
         public cAreaObj AreaObj { get { _ = M; return this; } }
         public cLoadPatterns LoadPatterns { get { _ = M; return this; } }
+        public cCombo RespCombo { get { _ = M; return this; } }
         public cView View { get { _ = M; return this; } }
 
         public int InitializeNewModel(eUnits Units = eUnits.kip_in_F)
@@ -172,7 +192,12 @@ namespace ETABSv1
         public bool GetModelIsLocked() { _ = M; return false; }
 
         // cFile
-        public int NewBlank() { M.CaoTang.Clear(); M.CaoDoDay = double.NaN; return 0; }
+        public int NewBlank()
+        {
+            M.CaoTang.Clear(); M.CaoDoDay = double.NaN;
+            M.Mau = new List<string> { "Dead", "Live" }; M.BanThan["Dead"] = 1; M.BanThan["Live"] = 0;   // như mô hình mới của ETABS
+            return 0;
+        }
         public int NewGridOnly(int NumberStorys, double TypicalStoryHeight, double BottomStoryHeight, int NumberLinesX, int NumberLinesY, double SpacingX, double SpacingY)
         { M.CaoDoDay = 0; M.CaoTang = Enumerable.Range(1, NumberStorys).Select(i => BottomStoryHeight + (i - 1) * TypicalStoryHeight).ToList(); return 0; }
         public int Save(string FileName = "")
@@ -186,6 +211,10 @@ namespace ETABSv1
                 System.IO.File.WriteAllText(ghi, "{\"file\":\"" + FileName.Replace("\\", "\\\\") + "\",\"donVi\":\"" + M.DonVi + "\",\"caoDoDay\":" + M.CaoDoDay.ToString(System.Globalization.CultureInfo.InvariantCulture) +
                     ",\"soTang\":" + M.CaoTang.Count + ",\"soDiem\":" + M.Diem.Count + ",\"soThanh\":" + M.Thanh.Count + ",\"soVo\":" + M.Vo.Count +
                     ",\"soLoXo\":" + M.LoXo.Count + ",\"soGoi\":" + M.Goi.Count + ",\"vatLieu\":" + ds(M.VatLieu) + ",\"tietDienThanh\":" + ds(M.TietDienThanh) +
+                    ",\"mau\":" + ds(M.Mau) + ",\"banThanDead\":" + (M.BanThan.TryGetValue("Dead", out double bt) ? bt : -1).ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                    ",\"soToHop\":" + M.ToHop.Count + ",\"soThanhPhanBAO\":" + (M.ToHop.TryGetValue("BAO", out var bao) ? bao.Count : -1) +
+                    ",\"tongFZ1\":" + (M.TongLuc.TryGetValue("FZ1", out double[] f) ? f[2] : 0).ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                    ",\"soMauCoLuc\":" + M.TongLuc.Count +
                     ",\"tietDienVo\":" + ds(M.TietDienVo) + ",\"loXoTAM\":" + (M.LoXo.ContainsKey("TAM_CAU") ? "true" : "false") + "}");
             }
             return 0;
@@ -258,7 +287,40 @@ namespace ETABSv1
         }
 
         // cLoadPatterns
-        public int GetNameList(ref int NumberNames, ref string[] MyName) { MyName = new[] { "Dead", "Live", "Tĩnh tải phụ" }; NumberNames = MyName.Length; return 0; }
+        public int GetNameList(ref int NumberNames, ref string[] MyName)
+        {
+            MyName = M.MoiTao ? M.Mau.ToArray() : new[] { "Dead", "Live", "Tĩnh tải phụ" };
+            NumberNames = MyName.Length; return 0;
+        }
+        public int Add(string Name, eLoadPatternType MyType, double SelfWTMultiplier = 0, bool AddAnalysisCase = true)
+        {
+            if (M.Mau.Any(x => string.Equals(x, Name, StringComparison.OrdinalIgnoreCase))) return 1;   // trùng tên (không phân biệt hoa thường)
+            M.Mau.Add(Name); M.BanThan[Name] = SelfWTMultiplier; return 0;
+        }
+        public int SetLoadType(string Name, eLoadPatternType MyType) => M.Mau.Contains(Name) ? 0 : 1;
+        public int SetSelfWTMultiplier(string Name, double Val) { if (!M.Mau.Contains(Name)) return 1; M.BanThan[Name] = Val; return 0; }
+
+        // cCombo
+        int cCombo.Add(string Name, int ComboType)
+        {
+            if (M.ToHop.ContainsKey(Name) || M.Mau.Contains(Name) || ComboType < 0 || ComboType > 4) return 1;
+            M.ToHop[Name] = new List<string>(); return 0;
+        }
+        public int SetCaseList(string Name, ref eCNameType CNameType, string CName, double SF)
+        {
+            if (!M.ToHop.ContainsKey(Name)) return 1;
+            bool co = CNameType == eCNameType.LoadCase ? M.Mau.Contains(CName) : M.ToHop.ContainsKey(CName) && CName != Name;
+            if (!co) return 1;
+            M.ToHop[Name].Add(CName); return 0;
+        }
+
+        public int SetLoadForce(string Name, string LoadPat, ref double[] Value, bool Replace = false, string CSys = "Global", eItemType ItemType = eItemType.Objects)
+        {
+            if (!M.Diem.ContainsKey(Name) || !M.Mau.Contains(LoadPat) || Value == null || Value.Length != 6) return 1;
+            if (!M.TongLuc.TryGetValue(LoadPat, out double[] t)) M.TongLuc[LoadPat] = t = new double[6];
+            for (int i = 0; i < 6; i++) t[i] += Value[i];
+            return 0;
+        }
         // cView
         public int RefreshView(int Window = 0, bool Zoom = true) => 0;
     }

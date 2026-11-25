@@ -14,7 +14,7 @@ thuyết minh vẫn theo form CC1.
 | Lò xo đất | Tự tính từ hệ số k (kN/m⁴) bảng A.1 TCVN 10304 như phần tải ngang, mỗi 1 m: K = k·z·b<sub>p</sub>·Δz |
 | Cao độ bắt đầu lò xo | Cho chọn trong app: (a) từ đáy đài – móng đài thấp, chưa đào (**mặc định**, như PDF và phần tải ngang form CC1); (b) từ đáy hố đào (đầu cọc tính toán −13 m), đoạn cọc phía trên không có đất giữ |
 | Mũi cọc | Gối chặn chuyển vị đứng; phương ngang do lò xo đất giữ |
-| Điểm đặt tải cẩu | Đặt tại tâm đài, truyền xuống 4 chân cẩu qua liên kết cứng theo vị trí bulong mục E |
+| Điểm đặt tải cẩu | **Một điểm ở tâm đài như file PDF** (đổi theo yêu cầu, bỏ phương án 4 chân cẩu + liên kết cứng) |
 
 ## Cách kết nối
 ETABS chỉ chạy trên Windows và chỉ cho điều khiển qua API, trình duyệt không gọi được.
@@ -64,7 +64,7 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 |---|---|---|
 | 1 | Kết nối: trang "Kết nối ETABS", lệnh `kiem-tra` (phiên bản, file mô hình, đơn vị, số phần tử, load pattern) | ✔ Đã chạy trên máy thật (ETABS 23.2.0, API 2.014) sau khi chạy RegisterETABS.exe bằng quyền Administrator |
 | 2 | Dựng mô hình (lệnh `dung-mo-hinh`, trang "Mô hình ETABS", `js/calc/etabs-mo-hinh.js`) | Đã làm – chờ chạy thử trên máy thật |
-| 3 | Tải trọng & tổ hợp: Dead, Fx/Fy/Fz/Mx/My/Mz làm việc và không làm việc, 32 tổ hợp + hướng bất lợi, BAO | Chờ |
+| 3 | Tải trọng & tổ hợp (trang "Tải trọng & tổ hợp", gán cùng lệnh `dung-mo-hinh`) | Đã làm – chờ chạy thử trên máy thật |
 | 4 | Chạy phân tích, lấy nội lực cọc theo chiều sâu, chuyển vị và góc xoay đài, mô men và lực cắt đài | Chờ |
 | 5 | Chọn phương pháp; kiểm tra cọc nén/kéo, tải ngang (cắt, P–M), thép đài, chuyển vị/góc xoay theo form CC1 | Chờ |
 | 6 | Thuyết minh form CC1 cho phương pháp ETABS | Chờ |
@@ -79,13 +79,24 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 - **Lò xo đất ngang:** K = k·z·b<sub>p</sub>·l tại mỗi nút cọc dưới cao độ bắt đầu, gán cả U1 và U2; k theo lớp (bảng A.1),
   b<sub>p</sub> như phần sức chịu tải; cao độ bắt đầu: đáy đài (mặc định) hoặc đáy hố đào (chèn thêm nút tại cao độ này).
 - **Mũi cọc:** gối chặn UZ.
-- **Điểm đặt tải:** `TAM_CAU` ở mặt đài (0; 0; z<sub>mặt</sub>), 4 thanh cứng `LK_CUNG` (1×1 m, ×100, không trọng lượng)
-  xuống 4 chân cẩu tại góc thân cẩu (±b/2; ±b/2), b = bề rộng thân cẩu theo catalogue.
-- **Tầng ETABS:** mỗi cao độ nút là một tầng, đáy công trình ở mũi cọc; tên `MAT_DAI`, `GIUA_DAI`, `DAY_DAI`, `DAY_HO`, `Zm13p6`…
+- **Điểm đặt tải:** một điểm ở tâm đài – nút tâm (0; 0) của tấm vỏ ở mặt phẳng giữa đài (như file PDF).
+- **Tầng ETABS:** mỗi cao độ nút là một tầng, đáy công trình ở mũi cọc; tầng trên cùng `GIUA_DAI`, rồi `DAY_DAI`, `DAY_HO`, `Zm13p6`…
 - **Lệnh cầu nối:** `InitializeNewModel(kN_m_C)` → `File.NewBlank` → `Story.SetStories_2` (dự phòng SimilarToStory "None",
   `SetStories`, `NewGridOnly`) → vật liệu, tiết diện → `PointObj.AddCartesian` → `FrameObj.AddByPoint` → `AreaObj.AddByPoint`
   → `SetSpring`, `SetRestraint` → `File.Save` (mặc định `Documents\MongCauThap\MCT_<tên móng>_<cẩu>.EDB`) → đếm lại.
   Mỗi lệnh kiểm tra mã trả về, lỗi thì dừng và báo đúng lệnh, tham số.
+
+## Bước 3 – tải trọng và tổ hợp (`js/calc/etabs-tai-trong.js`)
+- **Load pattern:** `DEAD` (bản thân ×1; dùng lại pattern Dead có sẵn của mô hình mới) và tải cẩu tách thành phần đặt tại nút tâm đài:
+  làm việc `FX1 FY1` (= H), `FZ1` (= N, hướng xuống), `MX1 MY1` (= M), `MZ1` (= mômen xoắn T); không làm việc `FX2 FY2 FZ2 MX2 MY2`.
+- **Giá trị:** tải quy đổi của mục A (form CC1) chia n → tổ hợp nhân lại n nên tổ hợp đúng bằng tải quy đổi CC1.
+  Mômen đặt ở tâm đài = M + H·H<sub>đài</sub>/2 (CC1 coi tải đặt ở mặt đài; điểm đặt tải ở mặt phẳng giữa đài).
+- **Tổ hợp theo hướng θ:** cọc nén `1,1·DEAD + n·cosθ·FX + n·sinθ·FY + n·FZ − n·sinθ·MX + n·cosθ·MY (+ n·MZ1)`;
+  cọc kéo `0,9·DEAD + … + 0,9·FZ`; hệ số 1,1 / 0,9 / 0,9 chỉnh được (trang "Tải trọng & tổ hợp").
+  Kiểm tra với PDF: θ = 0° → Fx 1,2; My 1,2 (Combo1); θ = 90° → Fy 1,2; Mx −1,2 (Combo3); θ = 45° → 0,707×1,2 (Combo5).
+- **Hướng:** 8 hướng mỗi 45° (PDF) + hướng bất lợi của từng cọc theo mục B (hướng từ tâm đài tới cọc – cọc nén nhiều nhất,
+  và hướng ngược lại – cọc kéo nhiều nhất); trùng thì gộp. Số liệu mặc định: 12 hướng × 4 = 48 tổ hợp + `BAO` (envelope).
+- **Lệnh cầu nối:** `LoadPatterns.Add` / `SetSelfWTMultiplier`, `PointObj.SetLoadForce`, `RespCombo.Add` + `SetCaseList`.
 
 ## Chạy thử bước 1
 1. Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới (đợi mô hình hiện ra).

@@ -174,7 +174,60 @@ namespace MctEtabs
                 }
                 kq.GhiBuoc(buoc, true, dsGoi.Count + " goi");
 
-                // 10. Hiển thị và lưu file
+                // 10. Load pattern và tải đặt tại tâm đài
+                buoc = "tai-trong";
+                var dsMau = m["mauTai"] as JsonArray ?? new JsonArray();
+                var tenMau = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                if (dsMau.Count > 0)
+                {
+                    var coSan = DanhSachMau(e);
+                    int soLuc = 0;
+                    foreach (JsonNode p in dsMau)
+                    {
+                        string ma = (string)p["ten"], loai = (string)p["loai"];
+                        double banThan = (double)p["banThan"];
+                        string tonTai = coSan.FirstOrDefault(x => string.Equals(x, ma, StringComparison.OrdinalIgnoreCase));
+                        if (tonTai != null)
+                        {
+                            try { e.Goi("LoadPatterns", "cLoadPatterns", "SetLoadType", new object[] { tonTai, loai }); } catch { /* giữ loại cũ */ }
+                            e.Goi("LoadPatterns", "cLoadPatterns", "SetSelfWTMultiplier", new object[] { tonTai, banThan });
+                            tenMau[ma] = tonTai;
+                        }
+                        else
+                        {
+                            e.Goi("LoadPatterns", "cLoadPatterns", "Add", new object[] { ma, loai, banThan, true });
+                            tenMau[ma] = ma;
+                        }
+                        if (p["luc"] is JsonObject luc)
+                        {
+                            double[] gt = ((JsonArray)luc["giaTri"]).Select(x => (double)x).ToArray();
+                            e.Goi("PointObj", "cPointObj", "SetLoadForce", new object[] { Ten(luc["diem"]), tenMau[ma], gt, true, "Global", "Objects" }, true);
+                            soLuc++;
+                        }
+                    }
+                    kq.Dat("loadPatterns", tenMau.Values.ToList());
+                    kq.GhiBuoc(buoc, true, dsMau.Count + " load pattern (" + string.Join(", ", tenMau.Values) + "); " + soLuc + " luc tai tam dai");
+                }
+
+                // 11. Tổ hợp tải trọng (các tổ hợp tuyến tính + BAO envelope)
+                buoc = "to-hop";
+                var dsToHop = m["toHop"] as JsonArray ?? new JsonArray();
+                foreach (JsonNode c in dsToHop)
+                {
+                    string tenTh = (string)c["ten"];
+                    e.Goi("RespCombo", "cCombo", "Add", new object[] { tenTh, (int)c["loai"] });
+                    foreach (JsonNode x in (JsonArray)c["ds"])
+                    {
+                        bool laToHop = x["toHop"] != null;
+                        string tenCa = laToHop ? (string)x["toHop"] : (string)x["ca"];
+                        if (!laToHop && tenMau.TryGetValue(tenCa, out string thuc)) tenCa = thuc;
+                        e.Goi("RespCombo", "cCombo", "SetCaseList", new object[] { tenTh, laToHop ? "LoadCombo" : "LoadCase", tenCa, (double)x["heSo"] }, true);
+                    }
+                }
+                kq.Dat("soToHop", dsToHop.Count);
+                if (dsToHop.Count > 0) kq.GhiBuoc(buoc, true, dsToHop.Count + " to hop (" + (string)dsToHop[0]["ten"] + " … " + (string)dsToHop[dsToHop.Count - 1]["ten"] + ")");
+
+                // 12. Hiển thị và lưu file
                 buoc = "luu";
                 try { e.Goi("View", "cView", "RefreshView", new object[] { 0, true }); } catch { /* chỉ là hiển thị */ }
                 string file = DuongDanLuu(yc);
@@ -183,7 +236,7 @@ namespace MctEtabs
                 kq.Dat("fileMoHinh", file);
                 kq.GhiBuoc(buoc, true, file);
 
-                // 11. Đếm lại trong ETABS
+                // 13. Đếm lại trong ETABS
                 buoc = "kiem-tra-so-luong";
                 int soDiem = Dem(e, "PointObj", "cPointObj"), soThanh = Dem(e, "FrameObj", "cFrameObj"), soVo = Dem(e, "AreaObj", "cAreaObj");
                 kq.Dat("soDiem", soDiem); kq.Dat("soThanh", soThanh); kq.Dat("soVo", soVo);
@@ -200,6 +253,13 @@ namespace MctEtabs
                 Exception ex = Api.GocLoi(ex0);
                 kq.Dung(buoc, (ex is LoiEtabs ? "" : ex.GetType().Name + ": ") + ex.Message);
             }
+        }
+
+        static List<string> DanhSachMau(BoGoiEtabs e)
+        {
+            var a = new object[] { 0, null };
+            try { e.Goi("LoadPatterns", "cLoadPatterns", "GetNameList", a, true); } catch { return new List<string>(); }
+            return a[1] is Array ds ? ds.Cast<object>().Select(x => Convert.ToString(x)).ToList() : new List<string>();
         }
 
         static int Dem(BoGoiEtabs e, string thuocTinh, string giaoDien)

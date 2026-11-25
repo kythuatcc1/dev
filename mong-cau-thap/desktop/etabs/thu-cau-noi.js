@@ -18,9 +18,12 @@ globalThis.MCT = {};
 const goc = path.join(__dirname, '..', '..', 'js');
 ['data/cau-thap', 'data/vat-lieu', 'data/bang-tra', 'data/mau-dia-chat', 'data/he-so-tai-ngang', 'mac-dinh', 'calc/dia-chat', 'calc/sct-coc',
   'calc/phan-a-tai-trong', 'calc/phan-b-tai-coc', 'calc/phan-c-xuyen-thung', 'calc/phan-d-thep-dai', 'calc/phan-e-bulong', 'calc/phan-f-ket-luan',
-  'calc/tai-ngang', 'calc/tuong-tac', 'calc/lun', 'calc/tinh-tat-ca', 'calc/etabs-mo-hinh'].forEach((f) => require(path.join(goc, f + '.js')));
+  'calc/tai-ngang', 'calc/tuong-tac', 'calc/lun', 'calc/tinh-tat-ca', 'calc/etabs-mo-hinh', 'calc/etabs-tai-trong'].forEach((f) => require(path.join(goc, f + '.js')));
 const trangThai = JSON.parse(JSON.stringify(globalThis.MCT.macDinh));
-const moHinh = globalThis.MCT.calc.taoMoHinhEtabs(trangThai, globalThis.MCT.calc.tinhTatCa(trangThai));
+const ketQuaTinh = globalThis.MCT.calc.tinhTatCa(trangThai);
+const moHinh = globalThis.MCT.calc.taoMoHinhEtabs(trangThai, ketQuaTinh);
+const taiTrong = globalThis.MCT.calc.taiTrongEtabs(trangThai, ketQuaTinh, moHinh);
+const duLieuMoHinh = globalThis.MCT.calc.duLieuGuiEtabs(moHinh, taiTrong);
 const fileGhi = path.join(tam, 'mo-hinh-gia-lap.json');
 const fileEdb = path.join(tam, 'Mô hình', 'CT1 thử.EDB');
 
@@ -75,7 +78,7 @@ const ca = [
     assert.strictEqual(k.ok, false);
     assert.strictEqual(k.buocLoi, 'he-dieu-hanh');
   }],
-  ['dựng mô hình (số liệu mặc định)', '', { lenh: 'dung-mo-hinh', duLieu: { moHinh: globalThis.MCT.calc.duLieuGuiEtabs(moHinh), fileMoHinh: fileEdb } }, function (k) {
+  ['dựng mô hình (số liệu mặc định)', '', { lenh: 'dung-mo-hinh', duLieu: { moHinh: duLieuMoHinh, fileMoHinh: fileEdb } }, function (k) {
     assert.strictEqual(k.ok, true, k.loi);
     const g = JSON.parse(fs.readFileSync(fileGhi, 'utf8'));
     assert.strictEqual(g.file, fileEdb);
@@ -87,12 +90,19 @@ const ca = [
     assert.strictEqual(g.soVo, moHinh.vo.length);
     assert.strictEqual(g.soLoXo, moHinh.loXo.length);
     assert.strictEqual(g.soGoi, 3);
-    assert.deepStrictEqual(g.tietDienThanh.sort(), ['COC', 'COC_TRONG_DAI', 'LK_CUNG']);
+    assert.deepStrictEqual(g.tietDienThanh.sort(), ['COC', 'COC_TRONG_DAI']);
+    // tải trọng: dùng lại pattern "Dead" có sẵn (không tạo trùng "DEAD"), 11 pattern tải cẩu có lực tại tâm đài
+    assert.deepStrictEqual(g.mau, ['Dead', 'Live', 'FX1', 'FY1', 'FZ1', 'MX1', 'MY1', 'MZ1', 'FX2', 'FY2', 'FZ2', 'MX2', 'MY2']);
+    assert.strictEqual(g.banThanDead, 1);
+    assert.strictEqual(g.soMauCoLuc, 11);
+    assert.ok(Math.abs(g.tongFZ1 + ketQuaTinh.A.quyDoi.lv.N / 1.2) < 1e-6, 'FZ1 = −N/n');
+    assert.strictEqual(g.soToHop, taiTrong.toHop.length);
+    assert.strictEqual(g.soThanhPhanBAO, taiTrong.toHop.length - 1);
     assert.strictEqual(k.thongTin.fileMoHinh, fileEdb);
     assert.ok(k.buoc.every(function (b) { return b.ok; }));
     assert.ok(fs.existsSync(path.dirname(fileEdb)), 'chưa tạo thư mục lưu');
   }],
-  ['dựng mô hình: SetStories_2 chỉ nhận "None"', 'tang-loi', { lenh: 'dung-mo-hinh', duLieu: { moHinh: globalThis.MCT.calc.duLieuGuiEtabs(moHinh), fileMoHinh: fileEdb } }, function (k) {
+  ['dựng mô hình: SetStories_2 chỉ nhận "None"', 'tang-loi', { lenh: 'dung-mo-hinh', duLieu: { moHinh: duLieuMoHinh, fileMoHinh: fileEdb } }, function (k) {
     assert.strictEqual(k.ok, true, k.loi);
     assert.ok(k.buoc.some(function (b) { return b.ten === 'tang' && b.ok; }));
   }],

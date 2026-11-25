@@ -62,7 +62,10 @@
       batDauLoXo: 'day-dai',// lò xo đất bắt đầu từ: 'day-dai' (móng đài thấp) | 'day-ho' (đáy hố đào – đầu cọc tính toán)
       luoi: 0.25,           // m – kích thước lưới chia tấm đài
       buocCoc: 1,           // m – bước chia cọc (vị trí lò xo đất)
-      fileMoHinh: ''        // đường dẫn lưu mô hình .EDB; để trống: Documents\MongCauThap\<tên móng>.EDB
+      fileMoHinh: '',       // đường dẫn lưu mô hình .EDB; để trống: Documents\MongCauThap\<tên móng>.EDB
+      heSoTinhTaiNen: 1.1,  // hệ số tĩnh tải trong tổ hợp cọc nén (PDF)
+      heSoTinhTaiKeo: 0.9,  // hệ số tĩnh tải trong tổ hợp cọc kéo (PDF)
+      heSoFzKeo: 0.9        // hệ số lực đứng của cẩu trong tổ hợp cọc kéo (PDF)
     },
     baoCao: {
       moTaThem: 'Cao độ đáy bê tông lót móng -2.600m so với cote MĐTN. ' +
