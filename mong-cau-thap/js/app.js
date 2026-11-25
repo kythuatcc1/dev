@@ -129,11 +129,17 @@
 
   function oChon(path, luaChon, nhan, ky, donVi, laSo, veLai) {
     var v = String(layGiaTri(path));
+    var nhomTruoc = null;
     var opts = luaChon.map(function (o) {
       var val = typeof o === 'object' ? o.v : o;
       var txt = typeof o === 'object' ? o.t : o;
-      return '<option value="' + esc(val) + '"' + (String(val) === v ? ' selected' : '') + '>' + esc(txt) + '</option>';
-    }).join('');
+      var dau = '';
+      if (typeof o === 'object' && o.nhom && o.nhom !== nhomTruoc) {   // nhóm lựa chọn (optgroup)
+        dau = (nhomTruoc ? '</optgroup>' : '') + '<optgroup label="' + esc(o.nhom) + '">';
+        nhomTruoc = o.nhom;
+      }
+      return dau + '<option value="' + esc(val) + '"' + (String(val) === v ? ' selected' : '') + '>' + esc(txt) + '</option>';
+    }).join('') + (nhomTruoc ? '</optgroup>' : '');
     return '<div class="lbl"><label for="in-' + path + '">' + nhan + '</label></div>' +
       '<div class="val"><span class="sym">' + (ky || '') + '</span>' +
       '<select class="in" id="in-' + path + '" data-bind="' + path + '"' + (laSo ? ' data-kieu="so-chon"' : '') + (veLai ? ' data-ve-lai="1"' : '') + '>' +
@@ -216,8 +222,8 @@
     tieuDe: 'A.1 – A.2. Cẩu tháp và tải trọng',
     moTa: 'Chọn loại cẩu và chiều cao tự đứng. Tải trọng được tra từ catalogue rồi nhân hệ số an toàn n.',
     nhap: function () {
-      var dsCau = MCT.data.cauThap.concat(dsCauTuThem()).map(function (c) {
-        return { v: c.ten, t: c.ten + ' ' + (c.loaiVI || '') + (c.tuThem ? ' – tự thêm' : '') };
+      var dsCau = MCT.calc.danhSachCau().map(function (c) {
+        return { v: c.ten, t: c.ten + ' ' + (c.loaiVI || '') + (c.nguon === 'New data' ? ' – H = ' + so(c.hang[0].h, 2) + ' m' : ''), nhom: nhomCau(c) };
       });
       var cau = MCT.calc.timCau(state.cau.ten);
       var dsCao = cau ? cau.hang.map(function (h) { return { v: h.h, t: so(h.h, 2) }; }) : [];
@@ -226,7 +232,8 @@
         oChon('cau.chieuCao', dsCao, 'Chiều cao tự đứng tính toán', '', 'm') +
         '</div><p class="hang-nut">' +
         (cau && cau.tuThem ? '<button type="button" class="btn btn-ghost" data-action="sua-cau" data-ten="' + esc(cau.ten) + '">Sửa cẩu ' + esc(cau.ten) + '</button>' : '') +
-        '<button type="button" class="btn btn-ghost" data-trang="cau-moi">+ Thêm cẩu chưa có trong danh sách</button></p></section>';
+        '<button type="button" class="btn btn-ghost" data-trang="cau-moi">+ Thêm cẩu chưa có trong danh sách</button></p>' +
+        ghiChuCau(cau) + '</section>';
     },
     ketQua: function () {
       var r = ketQua;
@@ -269,6 +276,23 @@
 
   // ---------------- Cẩu tự thêm ----------------
   function dsCauTuThem() { return MCT.data.cauTuThem || []; }
+
+  function nhomCau(c) {
+    return c.tuThem ? 'Cẩu tự thêm' : c.nguon === 'New data' ? 'Sheet New data (một chiều cao tự đứng)' : 'Catalogue sheet Solieu';
+  }
+
+  // Ghi chú nguồn số liệu của cẩu (sheet New data: một chiều cao, số liệu lấy mặc định, tải tối đa / bulong theo catalogue)
+  function ghiChuCau(c) {
+    if (!c || c.nguon !== 'New data') return '';
+    var b = c.bulong || {}, dong = (c.ghiChu || []).slice();
+    var them = [];
+    if (typeof c.taiToiDa === 'number') them.push('tải tối đa ' + so(c.taiToiDa, 1) + ' T');
+    if (typeof c.taiDauCan === 'number') them.push('tải đầu cần ' + so(c.taiDauCan, 2) + ' T');
+    if (typeof b.soCay === 'number') them.push('bulong ' + b.soCay + ' cây' + (typeof b.d === 'number' ? ' M' + b.d : '') + ' mỗi chân');
+    if (them.length) dong.push('Catalogue: ' + them.join(', ') + ' (nhập tải ở trang Thông tin dự án, bulong ở mục E nếu cần).');
+    if (c.ghiChuExcel) dong.push('Ghi chú trong Excel: ' + c.ghiChuExcel + '.');
+    return '<div class="alert alert-info">' + dong.map(esc).join('<br>') + '</div>';
+  }
   function khoaCau(ten) { return MCT.calc.khoaTenCau(ten); }
 
   function luuThuVienCau(ds) {
@@ -350,7 +374,12 @@
         'Móng dùng cẩu tự thêm cũng tự lưu kèm số liệu cẩu đó.</p></section>';
 
       // Thông tin chung
-      var mau = MCT.data.cauThap.concat(ds).map(function (c) { return '<option value="' + esc(c.ten) + '">' + esc(c.ten) + '</option>'; }).join('');
+      var nhomMau = null;
+      var mau = MCT.calc.danhSachCau().map(function (c) {
+        var nh = nhomCau(c), dau = nh !== nhomMau ? (nhomMau ? '</optgroup>' : '') + '<optgroup label="' + esc(nh) + '">' : '';
+        nhomMau = nh;
+        return dau + '<option value="' + esc(c.ten) + '">' + esc(c.ten) + '</option>';
+      }).join('') + '</optgroup>';
       html += '<section class="card"><h2>' + (d.tenGoc ? 'Sửa cẩu ' + esc(d.tenGoc) : 'Cẩu mới') + '</h2>' +
         '<p class="hang-nut"><button type="button" class="btn btn-ghost" data-action="nhap-moi-cau">Nhập cẩu mới (trống)</button>' +
         '<span class="nhom-nut"><label for="chon-mau-cau">Sao chép từ cẩu</label> <select class="in" id="chon-mau-cau">' + mau + '</select>' +

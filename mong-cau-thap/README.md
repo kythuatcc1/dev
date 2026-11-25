@@ -24,8 +24,20 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | GĐ11 | Thêm cẩu tháp ngoài catalogue (trang "Thêm cẩu tháp") – xem mục dưới | ✔ |
 | GĐ10 | Tính bằng ETABS v22/v23 (xem [docs/02-etabs.md](docs/02-etabs.md)): bước 1 kết nối ✔, bước 2 dựng mô hình ✔, bước 3 tải trọng & tổ hợp ✔, bước 4 phân tích & nội lực, bước 5 chọn phương pháp, bước 6 thuyết minh ETABS | đang làm |
 
+## Danh sách cẩu tháp
+Ô chọn cẩu ở trang A.1 chia ba nhóm:
+- **Catalogue sheet `Solieu`** (9 cẩu, bảng tải theo nhiều chiều cao) – `js/data/cau-thap.js`.
+- **Sheet `New data`** (55 cẩu, mỗi cẩu MỘT chiều cao tự đứng) – `js/data/cau-thap-new-data.js`. N, M lấy theo nhóm cột
+  "Calculation" (AG, AH làm việc; AJ, AK không làm việc – đã gộp CR, MT theo quy tắc từng cẩu), H = ET (Z, AE), mômen xoắn CTM (AA),
+  lực nhổ 1 chân = max(AM, AN), đường kính cụm bulong AQ (thiếu thì lấy 0,4 m), tay cần AU; Σt bản thép chưa có trong sheet – lấy 40 mm.
+  Hệ số n như ô P15 của Excel (1,5 chỉ cho cẩu tên đúng "MC205B" của sheet Solieu, còn lại 1,2).
+- **Cẩu tự thêm** (xem mục dưới).
+
+Hai nhóm đầu sinh từ file Excel bằng `python3 -I tools/trich-du-lieu-excel.py excel-goc/<file>.xlsm`; test `tests/phan-a.test.js`,
+`tests/cau-new-data.test.js` đối chiếu với ô Excel (`tests/excel-tham-chieu.json`).
+
 ## Thêm cẩu tháp chưa có trong catalogue
-Danh sách cẩu có sẵn lấy từ sheet `Solieu` của file Excel (`js/data/cau-thap.js`). Cẩu khác thêm ngay trong app,
+Cẩu chưa có trong hai sheet trên thì thêm ngay trong app,
 trang **Thêm cẩu tháp** (hoặc nút "+ Thêm cẩu chưa có trong danh sách" ở trang A.1):
 
 1. Nhập tên cẩu, loại cẩu, chiều dài tay cần, bề rộng thân H<sub>t</sub>, đường kính cụm bulong D<sub>1</sub>, tổng chiều dày bản thép Σt,

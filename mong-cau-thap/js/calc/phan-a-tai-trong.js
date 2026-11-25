@@ -7,9 +7,14 @@
   'use strict';
   MCT.calc = MCT.calc || {};
 
-  // Tìm trong catalogue (sheet Solieu) rồi tới cẩu tự thêm (js/calc/cau-tu-them.js); không phân biệt hoa thường, dấu cách
+  // Danh sách cẩu: catalogue sheet Solieu, sheet New data (mỗi cẩu một chiều cao), cẩu tự thêm (js/calc/cau-tu-them.js)
+  function danhSachCau() {
+    return MCT.data.cauThap.concat(MCT.data.cauThapNewData || [], MCT.data.cauTuThem || []);
+  }
+
+  // Tìm theo tên, không phân biệt hoa thường, dấu cách
   function timCau(ten) {
-    var ds = MCT.data.cauThap.concat(MCT.data.cauTuThem || []);
+    var ds = danhSachCau();
     var key = String(ten || '').replace(/\s+/g, '').toLowerCase();
     for (var i = 0; i < ds.length; i++) {
       if (ds[i].ten.replace(/\s+/g, '').toLowerCase() === key) return ds[i];
@@ -143,6 +148,7 @@
   }
 
   MCT.calc.timCau = timCau;
+  MCT.calc.danhSachCau = danhSachCau;
   MCT.calc.heSoAnToan = heSoAnToan;
   MCT.calc.traHang = traHang;
   MCT.calc.quyDoi = quyDoi;

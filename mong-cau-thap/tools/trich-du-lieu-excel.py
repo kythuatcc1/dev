@@ -5,6 +5,7 @@ Cách chạy (từ thư mục mong-cau-thap):
 
 Sinh ra:
     js/data/cau-thap.js          catalogue cẩu (sheet Solieu, cột A:O + bảng phụ S:AA)
+    js/data/cau-thap-new-data.js cẩu tháp sheet New data (một chiều cao tự đứng mỗi cẩu)
     js/data/vat-lieu.js          bê tông, cốt thép, bulong (sheet Solieu, cột S:AW)
     tests/excel-tham-chieu.json  kết quả Excel đã tính sẵn, để đối chiếu app
 """
@@ -457,6 +458,59 @@ def doc_lun(wbv):
     }
 
 
+LOAI_NEW_DATA = {
+    'A Type': ('(Cẩu bằng)', '(Hammerhead)'),
+    'T Type': ('(Cẩu đỉnh bằng)', '(Flat-top)'),
+    'Luffing': ('(Cẩu gật gù)', '(Luffing)'),
+}
+
+
+def doc_new_data(wsv):
+    """Sheet New data: mỗi dòng một cẩu ở MỘT chiều cao tự đứng (R5:AY59).
+    Lấy N, M đã quy đổi ở nhóm cột "Calculation" (AG, AH làm việc; AJ, AK không làm việc – M đã gộp CR, MT theo
+    quy tắc từng cẩu), H = ET (Z, AE), mômen xoắn CTM (AA), lực nhổ 1 chân = max(AM, AN), cụm bulong AQ, tay cần AU."""
+    ds, tc = [], []
+    for r in range(5, wsv.max_row + 1):
+        ten = wsv['R%d' % r].value
+        h = so(wsv['S%d' % r].value)
+        if not isinstance(ten, str) or not ten.strip() or h is None:
+            continue
+        ten = ' '.join(ten.split())
+        o = {k: so(wsv['%s%d' % (k, r)].value) for k in
+             ['T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AG', 'AH', 'AJ', 'AK', 'AM', 'AN', 'AO', 'AP', 'AQ', 'AR', 'AU']}
+        if None in (o['T'], o['AG'], o['AH'], o['AJ'], o['AK'], o['Z'], o['AE']):
+            print('Bỏ qua cẩu thiếu số liệu ở New data dòng', r, ten)
+            continue
+        loai = (wsv['AT%d' % r].value or '').strip()
+        vi, en = LOAI_NEW_DATA.get(loai, LOAI_NEW_DATA['A Type'])
+        ghi_chu = ['Sheet New data: một chiều cao tự đứng H = %s m; N, M lấy theo cột Calculation (đã gộp CR, MT).' % ('%g' % h).replace('.', ',')]
+        if o['AQ'] is None:
+            ghi_chu.append('Chưa có đường kính cụm bulong – lấy D1 = 0,4 m.')
+        ghi_chu.append('Chưa có tổng chiều dày bản thép – lấy Σt = 40 mm.')
+        pct = [v for v in (o['AM'], o['AN']) if v is not None]
+        nhan = {'N': 'N', 'M': 'M', 'H': 'ET'}
+        ds.append({
+            'ten': ten,
+            'tieuDe': ('Tower crane type %gm (%s)' % (o['AU'], ten)) if o['AU'] is not None else 'Tower crane (%s)' % ten,
+            'loaiVI': vi, 'loaiEN': en,
+            'chieuDaiTayCan': o['AU'], 'beRongThan': o['T'],
+            'nhanXoan': 'CTM' if o['AA'] is not None else None, 'mXoan': o['AA'],
+            'nhan': {'lv': dict(nhan), 'klv': dict(nhan)},
+            'quyTac': {'lv': {'N': 'x_n', 'M': 'x_n', 'H': 'x_n'}, 'klv': {'N': 'x_n', 'M': 'x_n', 'H': 'x_n'}},
+            'pctCoDinh': max(pct) if pct else None,
+            'duongKinhNhomBulong': o['AQ'] if o['AQ'] is not None else 0.4,
+            'tongChieuDayBanThep': 40,
+            'nguon': 'New data',
+            'taiToiDa': o['U'], 'taiDauCan': o['V'],
+            'bulong': {'soCay': o['AO'], 'd': o['AP'], 'caoMatChan': o['AR']},
+            'ghiChu': ghi_chu,
+            'ghiChuExcel': wsv['AY%d' % r].value,
+            'hang': [{'h': h, 'lv': {'N': o['AG'], 'M': o['AH'], 'H': o['Z']}, 'klv': {'N': o['AJ'], 'M': o['AK'], 'H': o['AE']}}],
+        })
+        tc.append(dict(o, ten=ten, S=h, dong=r))
+    return ds, tc
+
+
 def js_file(path, var, data, header):
     body = json.dumps(data, ensure_ascii=False, indent=1)
     with open(path, 'w', encoding='utf-8') as f:
@@ -481,6 +535,9 @@ def main():
     os.makedirs(os.path.join(ROOT, 'tests'), exist_ok=True)
     js_file(os.path.join(ROOT, 'js', 'data', 'cau-thap.js'), 'cauThap', cranes,
             'Catalogue cẩu tháp (sheet Solieu)')
+    new_data, tc_new_data = doc_new_data(wbv['New data'])
+    js_file(os.path.join(ROOT, 'js', 'data', 'cau-thap-new-data.js'), 'cauThapNewData', new_data,
+            'Cẩu tháp sheet New data (mỗi cẩu một chiều cao tự đứng, tải đã quy đổi ở cột Calculation)')
     js_file(os.path.join(ROOT, 'js', 'data', 'vat-lieu.js'), 'vatLieu', vat_lieu,
             'Bê tông, cốt thép, bulong (sheet Solieu)')
     js_file(os.path.join(ROOT, 'js', 'data', 'bang-tra.js'), 'bangTra', bang_tra,
@@ -495,6 +552,7 @@ def main():
     tham_chieu = {
         'nguon': os.path.basename(src),
         'cauThapCatalogue': tc_cau,
+        'cauThapNewData': tc_new_data,
         'sheetCauThap_phanA': doc_tham_chieu_cau_thap(wbv['Cau thap']),
         'sheetCauThap_phanB': doc_tham_chieu_phan_b(wbv['Cau thap']),
         'sheetCauThap_phanD': doc_tham_chieu_phan_d(wbv['Cau thap']),
@@ -508,6 +566,7 @@ def main():
     with open(os.path.join(ROOT, 'tests', 'excel-tham-chieu.json'), 'w', encoding='utf-8') as f:
         json.dump(tham_chieu, f, ensure_ascii=False, indent=1)
     print(f'{len(cranes)} cẩu:', ', '.join(c["ten"] for c in cranes))
+    print(f'{len(new_data)} cẩu New data:', ', '.join(c["ten"] for c in new_data))
 
 
 if __name__ == '__main__':

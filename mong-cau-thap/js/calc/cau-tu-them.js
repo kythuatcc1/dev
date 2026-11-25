@@ -55,8 +55,8 @@
     else if (KY_TU_CAM.test(ten)) loi.push('Tên cẩu không được chứa các ký tự \\ / : * ? " < > |');
     else if (ten.length > 40) loi.push('Tên cẩu dài quá 40 ký tự.');
     else {
-      if ((MCT.data.cauThap || []).some(function (c) { return khoa(c.ten) === khoa(ten); })) {
-        loi.push('Tên "' + ten + '" trùng một cẩu có sẵn trong catalogue – đặt tên khác (ví dụ thêm hãng hoặc đời cẩu).');
+      if ((MCT.data.cauThap || []).concat(MCT.data.cauThapNewData || []).some(function (c) { return khoa(c.ten) === khoa(ten); })) {
+        loi.push('Tên "' + ten + '" trùng một cẩu có sẵn trong catalogue (sheet Solieu / New data) – đặt tên khác (ví dụ thêm hãng hoặc đời cẩu).');
       }
       if ((dsTuThem || []).some(function (c) { return khoa(c.ten) === khoa(ten) && khoa(c.ten) !== khoa(d.tenGoc); })) {
         loi.push('Đã có cẩu tự thêm tên "' + ten + '".');
