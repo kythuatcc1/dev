@@ -1267,9 +1267,33 @@
 
   var TEN_BUOC_ETABS = {
     'doc-yeu-cau': 'Đọc yêu cầu', 'tim-etabs': 'Tìm ETABS đang mở', 'tim-dll': 'Tìm thư viện API (ETABSv1.dll)',
-    'nap-dll': 'Nạp thư viện API', 'ket-noi': 'Gắn vào phiên ETABS', 'doc-mo-hinh': 'Đọc mô hình đang mở',
-    'he-dieu-hanh': 'Hệ điều hành', 'script': 'Script kết nối', 'powershell': 'PowerShell'
+    'nap-dll': 'Nạp thư viện API', 'kiem-tra-com': 'Đăng ký COM của ETABS', 'ket-noi': 'Gắn vào phiên ETABS',
+    'doc-mo-hinh': 'Đọc mô hình đang mở', 'he-dieu-hanh': 'Hệ điều hành', 'cau-noi': 'Chạy cầu nối',
+    'net8': '.NET 8', 'loi-chung': 'Lỗi khác'
   };
+
+  // Lời khuyên theo mã gợi ý cầu nối trả về
+  function goiYEtabs(r) {
+    var t = r.thongTin || {};
+    var dk = t.registerEtabs ? '<code>' + esc(t.registerEtabs) + '</code>' : '<code>RegisterETABS.exe</code> trong thư mục cài ETABS';
+    var GOI_Y = {
+      'mo-etabs': ['Chưa mở ETABS', 'Mở ETABS v23 (mở mô hình hoặc New Model) rồi bấm Kiểm tra kết nối.'],
+      'tim-dll': ['Không thấy thư viện API', 'Nhập thư mục cài ETABS vào ô phía trên, ví dụ <code>C:\\Program Files\\Computers and Structures\\ETABS 23</code>.'],
+      'mo-mo-hinh': ['ETABS chưa mở mô hình', 'Đã gắn được vào ETABS nhưng chưa có mô hình. Vào <strong>File → New Model</strong> ' +
+        '(mô hình trống, đơn vị kN-m) hoặc mở một file .EDB, đợi mô hình hiện ra rồi bấm Kiểm tra kết nối.'],
+      'quyen-admin': ['ETABS và chương trình khác quyền Administrator', 'ETABS đang chạy bằng <strong>Run as administrator</strong> còn MongCauThap.exe thì không, ' +
+        'Windows chặn hai bên trao đổi. Mở cả hai cùng một kiểu: chạy ETABS bình thường, hoặc chạy MongCauThap.exe bằng Run as administrator.'],
+      'dang-ky-api': ['ETABS chưa đăng ký API với Windows', 'Đóng ETABS, nhấp chuột phải ' + dk + ' → <strong>Run as administrator</strong>, rồi mở lại ETABS và thử lại.'],
+      'rot': ['ETABS chưa đăng ký phiên làm việc', 'Windows không thấy phiên ETABS đang mở. Đóng ETABS, mở lại (không dùng Run as administrator) rồi thử lại. ' +
+        'Nếu vẫn lỗi: chạy ' + dk + ' bằng Run as administrator.'],
+      'net8': ['Thiếu .NET 8', 'Cầu nối chạy trên .NET 8 (ETABS 22+ thường đã cài sẵn). Cài <strong>.NET Desktop Runtime 8</strong> (x64) từ trang dotnet.microsoft.com rồi thử lại.'],
+      'het-gio': ['ETABS không phản hồi', 'Có thể ETABS đang mở một hộp thoại hoặc đang chạy phân tích. Đóng các hộp thoại trong ETABS, đợi ETABS rảnh rồi thử lại.'],
+      'ket-noi': ['Không gắn được vào ETABS', 'Thử: đóng hết ETABS rồi mở lại một phiên; mở cả ETABS và MongCauThap.exe cùng quyền (cùng chạy bình thường). ' +
+        'Nếu vẫn lỗi, mở Chi tiết kỹ thuật bên dưới và gửi lại nội dung.']
+    };
+    var g = GOI_Y[r.goiY];
+    return g ? '<div class="ghi-chu-lech"><h3>' + g[0] + '</h3><p>' + g[1] + '</p></div>' : '';
+  }
 
   TRANG.etabs = {
     tieuDe: 'Kết nối ETABS',
@@ -1283,6 +1307,7 @@
       return '<section class="card"><h2>Cách kiểm tra</h2><ol>' +
         '<li>Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới (File → New Model).</li>' +
         '<li>Bấm <strong>Kiểm tra kết nối</strong>. Lần đầu có thể mất 5–15 giây.</li></ol>' +
+        '<p class="hint">Mở ETABS và MongCauThap.exe cùng một kiểu (cùng chạy bình thường, hoặc cùng Run as administrator).</p>' +
         '<div class="field field-wide"><label for="in-etabs.duongDan">Thư mục cài ETABS (để trống để tự tìm)</label>' +
         '<input class="in wide" type="text" id="in-etabs.duongDan" data-bind="etabs.duongDan" ' +
         'placeholder="C:\\Program Files\\Computers and Structures\\ETABS 23" value="' + esc(layGiaTri('etabs.duongDan')) + '"></div>' +
@@ -1305,10 +1330,8 @@
         return '<tr><td class="c">' + (h.ok ? '<span class="badge badge-ok">OK</span>' : '<span class="badge badge-fail">Lỗi</span>') +
           '</td><td class="nowrap">' + esc(h.ten) + '</td><td>' + esc(h.ok ? h.ketQua : h.loi + (h.hresult ? ' (' + h.hresult + ')' : '')) + '</td></tr>';
       }).join('');
-      var goiY = r.goiY === 'mo-mo-hinh'
-        ? '<div class="ghi-chu-lech"><h3>ETABS chưa mở mô hình</h3><p>Gắn được vào ETABS nhưng các hàm đọc mô hình đều lỗi. ' +
-          'Thường do ETABS đang ở màn hình khởi động. Vào <strong>File → New Model</strong> (chọn mô hình trống, đơn vị kN-m) ' +
-          'hoặc mở một file .EDB, rồi bấm Kiểm tra kết nối lần nữa.</p></div>' : '';
+      var goiY = r.ok ? '' : goiYEtabs(r);
+      function coKhong(v) { return v === true ? 'Có' : v === false ? 'Không' : null; }
       return '<section class="card"><h2>Kết quả</h2>' +
         '<div class="ket-luan-lon ' + (r.ok ? 'ok' : 'fail') + '">' +
         (r.ok ? 'Đã kết nối được ETABS' : 'Chưa kết nối được: ' + esc(r.loi || '')) + '</div>' + goiY +
@@ -1322,8 +1345,11 @@
         dongTT('Đơn vị hiện tại', t.donVi) +
         dongTT('Mô hình đang khóa (đã chạy phân tích)', t.moHinhKhoa === undefined ? null : (t.moHinhKhoa ? 'Có' : 'Không')) +
         dongTT('Số điểm / thanh / vùng', t.soDiem == null ? null : t.soDiem + ' / ' + t.soThanh + ' / ' + t.soVung) +
-        dongTT('Load pattern', t.loadPatterns) + dongTT('Thư viện API', t.dll) + dongTT('Cách gắn', t.cachKetNoi) +
-        dongTT('PowerShell / .NET', t.powershell ? t.powershell + ' / ' + t.clr : null) +
+        dongTT('Load pattern', t.loadPatterns) + dongTT('Thư viện API', t.dll ? t.dll + (t.dllDich ? ' (' + t.dllDich + ')' : '') : null) +
+        dongTT('Cách gắn', t.cachKetNoi) +
+        dongTT('ProgID đã đăng ký với Windows', coKhong(t.progIdDangKy)) + dongTT('ETABS có trong bảng ROT', coKhong(t.coTrongRot)) +
+        dongTT('ETABS chạy bằng quyền Administrator', coKhong(t.etabsAdmin)) + dongTT('Chương trình chạy bằng quyền Administrator', coKhong(t.chuongTrinhAdmin)) +
+        dongTT('Cầu nối', r.cauNoi ? r.cauNoi + (r.ghiChuChay ? ' – ' + r.ghiChuChay : '') : null) +
         '</tbody></table></div>' +
         '<details class="more"><summary>Chi tiết kỹ thuật (gửi lại khi cần hỗ trợ)</summary>' +
         '<textarea class="in wide" rows="8" readonly>' + esc(JSON.stringify(r, null, 2)) + '</textarea></details></section>';
@@ -1336,7 +1362,7 @@
     if (trangHienTai === 'etabs') veTrang();
     datTrangThai('Đang kết nối ETABS…');
     Promise.resolve().then(function () {
-      return window.mctDesktop.etabs({ lenh: 'kiem-tra', duongDanEtabs: String(state.etabs.duongDan || '').trim() });
+      return window.mctDesktop.etabs({ lenh: 'kiem-tra', duongDanEtabs: String(state.etabs.duongDan || '').trim(), thoiGianToiDa: 90000 });
     }).then(function (kq) {
       etabsKq = kq || { ok: false, loi: 'Không nhận được kết quả.', buoc: [] };
     }, function (e) {

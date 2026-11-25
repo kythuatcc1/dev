@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- ETABSv1.dll GIẢ LẬP – chỉ để thử cầu nối MctEtabs khi không có ETABS (npm run thu-cau-noi). Không đóng gói vào chương trình. -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <AssemblyName>ETABSv1</AssemblyName>
+    <RootNamespace>ETABSv1</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+</Project>

@@ -56,7 +56,7 @@ Ghi chú:
   bấm **More info → Run anyway** (Thông tin thêm → Vẫn chạy).
 - Số liệu nhập lưu tại `%APPDATA%\MongCauThap`, riêng với số liệu khi mở `index.html` bằng trình duyệt.
 - Khi sửa code app (`index.html`, `css`, `js`) cần chạy lại lệnh đóng gói để cập nhật file .exe.
-- Mã nguồn vỏ chương trình ở `desktop/` (`main.js`: cửa sổ, menu, hộp thoại lưu thuyết minh, kết nối ETABS; `preload.js`: cầu nối trang app; `etabs/cau-noi-etabs.ps1`: gọi API ETABS; `dong-goi.js`: lệnh đóng gói; `icon.svg`: biểu tượng).
+- Mã nguồn vỏ chương trình ở `desktop/` (`main.js`: cửa sổ, menu, hộp thoại lưu thuyết minh, kết nối ETABS; `preload.js`: cầu nối trang app; `etabs/MctEtabs/`: cầu nối C# (.NET 8) gọi API ETABS, bản đã biên dịch ở `etabs/cau-noi-etabs/`; `dong-goi.js`: lệnh đóng gói; `icon.svg`: biểu tượng).
 
 ## Xuất thuyết minh
 Bấm **Xuất thuyết minh** ở góc trên. File .docx trình bày theo thuyết minh mẫu

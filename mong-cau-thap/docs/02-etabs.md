@@ -17,24 +17,42 @@ thuyết minh vẫn theo form CC1.
 | Điểm đặt tải cẩu | Đặt tại tâm đài, truyền xuống 4 chân cẩu qua liên kết cứng theo vị trí bulong mục E |
 
 ## Cách kết nối
-ETABS chỉ chạy trên Windows và chỉ cho điều khiển qua API (.NET/COM), trình duyệt không gọi được.
+ETABS chỉ chạy trên Windows và chỉ cho điều khiển qua API, trình duyệt không gọi được.
 Vì vậy chức năng này chỉ có trong chương trình `MongCauThap.exe` (Electron):
 
 ```
 Trang app (js/app.js) ──window.mctDesktop.etabs(yêu cầu)──► desktop/preload.js
-   ──IPC──► desktop/main.js ──chạy──► powershell.exe desktop/etabs/cau-noi-etabs.ps1
+   ──IPC──► desktop/main.js ──chạy──► dotnet MctEtabs.dll (cầu nối C#, .NET 8)
    ──nạp ETABSv1.dll của bản ETABS đang cài, gắn vào phiên ETABS đang mở──► ETABS v23
 ```
-- Không cần cài thêm gì: PowerShell 5.1 và .NET Framework 4.8 có sẵn trên Windows 10/11.
-- Script nạp `ETABSv1.dll` ngay trong thư mục cài ETABS (tìm theo tiến trình ETABS đang chạy, hoặc
-  `C:\Program Files\Computers and Structures\ETABS xx`), gọi hàm qua reflection nên dùng được cho v22, v23.
-- Trao đổi qua file JSON tạm (UTF-8) để giữ đúng tiếng Việt trong đường dẫn.
-- Gắn vào phiên đang mở theo thứ tự: `Helper.GetObject` → `Marshal.GetActiveObject` → `Helper.GetObjectProcess(PID)`.
+- **Vì sao .NET 8:** thư viện API của ETABS 22+ (`ETABSv1.dll`, .NET Standard 2.0) khi nạp trong .NET Framework
+  (PowerShell 5.1 – cách làm lần đầu) trả về lớp bọc `ETABSv1.wOAPI` rỗng: gọi hàm nào cũng `NullReferenceException`
+  (đã gặp trên máy thật với ETABS 23, API 2.14). ETABS 22+ đã cài sẵn .NET 8 Desktop Runtime nên không cần cài thêm.
+- Cầu nối `desktop/etabs/MctEtabs/` (C#) không tham chiếu ETABSv1.dll lúc biên dịch: lúc chạy nạp đúng thư viện của
+  bản ETABS đang mở (theo đường dẫn tiến trình, hoặc `C:\Program Files\Computers and Structures\ETABS xx`) và gọi qua reflection.
+- `runtimeconfig.json` khai báo cả `Microsoft.NETCore.App` và `Microsoft.WindowsDesktop.App` (giống môi trường của ETABS);
+  máy thiếu Desktop Runtime thì chương trình tự chạy lại bằng `MctEtabs.coban.runtimeconfig.json` (chỉ .NET cơ bản).
+- Gắn vào phiên ETABS theo thứ tự, **cách nào cũng phải gọi được hàm thật mới nhận**:
+  `Helper.GetObject` → `Helper.GetObjectProcess(PID)` → đối tượng COM lấy thẳng từ bảng ROT (gọi theo tên hàm qua IDispatch).
+- Khi không gắn được, cầu nối tự chẩn đoán và app hiện lời khuyên: ETABS chưa mở, khác quyền Administrator,
+  ProgID chưa đăng ký (chạy `RegisterETABS.exe`), ETABS không có trong bảng ROT, thiếu .NET 8, chưa mở mô hình.
+- Trao đổi qua file JSON tạm (UTF-8) nên đường dẫn tiếng Việt giữ nguyên.
+
+### Biên dịch và thử cầu nối (máy build, cần .NET SDK 8)
+```
+cd desktop
+npm run build-cau-noi     # → etabs/cau-noi-etabs/ (đã có sẵn trong kho, chỉ cần chạy lại khi sửa mã C#)
+npm run thu-cau-noi       # thử với ETABSv1.dll giả lập (etabs/gia-lap): bình thường, lớp bọc rỗng, chưa mở mô hình…
+```
+Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình), trong thư mục chương trình đã giải nén:
+```
+"C:\Program Files\dotnet\dotnet.exe" resources\cau-noi-etabs\MctEtabs.dll --lenh kiem-tra
+```
 
 ## Các bước
 | Bước | Nội dung | Trạng thái |
 |---|---|---|
-| 1 | Kết nối: trang "Kết nối ETABS", lệnh `kiem-tra` (phiên bản, file mô hình, đơn vị, số phần tử, load pattern) | Gắn được vào ETABS 23 (Helper.GetObject); lần 1 lỗi NullReference ở SapModel.GetVersion → đã thêm thử từng hàm, chờ chạy lại |
+| 1 | Kết nối: trang "Kết nối ETABS", lệnh `kiem-tra` (phiên bản, file mô hình, đơn vị, số phần tử, load pattern) | Bản PowerShell lỗi lớp bọc rỗng trên ETABS 23 → đổi sang cầu nối .NET 8, chờ chạy thử trên máy thật |
 | 2 | Dựng mô hình: vật liệu B35, cọc tròn D chia 1 m, đài shell X×Y×H, lò xo ngang, mũi cọc, điểm đặt tải | Chờ |
 | 3 | Tải trọng & tổ hợp: Dead, Fx/Fy/Fz/Mx/My/Mz làm việc và không làm việc, 32 tổ hợp + hướng bất lợi, BAO | Chờ |
 | 4 | Chạy phân tích, lấy nội lực cọc theo chiều sâu, chuyển vị và góc xoay đài, mô men và lực cắt đài | Chờ |
@@ -43,11 +61,6 @@ Trang app (js/app.js) ──window.mctDesktop.etabs(yêu cầu)──► desktop
 | 7 | Tự cập nhật: đổi thông số → dựng lại, chạy lại, lấy kết quả | Chờ |
 
 ## Chạy thử bước 1
-1. Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới.
+1. Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới (đợi mô hình hiện ra).
 2. Mở `MongCauThap.exe` → mục **Tính bằng ETABS → Kết nối ETABS** → **Kiểm tra kết nối**.
-3. Nếu lỗi: mở **Chi tiết kỹ thuật**, sao chép nội dung gửi lại.
-
-Chạy script trực tiếp (không cần app), trong thư mục chương trình đã giải nén:
-```
-powershell -NoProfile -ExecutionPolicy Bypass -File resources\etabs\cau-noi-etabs.ps1 -Lenh kiem-tra
-```
+3. Nếu lỗi: làm theo lời khuyên trên trang; vẫn lỗi thì mở **Chi tiết kỹ thuật**, sao chép nội dung gửi lại.

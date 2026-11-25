@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Cầu nối app Móng cẩu tháp ↔ ETABS v22/v23. Chạy trên .NET 8 (ETABS 22+ đã cài sẵn .NET 8 Desktop Runtime).
+       Biên dịch cho chương trình: npm run build-cau-noi (thư mục desktop) – publish rồi khai báo thêm
+       Microsoft.WindowsDesktop.App trong runtimeconfig để chạy cùng môi trường với chính ETABS 22+. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RollForward>LatestMajor</RollForward>
+    <UseAppHost>false</UseAppHost>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>embedded</DebugType>
+    <AssemblyName>MctEtabs</AssemblyName>
+    <RootNamespace>MctEtabs</RootNamespace>
+    <Version>0.2.0</Version>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

@@ -1,3 +1,7 @@
 node_modules/
 build/
 dist/
+etabs/MctEtabs/bin/
+etabs/MctEtabs/obj/
+etabs/gia-lap/bin/
+etabs/gia-lap/obj/

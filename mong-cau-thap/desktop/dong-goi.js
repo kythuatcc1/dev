@@ -25,6 +25,12 @@ fs.writeFileSync(path.join(TAM, 'package.json'), JSON.stringify({
   description: pkg.description, main: 'main.js', private: true
 }, null, 2));
 
+const CAU_NOI = path.join(__dirname, 'etabs', 'cau-noi-etabs');
+if (!fs.existsSync(path.join(CAU_NOI, 'MctEtabs.dll'))) {
+  console.error('Chưa biên dịch cầu nối ETABS: chạy "npm run build-cau-noi" (cần .NET SDK 8) rồi đóng gói lại.');
+  process.exit(1);
+}
+
 const linux = process.argv.includes('--linux');
 packager({
   dir: TAM,
@@ -37,8 +43,8 @@ packager({
   name: 'MongCauThap',
   executableName: 'MongCauThap',
   icon: path.join(__dirname, 'icon.ico'),
-  // Script kết nối ETABS để ngoài gói asar (PowerShell phải đọc được) → resources/etabs/
-  extraResource: [path.join(__dirname, 'etabs')],
+  // Cầu nối ETABS (.NET 8) để ngoài gói asar → resources/cau-noi-etabs/
+  extraResource: [CAU_NOI],
   appVersion: pkg.version,
   appCopyright: 'CC1',
   win32metadata: {
