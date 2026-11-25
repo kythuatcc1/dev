@@ -21,7 +21,22 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | GĐ7 | Biểu đồ tương tác, biểu đồ SPT | ✔ |
 | GĐ8 | Thuyết minh toàn bộ: Phần 1 SCT cọc, Phần 2 A → F, Phần 3 tải ngang, Phần 4 tương tác, Phần 5 ổn định – lún (kèm biểu đồ) | ✔ |
 | GĐ9 | Đóng gói chương trình Windows (.exe) bằng Electron | ✔ |
+| GĐ11 | Thêm cẩu tháp ngoài catalogue (trang "Thêm cẩu tháp") – xem mục dưới | ✔ |
 | GĐ10 | Tính bằng ETABS v22/v23 (xem [docs/02-etabs.md](docs/02-etabs.md)): bước 1 kết nối ✔, bước 2 dựng mô hình ✔, bước 3 tải trọng & tổ hợp ✔, bước 4 phân tích & nội lực, bước 5 chọn phương pháp, bước 6 thuyết minh ETABS | đang làm |
+
+## Thêm cẩu tháp chưa có trong catalogue
+Danh sách cẩu có sẵn lấy từ sheet `Solieu` của file Excel (`js/data/cau-thap.js`). Cẩu khác thêm ngay trong app,
+trang **Thêm cẩu tháp** (hoặc nút "+ Thêm cẩu chưa có trong danh sách" ở trang A.1):
+
+1. Nhập tên cẩu, loại cẩu, chiều dài tay cần, bề rộng thân H<sub>t</sub>, đường kính cụm bulong D<sub>1</sub>, tổng chiều dày bản thép Σt,
+   hệ số an toàn n, lực nhổ 1 chân cẩu (để trống: tự tính như Excel). Có thể bấm "Sao chép" để lấy một cẩu có sẵn làm mẫu.
+2. Chọn cách quy đổi: N × n hoặc (N + 40) × n; M × n hoặc có thêm mômen CR (như MC175B); mômen xoắn T một giá trị / theo từng chiều cao / không có.
+3. Nhập bảng tải chân đế theo chiều cao tự đứng (kN, kNm) – gõ từng ô hoặc dán cả bảng từ Excel (thứ tự cột hiện ngay trên ô dán).
+4. Xem phần "Kiểm tra số liệu" (lỗi nhập, tải quy đổi từng chiều cao) rồi bấm **Lưu cẩu** hoặc **Lưu và dùng cho móng này**.
+
+Cẩu tự thêm lưu trên máy (dùng chung mọi móng), hiện trong ô chọn cẩu ở trang A.1 với chữ "tự thêm" và được tính, xuất thuyết minh,
+dựng mô hình ETABS như cẩu có sẵn. **Xuất file cẩu (.json)** / **Nhập file cẩu…** để chép sang máy khác. Móng đang dùng cẩu tự thêm
+lưu kèm số liệu cẩu đó, nên nếu thư viện trên máy bị xoá app tự khôi phục. Mã: `js/calc/cau-tu-them.js`, test `tests/cau-tu-them.test.js`.
 
 ## Cấu trúc
 ```

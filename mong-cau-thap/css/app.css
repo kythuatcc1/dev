@@ -254,3 +254,14 @@ ul.basis li { margin: 3px 0; }
 }
 /* Khung "đang dùng phương pháp ETABS" ở đầu các trang B, D, tải ngang, tương tác */
 .khung-etabs { border-left: 4px solid #2a9bb8; }
+
+/* Thêm cẩu tháp */
+.hang-nut { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 10px 0; }
+.hang-nut .nhom-nut { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.btn-nho { padding: 4px 10px; font-size: 13px; }
+td.nut-dong { white-space: nowrap; }
+td.nut-dong > * { margin-right: 6px; vertical-align: middle; }
+.tbl-cau th { white-space: nowrap; }
+.tbl-cau td { padding: 3px 4px; }
+.tbl-cau input.in.so { width: 70px; padding-left: 4px; padding-right: 4px; }
+.ky-hieu { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }

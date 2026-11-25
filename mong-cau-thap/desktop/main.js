@@ -153,11 +153,13 @@ if (!app.requestSingleInstanceLock()) {
     taoMenu();
     ipcMain.handle('etabs', function (e, yeuCau) { return goiEtabs(yeuCau); });
     // Xuất thuyết minh: hiện hộp thoại "Lưu thành", mặc định vào thư mục Documents
+    // File cẩu tự thêm (.json): hộp thoại riêng
     require('electron').session.defaultSession.on('will-download', function (e, item) {
+      var laJson = /\.json$/i.test(item.getFilename());
       item.setSaveDialogOptions({
-        title: 'Lưu thuyết minh',
+        title: laJson ? 'Lưu file cẩu tháp' : 'Lưu thuyết minh',
         defaultPath: path.join(app.getPath('documents'), item.getFilename()),
-        filters: [{ name: 'Word', extensions: ['docx'] }]
+        filters: laJson ? [{ name: 'Cẩu tháp (JSON)', extensions: ['json'] }] : [{ name: 'Word', extensions: ['docx'] }]
       });
     });
     taoCuaSo();

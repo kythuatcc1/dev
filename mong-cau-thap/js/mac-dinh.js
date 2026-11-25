@@ -19,6 +19,14 @@
     // Địa chất: hố khoan đầu tiên của sheet SL Dia chat (js/data/mau-dia-chat.js – nạp trước file này)
     diaChat: MCT.data && MCT.data.mauDiaChat ? JSON.parse(JSON.stringify(MCT.data.mauDiaChat)) : null,
     cau: { ten: 'LLT5020-10', chieuCao: 37.5 },
+    // Bản nháp trang "Thêm cẩu tháp" (js/calc/cau-tu-them.js – taoCauTuNhap); cẩu đã lưu nằm trong thư viện cẩu tự thêm
+    cauNhap: {
+      tenGoc: '', ten: '', loai: 'bang', chieuDaiTayCan: '', beRongThan: '', duongKinhNhomBulong: 0.4, tongChieuDayBanThep: 40,
+      heSoAnToan: 1.2, quyTacN: 'x_n', quyTacM: 'x_n', kieuT: 'mot', mXoan: '', pctCoDinh: '',
+      nhan: { N: 'N', M: 'M', H: 'H', CR: 'CR', T: 'T' },
+      hang: [{ h: '', lv: { N: '', M: '', H: '', CR: '', T: '' }, klv: { N: '', M: '', H: '', CR: '' } }],
+      canhBao: []
+    },
     dai: { beTong: 'B35', cotThep: 'CB500-V', a_cm: 15, X: 4, Y: 3.678, H: 1.6 },
     // Sức chịu tải cọc (sheet SCT Coc nhoi)
     sct: {

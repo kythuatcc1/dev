@@ -7,17 +7,19 @@
   'use strict';
   MCT.calc = MCT.calc || {};
 
+  // Tìm trong catalogue (sheet Solieu) rồi tới cẩu tự thêm (js/calc/cau-tu-them.js); không phân biệt hoa thường, dấu cách
   function timCau(ten) {
-    var ds = MCT.data.cauThap;
+    var ds = MCT.data.cauThap.concat(MCT.data.cauTuThem || []);
     var key = String(ten || '').replace(/\s+/g, '').toLowerCase();
     for (var i = 0; i < ds.length; i++) {
-      if (ds[i].ten.toLowerCase() === key) return ds[i];
+      if (ds[i].ten.replace(/\s+/g, '').toLowerCase() === key) return ds[i];
     }
     return null;
   }
 
-  // Ô P15: =IF(I15="MC205B",1.5,1.2)
-  function heSoAnToan(tenCau) {
+  // Ô P15: =IF(I15="MC205B",1.5,1.2); cẩu tự thêm dùng n nhập cho cẩu đó
+  function heSoAnToan(tenCau, cau) {
+    if (cau && typeof cau.heSoAnToan === 'number') return cau.heSoAnToan;
     return tenCau === 'MC205B' ? 1.5 : 1.2;
   }
 
@@ -84,7 +86,7 @@
     if (!cau) {
       return { hopLe: false, loi: ['Không tìm thấy loại cẩu "' + v.cau + '" trong catalogue.'] };
     }
-    var n = heSoAnToan(cau.ten);
+    var n = heSoAnToan(cau.ten, cau);
     var hang = traHang(cau, Number(v.chieuCao));
     if (!hang) loi.push('Chiều cao tự đứng ' + v.chieuCao + ' m nằm ngoài catalogue của cẩu ' + cau.ten + '.');
 
