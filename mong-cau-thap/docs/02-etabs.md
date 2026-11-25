@@ -12,6 +12,9 @@ thuyết minh vẫn theo form CC1.
 | Tổ hợp | 32 tổ hợp như PDF (8 hướng mỗi 45°, làm việc / không làm việc, tĩnh tải 1,1 cọc nén – 0,9 cọc kéo, tải cẩu × n) **cộng** các hướng bất lợi theo góc α của mục B |
 | Thuyết minh | Nút chọn phương pháp "Giải tích (Excel)" hoặc "ETABS"; chọn ETABS thì mục B, tải ngang, thép đài dùng nội lực ETABS |
 | Lò xo đất | Tự tính từ hệ số k (kN/m⁴) bảng A.1 TCVN 10304 như phần tải ngang, mỗi 1 m: K = k·z·b<sub>p</sub>·Δz |
+| Cao độ bắt đầu lò xo | Cho chọn trong app: (a) từ đáy đài – móng đài thấp, chưa đào (**mặc định**, như PDF và phần tải ngang form CC1); (b) từ đáy hố đào (đầu cọc tính toán −13 m), đoạn cọc phía trên không có đất giữ |
+| Mũi cọc | Gối chặn chuyển vị đứng; phương ngang do lò xo đất giữ |
+| Điểm đặt tải cẩu | Đặt tại tâm đài, truyền xuống 4 chân cẩu qua liên kết cứng theo vị trí bulong mục E |
 
 ## Cách kết nối
 ETABS chỉ chạy trên Windows và chỉ cho điều khiển qua API (.NET/COM), trình duyệt không gọi được.
@@ -31,7 +34,7 @@ Trang app (js/app.js) ──window.mctDesktop.etabs(yêu cầu)──► desktop
 ## Các bước
 | Bước | Nội dung | Trạng thái |
 |---|---|---|
-| 1 | Kết nối: trang "Kết nối ETABS", lệnh `kiem-tra` (phiên bản, file mô hình, đơn vị, số phần tử, load pattern) | Đã làm – chờ chạy thử trên máy có ETABS |
+| 1 | Kết nối: trang "Kết nối ETABS", lệnh `kiem-tra` (phiên bản, file mô hình, đơn vị, số phần tử, load pattern) | Gắn được vào ETABS 23 (Helper.GetObject); lần 1 lỗi NullReference ở SapModel.GetVersion → đã thêm thử từng hàm, chờ chạy lại |
 | 2 | Dựng mô hình: vật liệu B35, cọc tròn D chia 1 m, đài shell X×Y×H, lò xo ngang, mũi cọc, điểm đặt tải | Chờ |
 | 3 | Tải trọng & tổ hợp: Dead, Fx/Fy/Fz/Mx/My/Mz làm việc và không làm việc, 32 tổ hợp + hướng bất lợi, BAO | Chờ |
 | 4 | Chạy phân tích, lấy nội lực cọc theo chiều sâu, chuyển vị và góc xoay đài, mô men và lực cắt đài | Chờ |
