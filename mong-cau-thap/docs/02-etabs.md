@@ -71,6 +71,7 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 | 7 | Tự cập nhật: đổi thông số – **kể cả hình học** (chiều cao đài, chiều dài cọc, lưới, điểm đặt lực, dầm giằng) → **cập nhật mô hình trong file đang có** (lệnh `cap-nhat-mo-hinh`), chạy lại, lấy kết quả | Đã làm (thử với ETABS giả lập) – chờ chạy thử trên máy thật |
 | + | Điểm đặt lực cẩu tháp: một điểm tại tâm cẩu hoặc chia về 4 chân; tâm cẩu lệch tâm đài | Đã làm |
 | + | Hình mặt cắt móng và địa chất (cao độ đài, cọc, lớp đất có ghi chú) trên app và thuyết minh | Đã làm |
+| + | Ảnh chụp thật từ ETABS (chụp cửa sổ / màn hình, dán, chọn file, cắt vùng) đặt vào các vị trí hình của thuyết minh | Đã làm – chờ thử chụp trên Windows có ETABS |
 | + | Dầm giằng cọc (số liệu, mô hình, nội lực, kiểm tra TCVN 5574:2018, thuyết minh 6.4) | Đã làm (thử với ETABS giả lập) |
 | + | Hình nội lực app tự vẽ từ kết quả ETABS, chèn vào các ô dán hình của thuyết minh | Đã làm |
 
@@ -225,6 +226,28 @@ SVG → PNG trong trình duyệt và chèn vào đúng chỗ báo cáo thẩm tr
 
 Trình duyệt chặn vẽ SVG → PNG thì vị trí đó trở lại ô dán hình chụp ETABS (kèm hướng dẫn chụp trong ETABS).
 Test: `tests/bao-cao-etabs.test.js` (SVG hợp lệ, nhãn không tràn ô, mỗi hình chèn đúng một lần, không còn ô "Dán hình chụp từ ETABS").
+
+## Ảnh chụp thật từ ETABS cho thuyết minh (`js/hinh-chup.js`, trang "Hình chụp ETABS")
+API ETABS không có lệnh chụp màn hình hay đổi chế độ hiển thị (biểu đồ lực, biến dạng…), nên việc chụp làm như sau:
+- Mỗi vị trí hình của thuyết minh có một ô: tên hình, hướng dẫn hiển thị trong ETABS (menu Display / View, tổ hợp, thành phần) và các nút
+  **Chụp cửa sổ ETABS**, **Chụp màn hình**, **Dán ảnh**, **Chọn file**, **Cắt lại**, xoá. Vị trí (`MCT.hinhChup.viTri(E)`):
+  - ảnh ngoài ETABS: mặt bằng bố trí cẩu (Hình 2.3 / giải tích 1.1), catalogue cẩu (2.1 / giải tích 3.1), mặt bằng hố khoan (2.2), hình trụ hố khoan (2.4);
+  - mô hình 3D (3.1), mặt bằng đài (3.2), lực tại tâm đài (3.3–3.6);
+  - 10 ô Bảng 4.1 / 4.2 (P, M2-2, M3-3, V2-2, V3-3 – BAO Min / Max);
+  - chuyển vị (6.2), mômen đài M11 / M22 max / min (4 ảnh, Hình 6.3), lực cắt đài V13 / V23 (2 ảnh, Hình 6.4), nội lực từng dầm giằng.
+- **Chụp cửa sổ ETABS** (chương trình .exe): Electron `desktopCapturer` chụp cửa sổ có tiêu đề chứa "ETABS" (lớn nhất, bỏ cửa sổ app; chụp được
+  cả khi bị che, không chụp được khi thu nhỏ). **Chụp màn hình**: thu nhỏ app, đợi (mặc định 3 giây – chỉnh được) rồi chụp màn hình chính –
+  dự phòng khi ảnh cửa sổ bị đen. **Dán ảnh**: ảnh trong clipboard (File → Capture Picture của ETABS, Snipping Tool); ở trình duyệt bấm
+  Dán ảnh rồi Ctrl+V. **Chọn file**: ảnh có sẵn.
+- Sau khi có ảnh: hộp thoại cắt – kéo chuột chọn vùng mô hình (bỏ menu, thanh công cụ ETABS). Vùng cắt khi chụp được nhớ
+  (`state.hinhChup.vung`, riêng cho chụp cửa sổ / chụp màn hình), các lần sau chỉ bấm "Dùng vùng đã chọn". Ảnh gốc được giữ để cắt lại.
+- Ảnh lưu trong máy (IndexedDB `mong-cau-thap-hinh`: ảnh đã cắt PNG, ảnh gốc, vùng cắt, nguồn, thời điểm), không nằm trong file số liệu.
+- Xuất thuyết minh (`ganAnhChup`): ảnh chụp thay hình app vẽ cùng vị trí; vị trí chưa có ảnh: dùng hình app vẽ từ kết quả ETABS (mặc định)
+  hoặc để ô trống (`state.hinhChup.khiThieu = 'o-trong'`). Ô Bảng 4.1 / 4.2 dùng ảnh từng ô; Hình 6.3 / 6.4 có ảnh M11, M22, V13, V23 thì
+  ghép thành bảng 2 cột có nhãn; ảnh cao được thu cho vừa trang.
+- Thử: `tests/bao-cao-etabs.test.js` (mọi vị trí có ảnh → mỗi vị trí đúng một ảnh, không còn ô dán; ảnh cao không vượt trang; giải tích
+  dùng ảnh mặt bằng, catalogue). Chụp thật cửa sổ ETABS cần Windows + ETABS – chưa thử trên máy thật; bản Linux thử được chụp màn hình,
+  dán clipboard và chụp giả lập (`MCT_CHUP_GIA_LAP=<file .png>`).
 
 ## Mặt cắt móng và địa chất (`js/bieu-do-mat-cat.js`)
 `MCT.bieuDo.duLieuMatCat(state, kq, m)` + `MCT.bieuDo.matCat(d)`: mặt cắt theo phương X (tỉ lệ ngang phóng to so với tỉ lệ đứng):

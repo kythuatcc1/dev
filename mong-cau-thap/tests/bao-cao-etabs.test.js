@@ -12,6 +12,7 @@ require('../js/bao-cao/thuyet-minh.js');
 require('../js/bieu-do.js');
 require('../js/bieu-do-mat-cat.js');
 require('../js/bieu-do-etabs.js');
+require('../js/hinh-chup.js');
 const MCT = globalThis.MCT;
 
 function docTrongZip(buf, ten) {
@@ -256,6 +257,40 @@ test('Thuyết minh giải tích: mặt cắt móng và địa chất là Hình 
   const chu = chuCua(docTrongZip(buf, 'word/document.xml'));
   const i1 = chu.indexOf('Hình 2.1 Biểu đồ chỉ số SPT'), i2 = chu.indexOf('Hình 2.2 Mặt cắt móng cẩu tháp và địa chất – hố khoan HK7');
   assert.ok(i1 > 0 && i2 > i1, 'thứ tự hình 2.1 → 2.2');
+});
+
+test('Ảnh chụp ETABS: mọi vị trí hình (kể cả ảnh ngoài, M11/M22, V13/V23, dầm) được chèn đúng một ảnh, không còn ô dán', async () => {
+  const L = soLieuEtabs([{ tuCoc: 1, denCoc: 2 }]);
+  const png = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64'));
+  const vt = MCT.hinhChup.viTri({ m: L.m, t: L.t, kE: L.kE });
+  const khoa = vt.map((v) => v.khoa);
+  assert.equal(new Set(khoa).size, khoa.length, 'khoá không trùng');
+  ['etabsMoHinh3D', 'etabsTai1', 'etabsBao_min_P', 'etabsBao_max_V3', 'etabsChuyenVi', 'etabsMomenDai_M22min', 'etabsCatDai_V13', 'dam_DG1',
+    'matBangCau', 'hinhCatalogue', 'matBangHoKhoan', 'hinhTruHoKhoan'].forEach((k) => assert.ok(khoa.includes(k), 'thiếu vị trí ' + k));
+  vt.filter((v) => v.nhom !== 'ngoai').forEach((v) => assert.ok(v.huongDan.length > 20, 'thiếu hướng dẫn ETABS ' + v.khoa));
+  const hinh = {};
+  khoa.forEach((k) => { hinh[k] = { data: png, w: 1600, h: 900, chup: true }; });
+  hinh.etabsBao_min_P = { data: png, w: 300, h: 1200, chup: true };   // ảnh cao: không vượt trang
+  const soHinh = (xml) => (xml.match(/<a:blip r:embed=/g) || []).length;
+  const xml0 = docTrongZip(await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(L.s, L.tatCa, {})), 'word/document.xml');
+  const xml = docTrongZip(await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(L.s, L.tatCa, hinh)), 'word/document.xml');
+  assert.equal(soHinh(xml) - soHinh(xml0), khoa.length, 'mỗi vị trí đúng một ảnh');
+  const chu = chuCua(xml);
+  assert.ok(!chu.includes('Dán hình'), 'còn ô dán hình');
+  ['hình chụp từ mô hình ETABS', 'M11 – BAO Max', 'M22 – BAO Min', 'V23 – BAO', 'Hình 6.3 Mômen đài móng (kNm/m)', 'Hình 6.4 Lực cắt đài móng (kN/m)',
+    'Hình 2.1 Thông tin tải trọng cần trục tháp', 'Hình 2.2 Mặt bằng hố khoan', 'Hình 2.4 Hình trụ hố khoan HK7', 'Hình 6.5 Biểu đồ bao nội lực dầm DG1 (ETABS)']
+    .forEach((t) => assert.ok(chu.includes(t), 'thiếu: ' + t));
+  const cy = [...xml.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"/g)].map((r) => Number(r[2]) / 9525);
+  assert.ok(Math.max(...cy) <= 781, 'ảnh cao nhất ' + Math.max(...cy) + ' px');
+  // chỉ một ảnh M11 → hình đơn, chú thích ghi thành phần
+  const xml1 = docTrongZip(await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(L.s, L.tatCa, { etabsMomenDai_M11max: { data: png, w: 1600, h: 900, chup: true } })), 'word/document.xml');
+  assert.ok(chuCua(xml1).includes('Hình 6.3 Mômen đài móng – M11 – BAO Max (kNm/m)'));
+  // thuyết minh giải tích: ảnh mặt bằng bố trí cẩu và catalogue
+  const sGT = JSON.parse(JSON.stringify(L.s)); sGT.tinhToan.phuongPhap = 'giai-tich';
+  const xmlGT = docTrongZip(await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(sGT, L.tatCa, { matBangCau: hinh.matBangCau, hinhCatalogue: hinh.hinhCatalogue })), 'word/document.xml');
+  const chuGT = chuCua(xmlGT);
+  assert.ok(!chuGT.includes('Chèn hình mặt bằng bố trí cẩu tháp') && !chuGT.includes('Chèn hình catalogue'));
+  assert.ok(chuGT.includes('Hình 1.1 Mặt bằng bố trí cẩu tháp'));
 });
 
 test('Chọn ETABS mà chưa có kết quả ETABS: báo lỗi rõ ràng, không xuất nhầm bản giải tích', () => {

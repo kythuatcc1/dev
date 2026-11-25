@@ -39,7 +39,8 @@
     { id: 'etabs', ma: '', ten: 'Kết nối ETABS' },
     { id: 'etabs-mo-hinh', ma: '', ten: 'Mô hình ETABS' },
     { id: 'etabs-tai-trong', ma: '', ten: 'Tải trọng & tổ hợp' },
-    { id: 'etabs-ket-qua', ma: '', ten: 'Kết quả ETABS' }
+    { id: 'etabs-ket-qua', ma: '', ten: 'Kết quả ETABS' },
+    { id: 'etabs-hinh', ma: '', ten: 'Hình chụp ETABS' }
   ];
 
   // ---------------- Trạng thái ----------------
@@ -2473,6 +2474,148 @@
     luu();
   }
 
+
+  // ---------------- Hình chụp ETABS cho thuyết minh (js/hinh-chup.js) ----------------
+  var anhChup = {}, urlAnh = {}, choDan = null;   // ảnh đã lưu (IndexedDB), URL xem thử, vị trí đang chờ Ctrl+V
+  function napAnhChup() {
+    if (!MCT.hinhChup) return Promise.resolve();
+    return MCT.hinhChup.tatCaAnh().then(function (ds) {
+      Object.keys(urlAnh).forEach(function (k) { URL.revokeObjectURL(urlAnh[k]); });
+      urlAnh = {};
+      anhChup = ds;
+      Object.keys(ds).forEach(function (k) { urlAnh[k] = URL.createObjectURL(new Blob([ds[k].data], { type: 'image/png' })); });
+    });
+  }
+  function eTrangHinh() {
+    var m = moHinhEtabs(), t = m.hopLe ? taiTrongEtabs(m) : null, kE = ketQuaEtabsHienTai();
+    return { m: m, t: t, kE: kE && kE.hopLe ? kE : null };
+  }
+  function veLaiTrangHinh() {
+    if (trangHienTai !== 'etabs-hinh') return;
+    $('#vung-nhap').innerHTML = TRANG['etabs-hinh'].nhap();
+    veKetQua();
+  }
+  function tenViTri(khoa) {
+    var v = MCT.hinhChup.viTri(eTrangHinh()).filter(function (x) { return x.khoa === khoa; })[0];
+    return v ? v.ten : khoa;
+  }
+  // Ảnh mới (chụp / dán / file) → hộp thoại cắt → lưu
+  function nhanAnh(khoa, duLieu, nguon, tenNguon, cach) {
+    var HC = MCT.hinhChup, laEtabsAnh = !/^(matBangCau|hinhCatalogue|matBangHoKhoan|hinhTruHoKhoan)$/.test(khoa);
+    var vungNho = laEtabsAnh && nguon === 'chup' ? state.hinhChup.vung[cach || 'cua-so'] : null;
+    var img;
+    return HC.taiAnh(duLieu).then(function (i) {
+      img = i;
+      return HC.hopThoaiCat(img, vungNho, 'Ảnh cho: ' + tenViTri(khoa) + (tenNguon ? ' – ' + tenNguon : ''));
+    }).then(function (kq) {
+      if (!kq) { datTrangThai('Đã huỷ, chưa lưu ảnh.'); return null; }
+      if (laEtabsAnh && nguon === 'chup' && kq.vung.w < 0.999) { state.hinhChup.vung[cach || 'cua-so'] = kq.vung; luu(); }
+      return HC.catAnh(img, kq.vung).then(function (c) {
+        var goc = duLieu instanceof Uint8Array ? duLieu : null;
+        var luuGoc = goc ? Promise.resolve(goc) : new Blob([duLieu]).arrayBuffer().then(function (ab) { return new Uint8Array(ab); });
+        return luuGoc.then(function (g) {
+          return HC.luuAnh({ khoa: khoa, data: c.data, w: c.w, h: c.h, goc: g, vung: kq.vung, nguon: nguon, ten: tenNguon || '', cach: cach || '',
+            thoiGian: new Date().toISOString() });
+        });
+      }).then(function () { return napAnhChup(); }).then(function () {
+        veLaiTrangHinh();
+        datTrangThai('Đã lưu ảnh cho ' + tenViTri(khoa));
+        return true;
+      });
+    }).catch(function (e) { datTrangThai('Lỗi ảnh: ' + e.message); });
+  }
+  function anhTuClipboardSuKien(e) {
+    var ds = (e.clipboardData && e.clipboardData.items) || [];
+    for (var i = 0; i < ds.length; i++) if (ds[i].type && ds[i].type.indexOf('image/') === 0) return ds[i].getAsFile();
+    return null;
+  }
+  function xuLyHinh(hd, khoa) {
+    var HC = MCT.hinhChup, dt = window.mctDesktop;
+    if (hd === 'hinh-chup' || hd === 'hinh-chup-man-hinh') {
+      if (!dt || !dt.chupEtabs) { datTrangThai('Chụp ETABS chỉ có trong chương trình MongCauThap.exe – ở trình duyệt dùng Dán ảnh hoặc Chọn file.'); return; }
+      var cach = hd === 'hinh-chup' ? 'cua-so' : 'man-hinh';
+      datTrangThai(cach === 'cua-so' ? 'Đang chụp cửa sổ ETABS…' : 'Thu nhỏ app, chụp màn hình sau ' + so(state.hinhChup.doiGiay, 0) + ' giây – đưa ETABS lên trước…');
+      dt.chupEtabs({ cach: cach, doiMs: Number(state.hinhChup.doiGiay) * 1000 }).then(function (r) {
+        if (!r || !r.ok) { datTrangThai('Chưa chụp được: ' + ((r && r.loi) || 'không rõ lỗi')); return; }
+        return nhanAnh(khoa, new Uint8Array(r.png), 'chup', r.ten, cach);
+      });
+    } else if (hd === 'hinh-dan') {
+      if (dt && dt.anhClipboard) {
+        dt.anhClipboard().then(function (r) {
+          if (!r || !r.ok) { datTrangThai((r && r.loi) || 'Clipboard không có ảnh.'); return; }
+          nhanAnh(khoa, new Uint8Array(r.png), 'dan', 'ảnh dán');
+        });
+        return;
+      }
+      choDan = khoa;
+      veLaiTrangHinh();
+      datTrangThai('Nhấn Ctrl+V để dán ảnh cho ' + tenViTri(khoa));
+    } else if (hd === 'hinh-file') {
+      var inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = 'image/*';
+      inp.addEventListener('change', function () { if (inp.files && inp.files[0]) nhanAnh(khoa, inp.files[0], 'file', inp.files[0].name); });
+      inp.click();
+    } else if (hd === 'hinh-cat-lai') {
+      var a = anhChup[khoa];
+      if (a && a.goc) nhanAnh(khoa, a.goc, a.nguon, a.ten, a.cach);
+    } else if (hd === 'hinh-xoa') {
+      HC.xoaAnh(khoa).then(napAnhChup).then(function () { veLaiTrangHinh(); datTrangThai('Đã xoá ảnh ' + tenViTri(khoa)); });
+    } else if (hd === 'hinh-xoa-het') {
+      if (!window.confirm('Xoá tất cả ' + Object.keys(anhChup).length + ' ảnh đã lưu cho thuyết minh?')) return;
+      HC.xoaHet().then(napAnhChup).then(function () { veLaiTrangHinh(); datTrangThai('Đã xoá tất cả ảnh'); });
+    } else if (hd === 'hinh-quen-vung') {
+      state.hinhChup.vung = { 'cua-so': null, 'man-hinh': null };
+      luu(); veLaiTrangHinh();
+    }
+  }
+
+  TRANG['etabs-hinh'] = {
+    tieuDe: 'Hình chụp ETABS cho thuyết minh',
+    moTa: 'Ảnh chụp thật từ mô hình ETABS cho các vị trí hình của thuyết minh (mô hình 3D, tải trọng, nội lực cọc, chuyển vị, nội lực đài, dầm) ' +
+      'và ảnh ngoài (catalogue cẩu, hố khoan, mặt bằng). Vị trí chưa có ảnh dùng hình app vẽ từ kết quả ETABS hoặc để ô trống.',
+    nhap: function () {
+      if (!MCT.hinhChup) return '';
+      var HC = MCT.hinhChup, ds = HC.viTri(eTrangHinh()), coExe = !!(window.mctDesktop && window.mctDesktop.chupEtabs);
+      var vung = state.hinhChup.vung, coVung = vung['cua-so'] || vung['man-hinh'];
+      var dau = '<section class="card"><h2>Cách chụp</h2><ol class="buoc-chup">' +
+        '<li>Chạy phân tích trong ETABS (trang Kết quả ETABS), mở ETABS ở cửa sổ lớn.</li>' +
+        '<li>Với mỗi vị trí bên dưới: chỉnh hiển thị trong ETABS theo dòng hướng dẫn (menu Display / View của ETABS), phóng to vừa khung nhìn.</li>' +
+        '<li>Bấm <strong>Chụp cửa sổ ETABS</strong>: app chụp cửa sổ ETABS, hiện ảnh để kéo chọn vùng mô hình (bỏ menu, thanh công cụ). Vùng chọn được nhớ – các lần chụp sau chỉ cần bấm Dùng vùng đã chọn.</li>' +
+        '<li>Ảnh cửa sổ bị đen / trống: dùng <strong>Chụp màn hình</strong> (app tự thu nhỏ, đợi vài giây cho ETABS hiện lên rồi chụp), hoặc chụp bằng ETABS (File → Capture Picture) / Snipping Tool rồi <strong>Dán ảnh</strong>.</li>' +
+        '<li>Bấm <strong>Xuất thuyết minh</strong>: ảnh chụp được đặt đúng vị trí hình.</li></ol>' +
+        (coExe ? '' : '<p class="alert alert-info">Đang mở bằng trình duyệt: không chụp trực tiếp được cửa sổ ETABS – dùng Dán ảnh (Ctrl+V) hoặc Chọn file. Chụp trực tiếp có trong chương trình MongCauThap.exe.</p>') +
+        '<div class="params">' + oChon('hinhChup.khiThieu', [{ v: 'app-ve', t: 'Dùng hình app vẽ từ kết quả ETABS' }, { v: 'o-trong', t: 'Để ô trống (dán sau trong Word)' }],
+          'Vị trí chưa có ảnh chụp', '', '', false, true) + oNhapSo('hinhChup.doiGiay', 'Chụp màn hình: đợi trước khi chụp', '', 'giây') + '</div>' +
+        '<p class="hang-nut">' + (coVung ? '<span class="hint">Đang nhớ vùng cắt' + (vung['cua-so'] ? ' cửa sổ ' + Math.round(vung['cua-so'].w * 100) + '% × ' + Math.round(vung['cua-so'].h * 100) + '%' : '') +
+          '.</span> <button type="button" class="btn btn-ghost btn-nho" data-action="hinh-quen-vung">Quên vùng cắt</button>' : '') +
+        (Object.keys(anhChup).length ? '<button type="button" class="btn btn-ghost btn-nho" data-action="hinh-xoa-het">Xoá tất cả ảnh</button>' : '') + '</p></section>';
+      var nhom = null, html = '';
+      ds.forEach(function (v) {
+        if (v.nhom !== nhom) { html += (nhom ? '</div></section>' : '') + '<section class="card"><h2>' + esc(HC.NHOM[v.nhom]) + '</h2><div class="ds-hinh">'; nhom = v.nhom; }
+        var a = anhChup[v.khoa], laNgoai = v.nhom === 'ngoai';
+        var xem = a ? '<img src="' + urlAnh[v.khoa] + '" alt="' + esc(v.ten) + '">'
+          : '<span>' + (laNgoai || state.hinhChup.khiThieu === 'o-trong' ? 'Chưa có ảnh – thuyết minh để ô trống' : 'Chưa có ảnh – thuyết minh dùng hình app vẽ') + '</span>';
+        var nut = function (hd, chu, ghost) { return '<button type="button" class="btn btn-nho' + (ghost ? ' btn-ghost' : '') + '" data-action="' + hd + '" data-khoa="' + v.khoa + '">' + chu + '</button>'; };
+        html += '<div class="o-hinh' + (a ? ' co-anh' : '') + (choDan === v.khoa ? ' cho-dan' : '') + '" id="hinh-' + v.khoa + '"><div class="o-hinh-xem">' + xem + '</div>' +
+          '<div class="o-hinh-tt"><b>' + esc(v.ten) + '</b><p class="hint">' + (laNgoai ? '' : 'ETABS: ') + esc(v.huongDan) + '</p>' +
+          (a ? '<p class="hint">' + ({ chup: 'Chụp', dan: 'Dán', file: 'File' })[a.nguon] + (a.ten ? ' (' + esc(a.ten) + ')' : '') + ', ' + a.w + ' × ' + a.h + ' px, ' +
+            esc(new Date(a.thoiGian).toLocaleString('vi-VN')) + '</p>' : '') +
+          (choDan === v.khoa ? '<p class="alert alert-info">Nhấn Ctrl+V để dán ảnh vào vị trí này.</p>' : '') +
+          '<p class="hang-nut">' + (laNgoai ? '' : nut('hinh-chup', 'Chụp cửa sổ ETABS') + nut('hinh-chup-man-hinh', 'Chụp màn hình', true)) +
+          nut('hinh-dan', 'Dán ảnh', !laNgoai) + nut('hinh-file', 'Chọn file', true) +
+          (a ? nut('hinh-cat-lai', 'Cắt lại', true) + '<button type="button" class="btn-x" data-action="hinh-xoa" data-khoa="' + v.khoa + '" aria-label="Xoá ảnh ' + esc(v.ten) + '">✕</button>' : '') +
+          '</p></div></div>';
+      });
+      return dau + html + (nhom ? '</div></section>' : '');
+    },
+    ketQua: function () {
+      if (!MCT.hinhChup) return '';
+      var ds = MCT.hinhChup.viTri(eTrangHinh()), co = ds.filter(function (v) { return anhChup[v.khoa]; }).length;
+      return '<section class="card"><h2>Tình trạng</h2><p>Đã có ảnh cho <strong>' + co + ' / ' + ds.length + '</strong> vị trí hình. ' +
+        'Ảnh lưu trong máy này (không nằm trong file số liệu); đổi mô hình thì chụp lại các hình liên quan.</p></section>';
+    }
+  };
+
   function khoiDong() {
     var hash = (location.hash || '').replace('#', '');
     if (TRANG[hash]) trangHienTai = hash;
@@ -2490,6 +2633,16 @@
     veDanhMuc();
     veTrang();
     if (khoiPhuc) datTrangThai(khoiPhuc);
+    napAnhChup().then(veLaiTrangHinh, function () { /* trình duyệt chặn IndexedDB */ });
+    document.addEventListener('paste', function (e) {
+      if (trangHienTai !== 'etabs-hinh' || !choDan) return;
+      var f = anhTuClipboardSuKien(e);
+      if (!f) { datTrangThai('Clipboard không có ảnh.'); return; }
+      e.preventDefault();
+      var khoa = choDan;
+      choDan = null;
+      nhanAnh(khoa, f, 'dan', 'ảnh dán');
+    });
 
     window.addEventListener('hashchange', function () {
       var id = (location.hash || '').replace('#', '');
@@ -2503,6 +2656,8 @@
       if (nut && !nut.disabled) chuyenTrang(nut.getAttribute('data-trang'));
       if (e.target.closest('[data-action="toggle-nav"]')) document.body.classList.toggle('nav-open');
       if (e.target.closest('[data-action="xuat-tm"]')) xuatThuyetMinh();
+      var nutHinh = e.target.closest('[data-action^="hinh-"]');
+      if (nutHinh && !nutHinh.disabled) xuLyHinh(nutHinh.getAttribute('data-action'), nutHinh.getAttribute('data-khoa'));
       if (e.target.closest('[data-action="etabs-kiem-tra"]')) etabsChay('kiem-tra');
       if (e.target.closest('[data-action="etabs-dang-ky"]')) etabsChay('dang-ky-giao-dien');
       if (e.target.closest('[data-action="etabs-go-dang-ky"]')) etabsChay('go-dang-ky-giao-dien');
@@ -2774,8 +2929,23 @@
     return Promise.all(ds.map(function (d) { return svgSangPng(d[1], d[2], d[3]); })).then(function (anh) {
       var hinh = {};
       ds.forEach(function (d, i) { if (anh[i]) hinh[d[0]] = anh[i]; });
-      return hinh;
+      return ganAnhChup(hinh, E);
     });
+  }
+
+  // Ảnh chụp ETABS / ảnh tải lên thay hình app vẽ cùng vị trí; "để ô trống": bỏ hình app vẽ ở vị trí ETABS chưa có ảnh
+  function ganAnhChup(hinh, E) {
+    if (!MCT.hinhChup) return hinh;
+    return napAnhChup().then(function () {
+      if (E && state.hinhChup.khiThieu === 'o-trong') {
+        MCT.hinhChup.viTri(E).forEach(function (v) {
+          if (v.nhom !== 'ngoai' && v.khoa !== 'etabsMatBang' && !anhChup[v.khoa]) delete hinh[v.khoa];
+        });
+        delete hinh.etabsMomenDai; delete hinh.etabsCatDai;
+      }
+      Object.keys(anhChup).forEach(function (k) { var a = anhChup[k]; hinh[k] = { data: a.data, w: a.w, h: a.h, chup: true }; });
+      return hinh;
+    }, function () { return hinh; });
   }
 
   function xuatThuyetMinh() {

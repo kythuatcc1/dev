@@ -1,7 +1,7 @@
 // Vỏ chương trình Windows (Electron): mở app index.html trong một cửa sổ riêng, chạy hoàn toàn offline.
 // Số liệu vẫn tự lưu như khi mở bằng trình duyệt (lưu trong %APPDATA%\MongCauThap).
 'use strict';
-const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, desktopCapturer, screen, nativeImage, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -123,6 +123,76 @@ async function goiEtabs(yeuCau) {
   }
 }
 
+// ---- Chụp ảnh từ ETABS cho thuyết minh (API ETABS không có lệnh chụp màn hình) ----
+//   cach 'cua-so'  : chụp cửa sổ ETABS (desktopCapturer, kể cả khi bị cửa sổ khác che; không chụp được khi đang thu nhỏ)
+//   cach 'man-hinh': thu nhỏ app, đợi rồi chụp cả màn hình chính (dự phòng khi ảnh cửa sổ bị đen / trống)
+// MCT_CHUP_GIA_LAP=<file .png>: trả ảnh đó (thử tự động, không cần ETABS)
+function doi(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
+async function chupEtabs(yc) {
+  try {
+    const cach = yc && yc.cach === 'man-hinh' ? 'man-hinh' : 'cua-so';
+    if (process.env.MCT_CHUP_GIA_LAP) {
+      const b = fs.readFileSync(process.env.MCT_CHUP_GIA_LAP), kt = nativeImage.createFromBuffer(b).getSize();
+      return { ok: true, ten: 'ETABS (giả lập)', cach: cach, png: b, w: kt.width, h: kt.height };
+    }
+    const man = screen.getPrimaryDisplay();
+    const kichThuoc = { width: Math.round(man.size.width * man.scaleFactor), height: Math.round(man.size.height * man.scaleFactor) };
+    if (cach === 'man-hinh') {
+      if (cuaSo) cuaSo.minimize();
+      await doi(Math.max(500, Math.min(10000, Number(yc && yc.doiMs) || 2500)));
+      try {
+        const ds = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: kichThuoc });
+        const chon = ds.find(function (x) { return String(x.display_id) === String(man.id); }) || ds[0];
+        if (!chon || chon.thumbnail.isEmpty()) return { ok: false, loi: 'Không chụp được màn hình.' };
+        const kt = chon.thumbnail.getSize();
+        return { ok: true, ten: 'Màn hình chính', cach: cach, png: chon.thumbnail.toPNG(), w: kt.width, h: kt.height };
+      } finally {
+        if (cuaSo) { cuaSo.restore(); cuaSo.focus(); }
+      }
+    }
+    const ds = await desktopCapturer.getSources({ types: ['window'], thumbnailSize: kichThuoc, fetchWindowIcons: false });
+    const cuaApp = cuaSo ? cuaSo.getMediaSourceId() : '';
+    const etabs = ds.filter(function (x) { return /ETABS/i.test(x.name) && x.id !== cuaApp; });
+    if (!etabs.length) {
+      return { ok: false, loi: 'Không thấy cửa sổ ETABS đang mở. Mở ETABS (không thu nhỏ) rồi chụp lại. Các cửa sổ đang có: ' +
+        ds.map(function (x) { return x.name; }).filter(Boolean).slice(0, 8).join('; ') };
+    }
+    // cửa sổ ETABS lớn nhất có ảnh (bỏ hộp thoại nhỏ, cửa sổ thu nhỏ)
+    const chon = etabs.map(function (x) { const kt = x.thumbnail.getSize(); return { x: x, dt: x.thumbnail.isEmpty() ? 0 : kt.width * kt.height }; })
+      .sort(function (a, b) { return b.dt - a.dt; })[0];
+    if (!chon.dt) return { ok: false, loi: 'Cửa sổ ETABS đang thu nhỏ – mở to cửa sổ ETABS rồi chụp lại (hoặc dùng "Chụp màn hình").' };
+    const kt = chon.x.thumbnail.getSize();
+    return { ok: true, ten: chon.x.name, cach: cach, png: chon.x.thumbnail.toPNG(), w: kt.width, h: kt.height };
+  } catch (e) {
+    return { ok: false, loi: e.message };
+  }
+}
+
+// Ảnh trong clipboard: Electron 45 đọc clipboard kiểu W3C (clipboard.read → ClipboardItem); bản cũ có readImage
+async function anhClipboard() {
+  const KHONG = { ok: false, loi: 'Clipboard không có ảnh. Trong ETABS dùng File → Capture Picture, hoặc Snipping Tool (Win + Shift + S), rồi dán lại.' };
+  try {
+    let anh = null;
+    if (typeof clipboard.read === 'function') {
+      const ds = await clipboard.read();
+      for (const muc of ds || []) {
+        const kieu = (muc.types || []).find(function (t) { return /^image\//.test(t); });
+        if (!kieu) continue;
+        const blob = await muc.getType(kieu);
+        anh = nativeImage.createFromBuffer(Buffer.from(await blob.arrayBuffer()));
+        if (!anh.isEmpty()) break;
+      }
+    } else if (typeof clipboard.readImage === 'function') {
+      anh = clipboard.readImage();
+    }
+    if (!anh || anh.isEmpty()) return KHONG;
+    const kt = anh.getSize();
+    return { ok: true, png: anh.toPNG(), w: kt.width, h: kt.height };
+  } catch (e) {
+    return { ok: false, loi: 'Không đọc được clipboard: ' + e.message };
+  }
+}
+
 function taoCuaSo() {
   cuaSo = new BrowserWindow({
     width: 1440, height: 900, minWidth: 900, minHeight: 600, show: false,
@@ -152,6 +222,8 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(function () {
     taoMenu();
     ipcMain.handle('etabs', function (e, yeuCau) { return goiEtabs(yeuCau); });
+    ipcMain.handle('chup-etabs', function (e, yc) { return chupEtabs(yc); });
+    ipcMain.handle('anh-clipboard', function () { return anhClipboard(); });
     // Xuất thuyết minh: hiện hộp thoại "Lưu thành", mặc định vào thư mục Documents
     // File cẩu tự thêm (.json): hộp thoại riêng
     require('electron').session.defaultSession.on('will-download', function (e, item) {

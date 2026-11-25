@@ -69,6 +69,8 @@
       phuongPhap: 'giai-tich'
     },
     // Kết nối ETABS (chỉ dùng trong chương trình Windows)
+    // Ảnh chụp ETABS cho thuyết minh (ảnh lưu trong IndexedDB, ở đây chỉ lưu thiết lập)
+    hinhChup: { vung: { 'cua-so': null, 'man-hinh': null }, khiThieu: 'app-ve', doiGiay: 3 },
     etabs: {
       duongDan: '',         // thư mục cài ETABS; để trống thì tự tìm
       batDauLoXo: 'day-dai',// lò xo đất bắt đầu từ: 'day-dai' (móng đài thấp) | 'day-ho' (đáy hố đào – đầu cọc tính toán)
