@@ -31,6 +31,62 @@
     return { nen: BANG_MAU[i % BANG_MAU.length], mau: /cát/.test(t) ? 'cham' : /sét/.test(t) ? 'gach' : '' };
   }
 
+
+  // ---- Thân cẩu tháp (mặt đứng một mặt đoạn thân), x1, x2: tim hai thanh cánh; yDuoi, yTren: chân và đỉnh phần vẽ ----
+  var VANG = '#f5b70a', VANG_TOI = '#a86f00', VANG_SANG = '#fde68a';
+  function thanh(xa, ya, xb, yb, day) {   // thanh có bề dày (đa giác), tô vàng, viền đậm
+    var dx = xb - xa, dy = yb - ya, L = Math.hypot(dx, dy) || 1, nx = -dy / L * day / 2, ny = dx / L * day / 2;
+    return '<polygon points="' + [[xa + nx, ya + ny], [xb + nx, yb + ny], [xb - nx, yb - ny], [xa - nx, ya - ny]].map(function (p) { return f1(p[0]) + ',' + f1(p[1]); }).join(' ') +
+      '" fill="' + VANG + '" stroke="' + VANG_TOI + '" stroke-width="0.8" stroke-linejoin="round"/>';
+  }
+  function veThanCau(x1, x2, yDuoi, yTren) {
+    var B = x2 - x1, cao = yDuoi - yTren, g = '';
+    var c = Math.max(7, B * 0.1), h = Math.max(5, B * 0.065), dc = Math.max(4, B * 0.055);   // bề rộng thanh cánh, thanh ngang, thanh chéo
+    var trai = x1 + c / 2, phai = x2 - c / 2;
+    // số đoạn thân (mỗi đoạn cao ≈ 1,7 bề rộng, 2 khoang)
+    var soDoan = Math.max(1, Math.round(cao / (1.7 * B))), caoDoan = cao / soDoan;
+    // thang leo và lồng bảo hộ (phía sau, màu xám nhạt)
+    var xr1 = x1 + B * 0.34, xr2 = x1 + B * 0.5, xl1 = x1 + B * 0.24, xl2 = x1 + B * 0.6;
+    g += '<g stroke="#cbd5e1" fill="none" stroke-width="1">' +
+      '<line x1="' + f1(xr1) + '" y1="' + f1(yTren) + '" x2="' + f1(xr1) + '" y2="' + f1(yDuoi) + '"/>' +
+      '<line x1="' + f1(xr2) + '" y1="' + f1(yTren) + '" x2="' + f1(xr2) + '" y2="' + f1(yDuoi) + '"/>' +
+      '<line x1="' + f1(xl1) + '" y1="' + f1(yTren) + '" x2="' + f1(xl1) + '" y2="' + f1(yDuoi) + '" stroke-width="0.8"/>' +
+      '<line x1="' + f1(xl2) + '" y1="' + f1(yTren) + '" x2="' + f1(xl2) + '" y2="' + f1(yDuoi) + '" stroke-width="0.8"/>';
+    for (var y = yDuoi - 6; y > yTren + 2; y -= 9) g += '<line x1="' + f1(xr1) + '" y1="' + f1(y) + '" x2="' + f1(xr2) + '" y2="' + f1(y) + '" stroke-width="0.8"/>';
+    for (var yv = yDuoi - 16; yv > yTren + 8; yv -= 34) {
+      g += '<path d="M' + f1(xl1) + ' ' + f1(yv) + ' Q' + f1((xl1 + xl2) / 2) + ' ' + f1(yv + 9) + ' ' + f1(xl2) + ' ' + f1(yv) + '"/>';
+    }
+    g += '</g>';
+    for (var k = 0; k < soDoan; k++) {
+      var yd = yDuoi - k * caoDoan, yt = yd - caoDoan, ym = (yd + yt) / 2;
+      var yNgang = [yd - h / 2 - 1, ym, yt + h / 2 + 1];
+      // giằng chéo chữ X trong hai khoang
+      [[yd - h, ym + h / 2], [ym - h / 2, yt + h]].forEach(function (kh) {
+        g += thanh(trai + c / 2, kh[0], phai - c / 2, kh[1], dc) + thanh(trai + c / 2, kh[1], phai - c / 2, kh[0], dc);
+      });
+      // thanh ngang đầu, giữa, cuối đoạn
+      yNgang.forEach(function (yy) { g += thanh(trai, yy, phai, yy, h); });
+    }
+    // thanh cánh (hộp vuông) suốt chiều cao, có vệt sáng
+    [trai, phai].forEach(function (xc) {
+      g += '<rect x="' + f1(xc - c / 2) + '" y="' + f1(yTren) + '" width="' + f1(c) + '" height="' + f1(cao) + '" fill="' + VANG + '" stroke="' + VANG_TOI + '" stroke-width="0.9"/>' +
+        '<line x1="' + f1(xc - c / 2 + c * 0.28) + '" y1="' + f1(yTren + 1) + '" x2="' + f1(xc - c / 2 + c * 0.28) + '" y2="' + f1(yDuoi - 1) + '" stroke="' + VANG_SANG + '" stroke-width="' + f1(Math.max(1, c * 0.18)) + '"/>';
+    });
+    // bản nối có lỗ bulong ở hai đầu mỗi đoạn thân
+    for (var j = 0; j <= soDoan; j++) {
+      var yn = yDuoi - j * caoDoan;
+      [trai, phai].forEach(function (xc) {
+        [-1, 1].forEach(function (chieu) {
+          if ((j === 0 && chieu < 0) || (j === soDoan && chieu > 0)) return;   // không vẽ ra ngoài phần thân
+          var yb = chieu > 0 ? yn - 15 : yn, cao2 = 15, rong = c + 4;
+          g += '<rect x="' + f1(xc - rong / 2) + '" y="' + f1(yb) + '" width="' + f1(rong) + '" height="' + cao2 + '" fill="' + VANG + '" stroke="' + VANG_TOI + '" stroke-width="0.9"/>';
+          [0.32, 0.68].forEach(function (t) { g += '<circle cx="' + f1(xc) + '" cy="' + f1(yb + cao2 * t) + '" r="' + f1(Math.max(1.4, c * 0.16)) + '" fill="#ffffff" stroke="' + VANG_TOI + '" stroke-width="0.7"/>'; });
+        });
+      });
+    }
+    return g;
+  }
+
   /**
    * Số liệu cho hình mặt cắt từ trạng thái app và kết quả tính; m (tuỳ chọn) = mô hình ETABS (dầm giằng, điểm đặt lực).
    * Trả null nếu thiếu số liệu địa chất / cọc / đài.
@@ -163,18 +219,10 @@
     // ---- Cẩu tháp và điểm đặt lực ----
     var Ht = d.cau.Ht > 0 ? d.cau.Ht : Math.min(1.6, dai.X / 2), xC = d.diemDat ? d.diemDat.x : 0;
     var yThan = 46, xThan1 = X(xC - Ht / 2), xThan2 = X(xC + Ht / 2), bThan = xThan2 - xThan1;
-    // Thân cẩu dạng giàn (đoạn thân tiêu chuẩn): 2 thanh cánh, thanh ngang mỗi khoang, thanh xiên zig-zag; màu vàng như cẩu thật
-    var yDe = yMat - 7, khoang = Math.max(bThan * 0.62, 20), MAU_CANH = '#b7791f', MAU_XIEN = '#d69e2e';
-    g += '<rect x="' + f1(xThan1) + '" y="' + f1(yThan) + '" width="' + f1(bThan) + '" height="' + f1(yDe - yThan) + '" fill="#fef3c7" fill-opacity="0.55"/>';
-    var yk = yDe, le = 0;
-    while (yk - khoang > yThan + 4) {
-      var yt = yk - khoang;
-      g += duong(xThan1, yt, xThan2, yt, MAU_XIEN, 1.4) +                                           // thanh ngang
-        duong(le ? xThan2 : xThan1, yk, le ? xThan1 : xThan2, yt, MAU_XIEN, 1.4);                    // thanh xiên đổi chiều mỗi khoang
-      yk = yt; le = 1 - le;
-    }
-    g += duong(le ? xThan2 : xThan1, yk, le ? xThan1 : xThan2, yThan + 4, MAU_XIEN, 1.4);
-    g += duong(xThan1, yDe, xThan1, yThan, MAU_CANH, 3.2) + duong(xThan2, yDe, xThan2, yThan, MAU_CANH, 3.2);   // thanh cánh (chân cẩu)
+    // Thân cẩu (đoạn thân tiêu chuẩn) như ảnh thật: thanh cánh hộp vuông màu vàng, thanh ngang đầu / giữa / cuối đoạn, giằng chéo chữ X
+    // mỗi khoang, bản nối có lỗ bulong ở hai đầu thanh cánh, thang leo và lồng bảo hộ bên trong
+    var yDe = yMat - 7;
+    g += veThanCau(xThan1, xThan2, yDe, yThan + 6);
     // ký hiệu cắt: thân cẩu còn tiếp tục lên trên
     g += '<path d="M' + f1(xThan1 - 10) + ' ' + f1(yThan + 2) + ' L' + f1(xThan1 + bThan * 0.35) + ' ' + f1(yThan + 2) + ' l6 -6 l6 12 l6 -6 L' +
       f1(xThan2 + 10) + ' ' + f1(yThan + 2) + '" fill="none" stroke="#374151" stroke-width="1.2"/>';
