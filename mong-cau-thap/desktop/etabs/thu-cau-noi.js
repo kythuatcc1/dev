@@ -72,7 +72,10 @@ function khopMoHinh(file, x) {
   assert.deepStrictEqual(sx(f.P.keys()), sx(m.diem.map((d) => d.ten)), 'tập điểm');
   m.diem.forEach((d) => { const c = f.P.get(d.ten); assert.ok([d.x, d.y, d.z].every((v, i) => Math.abs(c[i] - v) < 1e-6), 'toạ độ ' + d.ten + ': ' + c); });
   assert.deepStrictEqual(sx(f.F.keys()), sx(m.thanh.map((t) => t.ten)), 'tập thanh');
-  m.thanh.forEach((t) => assert.deepStrictEqual(f.F.get(t.ten), [t.dau, t.cuoi, t.tietDien], 'thanh ' + t.ten));
+  m.thanh.forEach((t) => {   // ETABS đặt đầu I ở nút dưới của thanh đứng: so hai đầu không phân biệt thứ tự
+    const r = f.F.get(t.ten);
+    assert.deepStrictEqual([r.slice(0, 2).sort(), r[2]], [[t.dau, t.cuoi].sort(), t.tietDien], 'thanh ' + t.ten);
+  });
   assert.deepStrictEqual(sx(f.A.keys()), sx(m.vo.map((v) => v.ten)), 'tập ô vỏ');
   m.vo.forEach((v) => assert.deepStrictEqual(f.A.get(v.ten), v.diem, 'ô vỏ ' + v.ten));
   assert.deepStrictEqual(sx(f.R), sx(m.gioiHan.map((g) => g.diem)), 'gối chỉ ở mũi cọc');
@@ -200,7 +203,10 @@ const ca = [
     assert.strictEqual(kq.dai.nut.length, moHinh.xs.length * moHinh.ys.length);
     const r = globalThis.MCT.calc.ketQuaEtabs(kq, moHinh, taiTrong, trangThai, ketQuaTinh);
     assert.strictEqual(r.hopLe, true);
-    assert.ok(Math.abs(r.cocKiemTra.Pnen.gt - (1000 + 300 + 10 * (n - 1) + 2)) < 1e-6, 'Pnén đầu cọc ' + r.cocKiemTra.Pnen.gt);
+    // ETABS (và bản giả lập) đặt đầu I của đoạn cọc ở nút dưới: đầu cọc ở trạm cuối sta = L = 1 m → |P| thêm 0,5·L.
+    // App tính cao độ trạm từ toạ độ hai đầu nên vẫn lấy đúng giá trị tại đầu cọc.
+    const L1 = Math.abs(moHinh.capDo[1] - moHinh.capDo[2]);
+    assert.ok(Math.abs(r.cocKiemTra.Pnen.gt - (1000 + 300 + 10 * (n - 1) + 2 + 0.5 * L1)) < 1e-6, 'Pnén đầu cọc ' + r.cocKiemTra.Pnen.gt);
     assert.ok(Math.abs(r.dai.X.Mduong.gt - (10 + n - 1) * moHinh.thongSo.Y) < 1e-6, 'M đài theo X ' + r.dai.X.Mduong.gt);
     assert.ok(k.buoc.some(function (b) { return b.ten === 'phan-tich' && b.ok; }));
   }, fileEdb],
@@ -226,6 +232,9 @@ const ca = [
     assert.strictEqual(k.ok, true, k.loi);
     assert.ok(k.buoc.some((b) => b.ten === 'kiem-tra-hinh-hoc' && b.ok), 'hình học trùng');
     assert.ok(k.buoc.some((b) => b.ten === 'mo-file' && /Dang mo/.test(b.chiTiet)), 'dùng file đang mở');
+    const db = k.thongTin.dongBo;   // hình học không đổi: giữ nguyên mọi thanh (kể cả cọc ETABS đã đảo đầu), không xoá / thêm gì
+    assert.deepStrictEqual([db.xoaThanh, db.themThanh, db.xoaVo, db.themVo, db.xoaDiem, db.themDiem, db.doiDiem], [0, 0, 0, 0, 0, 0, 0], JSON.stringify(db));
+    assert.strictEqual(db.giuThanh, capNhatCau.m.thanh.length);
     assert.deepStrictEqual(k.thongTin.loadPatternDaXoa, ['MZ1']);
     const g = JSON.parse(fs.readFileSync(fileGhi, 'utf8'));
     assert.strictEqual(g.file, fileEdb);
@@ -235,6 +244,12 @@ const ca = [
     assert.ok(Math.abs(g.tongFZ1 + capNhatCau.kq.A.quyDoi.lv.N / 1.2) < 1e-6, 'FZ1 theo cẩu mới');
     assert.strictEqual(g.soThuocTinhLoXo, capNhatCau.m.thuocTinhLoXo.length);
     assert.strictEqual(g.soLoXoTongThe, 0);
+  }, fileEdb],
+  ['cập nhật mô hình: ETABS báo file làm việc .$et (có thay đổi chưa lưu) – vẫn là file đã dựng, không mở lại', 'ten-et', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: duLieuMoHinh, fileMoHinh: fileEdb } }, function (k) {
+    capNhatKhongTaoMoi(k);
+    assert.ok(k.buoc.some((b) => b.ten === 'mo-file' && /^Dang mo /.test(b.chiTiet)), 'không OpenFile lại');
+    assert.strictEqual(k.thongTin.dongBo.xoaThanh, 0);
+    khopMoHinh(fileEdb, { m: moHinh, t: taiTrong });
   }, fileEdb],
   ['cập nhật mô hình: lưới đài 0,5 m – xoá / dời / thêm điểm, thanh, ô vỏ trong file đang có', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatLuoi.gui, fileMoHinh: fileEdb } }, function (k) {
     const g = capNhatKhongTaoMoi(k);

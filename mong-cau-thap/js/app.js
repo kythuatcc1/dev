@@ -1562,8 +1562,9 @@
     var dk = t.registerEtabs ? '<code>' + esc(t.registerEtabs) + '</code>' : '<code>RegisterETABS.exe</code> trong thư mục cài ETABS';
     var GOI_Y = {
       'mo-etabs': ['Chưa mở ETABS', 'Mở ETABS v23 (mở mô hình hoặc New Model) rồi bấm Kiểm tra kết nối.'],
-      'dung-lai': ['Cần dựng lại mô hình', 'App không sửa được hình học trong file đang có (ETABS không đổi được tầng / điểm, hoặc mô hình có đối tượng khác ' +
-        'của người dùng), hoặc không còn file đã dựng. Bấm <strong>Dựng lại mô hình mới</strong> ở trang Mô hình ETABS.'],
+      'dung-lai': ['Chưa sửa được hình học trong file', 'App không sửa được hình học trong file đang có (ETABS không đổi được tầng / điểm, hoặc mô hình có đối tượng khác ' +
+        'của người dùng), hoặc không còn file đã dựng. Thử bấm cập nhật lại; vẫn lỗi thì bấm <strong>Dựng lại mô hình mới</strong> ở trang Mô hình ETABS ' +
+        'và gửi Chi tiết kỹ thuật để kiểm tra.'],
       'tim-dll': ['Không thấy thư viện API', 'Nhập thư mục cài ETABS vào ô phía trên, ví dụ <code>C:\\Program Files\\Computers and Structures\\ETABS 23</code>.'],
       'mo-mo-hinh': ['ETABS chưa mở mô hình', 'Đã gắn được vào ETABS nhưng chưa có mô hình. Vào <strong>File → New Model</strong> ' +
         '(mô hình trống, đơn vị kN-m) hoặc mở một file .EDB, đợi mô hình hiện ra rồi bấm Kiểm tra kết nối.'],
@@ -1824,7 +1825,7 @@
         '(' + esc(state.etabs.fileDung) + ') – dời / thêm / xoá nút, thanh, ô vỏ, đặt lại tầng, lò xo, gối, tải trọng; không tạo mô hình mới.</p>'
       : tm.capNhatDuoc ? '<p>Thông số đã đổi, hình học giữ nguyên: <strong>cập nhật</strong> mô hình trong file đang có ' +
         '(' + esc(state.etabs.fileDung) + ') – không phải dựng lại.</p>'
-      : tm.daDung ? '<p>Lần cập nhật trước không sửa được hình học trong ETABS (' + esc(state.etabs.fileDung) + '): cần <strong>dựng lại</strong> mô hình.</p>' : '';
+      : '';
     if (tm.capNhatDuoc && !tm.khop) {
       return trangThai + '<p class="hang-nut"><button type="button" class="btn" data-action="etabs-cap-nhat-mo-hinh"' + tat + '>' +
         (etabsDangChay ? 'Đang xử lý…' : 'Cập nhật mô hình trong ETABS') + '</button>' +
@@ -1999,8 +2000,9 @@
     var m = moHinhEtabs(), t = m.hopLe ? taiTrongEtabs(m) : { hopLe: false };
     var hopLe = m.hopLe && t.hopLe;
     var khop = hopLe && state.etabs.vanTayDung === vanTayMoHinh(m, t);
-    // Cập nhật được mọi thay đổi (cả hình học) khi đã có file dựng; vanTayHinhHoc rỗng = lần cập nhật trước báo phải dựng lại
-    var capNhatDuoc = hopLe && !!state.etabs.fileDung && !!state.etabs.vanTayHinhHoc;
+    // Cập nhật được mọi thay đổi (cả hình học) khi đã có file dựng – cầu nối tự kiểm tra hình học trong ETABS và sửa / vẽ lại;
+    // vanTayHinhHoc rỗng (lần cập nhật trước lỗi) chỉ có nghĩa là coi như hình học đã đổi
+    var capNhatDuoc = hopLe && !!state.etabs.fileDung;
     var hinhHocDoi = hopLe && state.etabs.vanTayHinhHoc !== vanTayHinhHoc(m);
     return { m: m, t: t, hopLe: hopLe, khop: khop, capNhatDuoc: capNhatDuoc, hinhHocDoi: hinhHocDoi, daDung: !!state.etabs.fileDung };
   }
@@ -2288,7 +2290,7 @@
     if (lenh === 'cap-nhat-mo-hinh') {
       var tm = trangThaiMoHinh();
       if (!tm.hopLe) { datTrangThai('Mô hình hoặc tải trọng chưa hợp lệ.'); return; }
-      if (!tm.capNhatDuoc) { datTrangThai('Chưa dựng mô hình hoặc lần cập nhật trước không sửa được hình học – cần dựng lại mô hình.'); return; }
+      if (!tm.capNhatDuoc) { datTrangThai('Chưa dựng mô hình – bấm Dựng mô hình trong ETABS trước.'); return; }
       if (!window.confirm('Cập nhật mô hình trong file đang có?\n\n' + state.etabs.fileDung + '\n\nApp sửa ' +
           (tm.hinhHocDoi ? 'hình học (dời / thêm / xoá nút, thanh, ô vỏ, đặt lại tầng), ' : '') + 'vật liệu, tiết diện, lò xo đất, gối, tải trọng và tổ hợp ' +
           'theo thông số hiện tại – không tạo mô hình mới. Nếu ETABS đang mở mô hình khác, ETABS sẽ mở file này (mô hình đang mở KHÔNG được lưu). ' +
@@ -2331,7 +2333,7 @@
       else if (lenh === 'cap-nhat-mo-hinh') {
         etabsDungKq = kq;
         if (kq.ok && etabsVanTayGui) { state.etabs.vanTayDung = etabsVanTayGui; state.etabs.vanTayHinhHoc = etabsHinhHocGui || state.etabs.vanTayHinhHoc; luu(); }
-        if (!kq.ok && kq.goiY === 'dung-lai') { state.etabs.vanTayHinhHoc = ''; luu(); }   // không sửa được hình học trong ETABS: lần sau dựng lại
+        if (!kq.ok && kq.goiY === 'dung-lai') { state.etabs.vanTayHinhHoc = ''; luu(); }   // lần sau coi như hình học đã đổi (vẫn cho cập nhật)
       }
       else if (lenh === 'phan-tich') {
         if (kq.ok && kq.ketQua) {

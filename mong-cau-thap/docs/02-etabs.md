@@ -203,6 +203,10 @@ ETABS được **app tự vẽ hình từ kết quả ETABS và chèn sẵn** (x
   `dung-lai` → bỏ lò xo / gối ở nút cọc không còn cần (`DeleteSpring`, `SetRestraint` false) rồi gán lại → xoá tổ hợp cũ của app
   (`BAO` trước), load pattern không còn dùng (ví dụ `MZ1`), lực cũ của các pattern tải cẩu ở mọi điểm (`DeleteLoadForce("All", …, Group)`,
   không được thì xoá ở từng nút đài) → đặt lực mới (một điểm hoặc 4 chân) và tổ hợp → lưu đè.
+- So hình học: hai đầu thanh **không phân biệt thứ tự** – ETABS tự đặt đầu I ở nút dưới của thanh đứng (đoạn cọc app dựng từ trên xuống
+  bị đảo đầu; bản đầu so đúng thứ tự nên xoá / vẽ lại mọi đoạn cọc rồi báo lỗi); đỉnh ô vỏ so theo vòng, cả hai chiều. File đang mở:
+  ETABS 23 có thể báo file làm việc `.$et` cùng tên thay cho `.EDB` – coi là cùng file, không mở lại (mở lại sẽ mất thay đổi chưa lưu).
+- App luôn cho cập nhật khi đã có file dựng (kể cả sau một lần cập nhật lỗi); cầu nối tự kiểm tra và sửa / vẽ lại hình học.
 - Kết quả trả về `thongTin.dongBo`: số điểm dời / thêm / xoá, thanh và ô vỏ giữ / thêm / xoá, có phải vẽ lại không và lý do.
 - Thử bằng ETABS giả lập: `npm run thu-cau-noi` – đổi cẩu (xoá MZ1); lưới 0,5 m (xoá / dời / thêm); chiều cao đài 1,6 → 2,0 m (ETABS
   không đổi tầng khi còn đối tượng → vẽ lại trong file); cọc dài thêm 3 m (ETABS đổi được tầng → chỉ thêm nút, chuyển gối mũi cọc);

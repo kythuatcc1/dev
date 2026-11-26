@@ -11,6 +11,7 @@
 //   lo-xo-cu         bản ETABS không có SapModel.PropPointSpring (cầu nối phải dùng SetSpring theo trục cục bộ)
 //   tang-mo          SetStories_2 được cả khi mô hình đã có đối tượng (mặc định: chỉ được khi chưa có điểm nào – như ETABS khi có đối tượng)
 //   khong-di-chuyen  bản ETABS không có SapModel.EditPoint (không dời được điểm – cầu nối phải xoá và vẽ lại)
+//   ten-et           GetModelFilename trả file làm việc .$et thay cho .EDB (ETABS 23 khi có thay đổi chưa lưu)
 // MCT_GIA_LAP_GHI: file JSON ghi lại mô hình giả lập sau lệnh Save (để kiểm tra)
 // MCT_GIA_LAP_MO : file .EDB giả lập đã lưu – nạp lại khi gắn (giống ETABS thật vẫn mở mô hình giữa các lệnh)
 using System;
@@ -434,7 +435,12 @@ namespace ETABSv1
             foreach (var f in typeof(MoHinh).GetFields()) f.SetValue(dich, f.GetValue(nguon));
         }
         public int GetVersion(ref string Version, ref double MyVersionNumber) { _ = M; Version = "23.0.0"; MyVersionNumber = 23.0; return 0; }
-        public string GetModelFilename(bool IncludePath = true) => IncludePath ? M.File : Path.GetFileName(M.File.Replace('\\', '/'));
+        public string GetModelFilename(bool IncludePath = true)
+        {   // ten-et: như ETABS 23 khi mô hình có thay đổi chưa lưu – báo file làm việc .$et cùng tên
+            string f = Environment.GetEnvironmentVariable("MCT_GIA_LAP") == "ten-et" && M.File.EndsWith(".EDB", StringComparison.OrdinalIgnoreCase)
+                ? M.File.Substring(0, M.File.Length - 4) + ".$et" : M.File;
+            return IncludePath ? f : Path.GetFileName(f.Replace('\\', '/'));
+        }
         public eUnits GetPresentUnits() => M.DonVi;
         public bool GetModelIsLocked() => M.Khoa;
         public int SetModelIsLocked(bool LockIt) { M.Khoa = LockIt; if (!LockIt) M.DaPhanTich = false; return 0; }
@@ -612,6 +618,9 @@ namespace ETABSv1
         {
             if (!M.Diem.ContainsKey(Point1) || !M.Diem.ContainsKey(Point2) || Point1 == Point2 || !M.TietDienThanh.Contains(PropName)) return 1;
             Name = string.IsNullOrEmpty(UserName) || M.Thanh.Any(t => t[0] == UserName) ? "F" + (M.Thanh.Count + 1) : UserName;
+            // như ETABS thật: thanh đứng (cột, cọc) luôn có đầu I ở nút dưới – vẽ từ trên xuống thì bị đảo đầu
+            double[] a1 = M.Diem[Point1], a2 = M.Diem[Point2];
+            if (Math.Abs(a1[0] - a2[0]) < 1e-6 && Math.Abs(a1[1] - a2[1]) < 1e-6 && a1[2] > a2[2]) { string tg = Point1; Point1 = Point2; Point2 = tg; }
             M.Thanh.Add(new[] { Name, Point1, Point2, PropName }); M.SoThanhThem++;
             return 0;
         }

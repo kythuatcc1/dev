@@ -100,7 +100,7 @@ namespace MctEtabs
                 // 1. Đúng file mô hình đã dựng
                 string file = LenhDungMoHinh.DuongDanLuu(yc);
                 string dangMo = KetQua.HienThi(e.Lay("", "cSapModel", "GetModelFilename", new object[] { true }));
-                bool cungFile = !string.IsNullOrEmpty(dangMo) && string.Equals(Path.GetFullPath(dangMo), file, StringComparison.OrdinalIgnoreCase);
+                bool cungFile = CungFile(dangMo, file);
                 if (!cungFile)
                 {
                     if (!File.Exists(file))
@@ -257,7 +257,7 @@ namespace MctEtabs
                 {
                     var p = new object[] { f, "", "" };
                     e.Goi("FrameObj", "cFrameObj", "GetPoints", p, true);
-                    if ((string)p[1] == t.Dau && (string)p[2] == t.Cuoi) { giuThanh.Add(f); continue; }
+                    if (CungHaiDau((string)p[1], (string)p[2], t)) { giuThanh.Add(f); continue; }
                 }
                 e.Goi("FrameObj", "cFrameObj", "Delete", new object[] { f, "Objects" });
                 tk.XoaThanh++;
@@ -395,7 +395,7 @@ namespace MctEtabs
                 var p = new object[] { t.Ten, "", "" };
                 try { e.Goi("FrameObj", "cFrameObj", "GetPoints", p, true); }
                 catch { khac.Add("khong co thanh " + t.Ten); continue; }
-                if ((string)p[1] != t.Dau || (string)p[2] != t.Cuoi) khac.Add("thanh " + t.Ten + " noi " + p[1] + "–" + p[2]);
+                if (!CungHaiDau((string)p[1], (string)p[2], t)) khac.Add("thanh " + t.Ten + " noi " + p[1] + "–" + p[2] + " thay vi " + t.Dau + "–" + t.Cuoi);
                 if (khac.Count > 5) return khac;
             }
             foreach (Vo v in hh.DsVo)
@@ -424,13 +424,32 @@ namespace MctEtabs
             try { e.Goi("AreaObj", "cAreaObj", "GetPoints", a, true); } catch { return null; }
             return a[2] is string[] ds ? ds : (a[2] as Array)?.Cast<object>().Select(Convert.ToString).ToArray();
         }
-        /// <summary>Cùng các nút theo cùng chiều vòng (ETABS có thể bắt đầu từ nút khác).</summary>
+        /// <summary>Cùng các nút theo vòng (ETABS có thể bắt đầu từ nút khác hoặc đảo chiều vòng).</summary>
         static bool CungNut(string[] a, string[] b)
         {
             if (a.Length != b.Length) return false;
-            for (int k = 0; k < a.Length; k++)
-                if (Enumerable.Range(0, a.Length).All(i => a[(i + k) % a.Length] == b[i])) return true;
+            int n = a.Length;
+            for (int k = 0; k < n; k++)
+            {
+                if (Enumerable.Range(0, n).All(i => a[(i + k) % n] == b[i])) return true;
+                if (Enumerable.Range(0, n).All(i => a[(k - i + n) % n] == b[i])) return true;
+            }
             return false;
+        }
+        /// <summary>Hai đầu thanh trùng, không phân biệt thứ tự: ETABS tự đặt đầu I ở nút dưới của thanh đứng (cọc dựng từ trên xuống bị đảo).</summary>
+        static bool CungHaiDau(string p1, string p2, Thanh t) => (p1 == t.Dau && p2 == t.Cuoi) || (p1 == t.Cuoi && p2 == t.Dau);
+        /// <summary>Cùng file mô hình: ETABS có thể báo file làm việc .$et thay cho .EDB cùng tên.</summary>
+        static bool CungFile(string dangMo, string file)
+        {
+            if (string.IsNullOrWhiteSpace(dangMo)) return false;
+            try
+            {
+                string a = Path.GetFullPath(dangMo.Trim()), b = Path.GetFullPath(file);
+                return string.Equals(a, b, StringComparison.OrdinalIgnoreCase) ||
+                       (Regex.IsMatch(Path.GetExtension(a), @"^\.(\$et|edb|e2k)$", RegexOptions.IgnoreCase) &&
+                        string.Equals(Path.ChangeExtension(a, null), Path.ChangeExtension(b, null), StringComparison.OrdinalIgnoreCase));
+            }
+            catch { return false; }
         }
         static bool Gan(double[] a, double[] b) => Enumerable.Range(0, 3).All(i => Math.Abs(a[i] - b[i]) <= SaiSo);
         static string Khoa(double[] c) => string.Join("|", c.Select(v => Math.Round(v, 4).ToString("F4", CultureInfo.InvariantCulture)));
