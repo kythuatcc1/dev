@@ -114,6 +114,7 @@ namespace ETABSv1
         int ChangeName(string Name, string NewName);
         int DeleteSpring(string Name, eItemType ItemType = eItemType.Objects);
         int DeleteLoadForce(string Name, string LoadPat, eItemType ItemType = eItemType.Objects);
+        int SetSpecialPoint(string Name, bool SpecialPoint, eItemType ItemType = eItemType.Objects);
     }
     public interface cPropPointSpring
     {
@@ -193,6 +194,7 @@ namespace ETABSv1
         public Dictionary<string, double[]> ThuocTinhLoXo = new Dictionary<string, double[]>();
         public int LoXoTheoThuocTinh, LoXoTongThe;   // số lần gán theo thuộc tính / theo hệ tổng thể (giao diện ETABS không có)
         public Dictionary<string, bool[]> Goi = new Dictionary<string, bool[]>();
+        public HashSet<string> DiemRieng = new HashSet<string>();
         public List<string> Mau = new List<string>();                       // load pattern (= load case cùng tên)
         public Dictionary<string, double> BanThan = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, double[]> TongLuc = new Dictionary<string, double[]>();   // tổng lực mỗi pattern (Fx, Fy, Fz, Mx, My, Mz quanh gốc)
@@ -482,7 +484,7 @@ namespace ETABSv1
                     ",\"tang\":[" + string.Join(",", M.CaoTang.Select(v => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture))) + "]" +
                     ",\"goi\":" + ds(M.Goi.Where(kv => kv.Value.Any(b => b)).Select(kv => kv.Key).OrderBy(x => x, StringComparer.Ordinal)) +
                     ",\"loXoDiem\":" + ds(M.LoXo.Keys.OrderBy(x => x, StringComparer.Ordinal)) +
-                    ",\"khoiTaoMoi\":" + (M.KhoiTaoMoi ? "true" : "false") + ",\"thaoTac\":{\"doi\":" + M.SoLanDoi + ",\"xoaDiem\":" + M.SoDiemXoa +
+                    ",\"diemRieng\":" + ds(M.DiemRieng.OrderBy(x => x, StringComparer.Ordinal)) + ",\"khoiTaoMoi\":" + (M.KhoiTaoMoi ? "true" : "false") + ",\"thaoTac\":{\"doi\":" + M.SoLanDoi + ",\"xoaDiem\":" + M.SoDiemXoa +
                     ",\"xoaThanh\":" + M.SoThanhXoa + ",\"xoaVo\":" + M.SoVoXoa + ",\"themDiem\":" + M.SoDiemThem + ",\"themThanh\":" + M.SoThanhThem + ",\"themVo\":" + M.SoVoThem + "}" +
                     ",\"tietDienVo\":" + ds(M.TietDienVo) + ",\"loXoTAM\":" + (M.LoXo.ContainsKey("TAM_CAU") ? "true" : "false") + "}");
             }
@@ -585,7 +587,7 @@ namespace ETABSv1
         public int DeleteSpecialPoint(string Name, eItemType ItemType = eItemType.Objects)
         {   // chỉ xoá được điểm không nối thanh / vỏ nào; xoá luôn lò xo, gối, lực tại điểm
             if (!M.Diem.ContainsKey(Name) || M.DiemDangDung(Name)) return 1;
-            M.Diem.Remove(Name); M.LoXo.Remove(Name); M.Goi.Remove(Name);
+            M.Diem.Remove(Name); M.LoXo.Remove(Name); M.Goi.Remove(Name); M.DiemRieng.Remove(Name);
             foreach (string k in M.LucDiem.Keys.Where(k => k.EndsWith("|" + Name, StringComparison.Ordinal)).ToList()) M.LucDiem.Remove(k);
             M.TinhTongLuc(); M.SoDiemXoa++;
             return 0;
@@ -601,6 +603,8 @@ namespace ETABSv1
             return 0;
         }
         public int DeleteSpring(string Name, eItemType ItemType = eItemType.Objects) { if (!M.Diem.ContainsKey(Name)) return 1; M.LoXo.Remove(Name); return 0; }
+        public int SetSpecialPoint(string Name, bool SpecialPoint, eItemType ItemType = eItemType.Objects)
+        { if (!M.Diem.ContainsKey(Name)) return 1; if (SpecialPoint) M.DiemRieng.Add(Name); else M.DiemRieng.Remove(Name); return 0; }
         public int DeleteLoadForce(string Name, string LoadPat, eItemType ItemType = eItemType.Objects)
         {   // nhóm "All": mọi điểm; Objects: một điểm
             if (!M.Mau.Contains(LoadPat)) return 1;

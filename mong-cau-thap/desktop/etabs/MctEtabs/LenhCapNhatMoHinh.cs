@@ -165,7 +165,7 @@ namespace MctEtabs
                     DongBo(e, hh, tk);
                 }
                 kq.Dat("dongBo", tk.Json());
-                kq.GhiBuoc(buoc, true, tk.MoTa());
+                kq.GhiBuoc(buoc, true, tk.MoTa() + LenhDungMoHinh.DatDiemRieng(e, m, x => x));
 
                 // 6. Kiểm tra lại
                 buoc = "kiem-tra-hinh-hoc";

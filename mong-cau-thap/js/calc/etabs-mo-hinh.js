@@ -1,6 +1,9 @@
 // Mô hình ETABS móng cẩu tháp (bước 2 – app tự dựng từ thông số đang nhập)
-//   Đài   : tấm vỏ dày (shell thick) X×Y, chiều dày H, đặt ở mặt phẳng giữa đài; lưới chia ≤ luoi (m),
-//           đường lưới đi qua tâm cọc và 4 chân cẩu để cọc, chân cẩu nối đúng nút của tấm.
+//   Đài   : tấm vỏ dày (shell thick) X×Y, chiều dày H, đặt ở mặt phẳng giữa đài; cách chia (s.etabs.chiaDai):
+//           'deu' (mặc định) lưới chia ≤ luoi (m), đường lưới đi qua tâm cọc, tâm đài, điểm đặt lực để cọc, lực nối đúng nút;
+//           'toi-thieu' chỉ chia tại các đường qua cọc, tâm đài, điểm đặt lực (không chia đều);
+//           'khong' không chia: một ô vỏ V1_1 cả đài, đầu cọc và điểm đặt lực là điểm nằm trong tấm (D0_<k>, điểm riêng –
+//           special point), ETABS tự chia lưới tấm khi phân tích (Analyze → Automatic Mesh Settings for Floors).
 //   Cọc   : thanh tròn D từ mặt phẳng giữa đài tới mũi cọc, chia ≤ buocCoc (m) dưới đáy đài;
 //           đoạn nằm trong đài là thanh cứng (độ cứng ×100, không tính trọng lượng – đã có trong đài).
 //   Đất   : lò xo ngang tại nút cọc K = k·z·bp·l (TCVN 10304:2025 phụ lục A), k theo lớp đất (bảng A.1),
@@ -63,8 +66,9 @@
     if (!B || !B.hopLe) loi.push('Toạ độ cọc (mục B) chưa hợp lệ.');
     var e = s.etabs || {};
     var luoi = Number(e.luoi), buocCoc = Number(e.buocCoc);
+    var chiaDai = e.chiaDai === 'khong' || e.chiaDai === 'toi-thieu' ? e.chiaDai : 'deu';
     var batDau = e.batDauLoXo === 'day-ho' ? 'day-ho' : 'day-dai';
-    if (!(luoi > 0.05)) loi.push('Kích thước lưới chia đài phải lớn hơn 0,05 m.');
+    if (chiaDai === 'deu' && !(luoi > 0.05)) loi.push('Kích thước lưới chia đài phải lớn hơn 0,05 m.');
     if (!(buocCoc > 0.1)) loi.push('Bước chia cọc phải lớn hơn 0,1 m.');
     var kieuDat = e.diemDatLuc === 'chan' ? 'chan' : 'tam';
     var xc = tron(Number(e.tamCauX) || 0), yc = tron(Number(e.tamCauY) || 0);
@@ -117,14 +121,26 @@
     if (loi.length) return { hopLe: false, loi: loi };
 
     // ---- Lưới tấm đài (mặt phẳng giữa đài), đường lưới qua tâm đài (điểm đặt tải) và tâm các cọc ----
-    var xs = chiaDoan(-X / 2, X / 2, luoi, [0, xc].concat(coc.map(function (p) { return p.x; }), chan.map(function (c) { return c.x; })));
-    var ys = chiaDoan(-Y / 2, Y / 2, luoi, [0, yc].concat(coc.map(function (p) { return p.y; }), chan.map(function (c) { return c.y; })));
+    var buocLuoi = chiaDai === 'deu' ? luoi : Infinity;   // tối thiểu: mỗi đoạn giữa hai đường bắt buộc là một ô
+    var xs = chiaDai === 'khong' ? [tron(-X / 2), tron(X / 2)]
+      : chiaDoan(-X / 2, X / 2, buocLuoi, [0, xc].concat(coc.map(function (p) { return p.x; }), chan.map(function (c) { return c.x; })));
+    var ys = chiaDai === 'khong' ? [tron(-Y / 2), tron(Y / 2)]
+      : chiaDoan(-Y / 2, Y / 2, buocLuoi, [0, yc].concat(coc.map(function (p) { return p.y; }), chan.map(function (c) { return c.y; })));
     function tenNutDai(i, k) { return 'D' + (i + 1) + '_' + (k + 1); }
+    var diem = [], thanh = [], vo = [], diemRieng = [], nutTrong = {};
+    // Nút của tấm tại (x, y); không chia: điểm nằm trong tấm (tạo khi cần, tên D0_<k>, đánh dấu điểm riêng để ETABS giữ và chia lưới qua)
     function timNutDai(x, y) {
       var i = xs.indexOf(tron(x)), k = ys.indexOf(tron(y));
-      return i >= 0 && k >= 0 ? tenNutDai(i, k) : null;
+      if (i >= 0 && k >= 0) return tenNutDai(i, k);
+      if (chiaDai !== 'khong') return null;
+      var khoa = tron(x) + '|' + tron(y);
+      if (!nutTrong[khoa]) {
+        nutTrong[khoa] = 'D0_' + (diemRieng.length + 1);
+        diem.push({ ten: nutTrong[khoa], x: tron(x), y: tron(y), z: zGiua });
+        diemRieng.push(nutTrong[khoa]);
+      }
+      return nutTrong[khoa];
     }
-    var diem = [], thanh = [], vo = [];
     xs.forEach(function (x, i) { ys.forEach(function (y, k) { diem.push({ ten: tenNutDai(i, k), x: x, y: y, z: zGiua }); }); });
     for (var i = 0; i < xs.length - 1; i++) {
       for (var k = 0; k < ys.length - 1; k++) {
@@ -211,7 +227,7 @@
       hopLe: true, loi: [],
       thongSo: {
         X: X, Y: Y, H: H, zMat: zMat, zGiua: zGiua, zDay: zDay, zMui: zMui, D: D, bp: bp, soCoc: coc.length,
-        batDauLoXo: batDau, zBatDau: zBatDau, luoi: luoi, buocCoc: buocCoc, nx: xs.length, ny: ys.length,
+        batDauLoXo: batDau, zBatDau: zBatDau, luoi: luoi, chiaDai: chiaDai, buocCoc: buocCoc, nx: xs.length, ny: ys.length,
         diemDatLuc: kieuDat, xc: xc, yc: yc, Ht: Ht
       },
       tang: { caoDoDay: tron(mocTang[0]), ds: tang },
@@ -222,7 +238,7 @@
       ].concat(dam.map(function (d) { return { ten: d.tietDien, loai: 'chu-nhat', vatLieu: 'BT_' + d.beTong, cao: d.h, rong: d.b }; })),
       tietDienVo: [{ ten: 'DAI', vatLieu: tenBtDai, day: H }],
       diem: diem, thanh: thanh, vo: vo, loXo: loXo, gioiHan: gioiHan,
-      thuocTinhLoXo: thuocTinhLoXo,
+      thuocTinhLoXo: thuocTinhLoXo, diemRieng: diemRieng,
       coc: coc, dam: dam, nutTai: nutTai, nutTamDai: nutTamDai, chan: chan, xs: xs, ys: ys, capDo: capDo, bangLoXo: bangLoXo,
       thongKe: { soTang: tang.length, soDiem: diem.length, soThanh: thanh.length, soVo: vo.length, soLoXo: loXo.length, soDam: dam.length }
     };
@@ -232,7 +248,7 @@
   function duLieuGuiEtabs(m, t) {
     return {
       tang: m.tang, vatLieu: m.vatLieu, tietDienThanh: m.tietDienThanh, tietDienVo: m.tietDienVo,
-      diem: m.diem, thanh: m.thanh, vo: m.vo, loXo: m.loXo, thuocTinhLoXo: m.thuocTinhLoXo, gioiHan: m.gioiHan,
+      diem: m.diem, thanh: m.thanh, vo: m.vo, loXo: m.loXo, thuocTinhLoXo: m.thuocTinhLoXo, gioiHan: m.gioiHan, diemRieng: m.diemRieng || [],
       mauTai: t && t.hopLe ? t.mauTai : [], toHop: t && t.hopLe ? t.toHop : []
     };
   }

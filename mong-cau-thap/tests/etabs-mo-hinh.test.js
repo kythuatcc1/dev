@@ -226,3 +226,37 @@ test('Chia lực về 4 chân cẩu: nút chân trên lưới, hợp lực và m
   // chân cẩu ra ngoài đài
   assert.match(taiTheo((s) => { s.etabs.diemDatLuc = 'chan'; s.etabs.tamCauX = 1.5; }).m.loi.join(' '), /Chân cẩu .* nằm ngoài đài/);
 });
+
+test('Chia tấm đài tối thiểu: chỉ các đường qua mép, tâm đài, tâm cọc', () => {
+  const m = tao((s) => { s.etabs.chiaDai = 'toi-thieu'; s.etabs.luoi = 0; });
+  assert.equal(m.hopLe, true, (m.loi || []).join('; '));
+  assert.deepEqual(m.xs, [-2, -1.2, 0, 1.2, 2]);
+  assert.deepEqual(m.ys, [-1.839, -0.77, 0, 1.31, 1.839]);
+  assert.equal(m.vo.length, 16);
+  assert.equal(m.thongSo.chiaDai, 'toi-thieu');
+});
+
+test('Không chia tấm đài: một ô vỏ, đầu cọc và điểm đặt lực là điểm riêng trong tấm', () => {
+  const { m, t } = taiTheo((s) => { s.etabs.chiaDai = 'khong'; s.etabs.diemDatLuc = 'chan'; s.etabs.tamCauX = 0.3; });
+  assert.equal(m.hopLe, true, (m.loi || []).join('; '));
+  assert.equal(m.vo.length, 1);
+  assert.deepEqual(m.vo[0].diem, ['D1_1', 'D2_1', 'D2_2', 'D1_2']);
+  const toaDo = new Map(m.diem.map((d) => [d.ten, d]));
+  // đầu mỗi cọc là điểm trong tấm đúng toạ độ cọc, ở mặt phẳng giữa đài
+  m.coc.forEach((c) => {
+    const d = toaDo.get(c.nutDinh);
+    assert.ok(/^D0_\d+$/.test(c.nutDinh), c.nutDinh);
+    assert.deepEqual([d.x, d.y, d.z], [c.x, c.y, m.thongSo.zGiua]);
+    const t1 = m.thanh.find((th) => th.ten === c.ten + '_1');
+    assert.equal(t1.dau, c.nutDinh);
+  });
+  // tâm cẩu, tâm đài, 4 chân: điểm riêng, không trùng tên
+  [m.nutTai, m.nutTamDai].concat(m.chan.map((c) => c.nut)).forEach((n) => assert.ok(m.diemRieng.includes(n), n));
+  assert.equal(new Set(m.diem.map((d) => d.ten)).size, m.diem.length);
+  assert.equal(m.diemRieng.length, 3 + 1 + 1 + 4);
+  t.mauTai.slice(1).forEach((p) => p.diemLuc.forEach((l) => assert.ok(m.diemRieng.includes(l.diem))));
+  // gửi cầu nối kèm danh sách điểm riêng
+  assert.deepEqual(MCT.calc.duLieuGuiEtabs(m, t).diemRieng, m.diemRieng);
+  // không cần kích thước lưới
+  assert.equal(tao((s) => { s.etabs.chiaDai = 'khong'; s.etabs.luoi = 0; }).hopLe, true);
+});

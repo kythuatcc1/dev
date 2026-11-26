@@ -213,6 +213,15 @@
         oNhapSo('baoCao.taiToiDa', 'Tải tối đa của cẩu (Bảng 3.2)', '', 'T') +
         oNhapSo('baoCao.taiDauCan', 'Tải đầu cần (Bảng 3.2)', '', 'T') +
         '</div></section>' +
+        '<section class="card"><h2>Lưu / mở dự án</h2><p>Lưu toàn bộ thông số đang nhập (cẩu, đài, cọc, địa chất, ETABS, dầm giằng, thuyết minh…), ' +
+        'kết quả ETABS đã lấy và ảnh chụp ETABS ra một file <code>.mct.json</code> – mở lại trên máy này hoặc máy khác để làm tiếp, không phải nhập lại. ' +
+        'Cẩu tự thêm dùng cho móng được lưu kèm.</p>' +
+        '<p class="hang-nut"><button type="button" class="btn" data-action="du-an-luu">Lưu dự án (.mct.json)</button>' +
+        '<button type="button" class="btn btn-ghost" data-action="du-an-mo">Mở dự án…</button>' +
+        '<button type="button" class="btn btn-ghost" data-action="du-an-moi">Dự án mới</button></p>' +
+        '<p><label><input type="checkbox" id="du-an-kem-anh" checked> Kèm ảnh chụp ETABS / ảnh tải lên (file lớn hơn)</label></p>' +
+        '<p class="hint">Phím tắt Ctrl+S: lưu dự án. Số liệu vẫn tự lưu trên máy này sau mỗi lần sửa; file dự án dùng để lưu trữ, gửi người khác, ' +
+        'làm nhiều móng cẩu (mỗi móng một file).</p></section>' +
         '<section class="card"><h2>Xuất thuyết minh</h2><p>File Word (.docx) trình bày theo thuyết minh mẫu MD3-1: trang bìa, ' +
         'khung tiêu đề, trang ký, mục lục, chương I và chương II. Hình mặt bằng và catalogue cẩu để ô trống, bạn dán hình vào trong Word.</p>' +
         '<p><button type="button" class="btn" data-action="xuat-tm">Xuất thuyết minh (.docx)</button></p>' +
@@ -1879,11 +1888,20 @@
       var datLuc = oChon('etabs.diemDatLuc', [
         { v: 'tam', t: 'Một điểm tại tâm cẩu (như báo cáo thẩm tra)' },
         { v: 'chan', t: '4 chân cẩu – chia lực về chân (cách nhau Ht)' }], 'Điểm đặt lực cẩu tháp', '', '');
-      return '<section class="card"><h2>Thông số dựng mô hình</h2><div class="params">' + chon +
-        oNhapSo('etabs.luoi', 'Kích thước lưới chia tấm đài', '', 'm') +
+      var chia = oChon('etabs.chiaDai', [
+        { v: 'deu', t: 'Chia lưới đều (≤ kích thước lưới)' },
+        { v: 'toi-thieu', t: 'Chỉ chia tại cọc, tâm đài, điểm đặt lực' },
+        { v: 'khong', t: 'Không chia – một ô vỏ, ETABS tự chia khi phân tích' }], 'Chia tấm đài', '', '', false, true);
+      var kieuChia = state.etabs.chiaDai || 'deu';
+      return '<section class="card"><h2>Thông số dựng mô hình</h2><div class="params">' + chon + chia +
+        (kieuChia === 'deu' ? oNhapSo('etabs.luoi', 'Kích thước lưới chia tấm đài', '', 'm') : '') +
         oNhapSo('etabs.buocCoc', 'Bước chia cọc (khoảng cách lò xo đất)', '', 'm') + datLuc +
         oNhapSo('etabs.tamCauX', 'Tâm cẩu lệch tâm đài theo X', 'x<sub>c</sub> =', 'm') +
         oNhapSo('etabs.tamCauY', 'Tâm cẩu lệch tâm đài theo Y', 'y<sub>c</sub> =', 'm') + '</div>' +
+        (kieuChia === 'khong' ? '<p class="hint">Không chia: đài là một ô vỏ; đầu cọc, tâm đài, điểm đặt lực là điểm nằm trong tấm (điểm riêng – special point). ' +
+          'ETABS tự chia lưới tấm qua các điểm này khi phân tích theo Analyze → Automatic Mesh Settings for Floors (chỉnh kích thước lưới trong ETABS nếu cần). ' +
+          'Nội lực đài đọc tại các nút ETABS chia. Nếu ETABS báo điểm đặt lực / đầu cọc không nối với tấm, chọn "Chỉ chia tại cọc, tâm đài, điểm đặt lực".</p>'
+          : kieuChia === 'toi-thieu' ? '<p class="hint">Chỉ chia tấm đài tại các đường qua mép đài, tâm đài, tâm cọc, điểm đặt lực (ô lớn, ETABS có thể chia nhỏ thêm khi phân tích).</p>' : '') +
         '<p class="hint">Lưới tấm đài luôn đi qua điểm đặt lực. Chia về 4 chân: lực ngang, lực đứng chia đều; mômen lật thành cặp lực đứng, ' +
         'mômen xoắn thành lực ngang tiếp tuyến – tổng đúng bằng tải cẩu. Tâm cẩu lệch tâm chỉ dùng cho mô hình ETABS (phương pháp giải tích ' +
         'vẫn coi tâm cẩu trùng tâm đài). Đổi điểm đặt lực, chiều dài cọc, chiều cao đài… thì bấm cập nhật mô hình – không cần dựng mới.</p>' +
@@ -1901,7 +1919,8 @@
         dong('Đài (tấm vỏ dày)', '', so(t.X, 3) + ' × ' + so(t.Y, 3) + ' × ' + so(t.H, 2), 'm') +
         dong('Cao độ mặt / giữa / đáy', '', so(t.zMat, 2) + ' / ' + so(t.zGiua, 2) + ' / ' + so(t.zDay, 2), 'm') +
         dong('Tấm vỏ đặt ở', '', 'mặt phẳng giữa đài', '') +
-        dong('Lưới chia tấm', '', (t.nx - 1) + ' × ' + (t.ny - 1) + ' ô (≤ ' + so(t.luoi, 2) + ' m)', '') +
+        dong('Lưới chia tấm', '', t.chiaDai === 'khong' ? 'không chia – 1 ô vỏ, ETABS tự chia khi phân tích' :
+          (t.nx - 1) + ' × ' + (t.ny - 1) + ' ô' + (t.chiaDai === 'toi-thieu' ? ' (chỉ tại cọc, tâm, điểm đặt lực)' : ' (≤ ' + so(t.luoi, 2) + ' m)'), '') +
         dong('Cọc', '', t.soCoc + ' cọc D' + so(t.D * 1000, 0), '') +
         dong('Mũi cọc', '', so(t.zMui, 2), 'm') +
         dong('Mũi cọc', '', 'gối chặn chuyển vị đứng', '') +
@@ -2618,24 +2637,90 @@
     }
   };
 
+  // Móng dùng cẩu tự thêm mà thư viện trên máy không còn (xoá dữ liệu, máy khác, mở file dự án): khôi phục từ bản lưu kèm số liệu móng
+  function khoiPhucCauTuThem() {
+    if (MCT.calc.timCau(state.cau.ten) || !state.cau.banSao) return '';
+    var kp = MCT.calc.docFileCau(JSON.stringify([state.cau.banSao]));
+    if (kp.ds.length && khoaCau(kp.ds[0].ten) === khoaCau(state.cau.ten)) {
+      luuThuVienCau(dsCauTuThem().concat(kp.ds));
+      return 'Đã khôi phục cẩu ' + kp.ds[0].ten + ' (tự thêm) từ số liệu móng';
+    }
+    return '';
+  }
+
+  // ---------------- Lưu / mở dự án (js/du-an.js) ----------------
+  function taiXuong(blob, ten) {
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = ten;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+  function luuDuAn(kemAnh) {
+    var layAnh = kemAnh === false || !MCT.hinhChup ? Promise.resolve(null) : napAnhChup().then(function () { return anhChup; }, function () { return null; });
+    return layAnh.then(function (anh) {
+      var soAnh = anh ? Object.keys(anh).length : 0;
+      var noiDung = MCT.duAn.taoFileDuAn(state, etabsLuu, soAnh ? anh : null), ten = MCT.duAn.tenFileDuAn(state);
+      taiXuong(new Blob([JSON.stringify(noiDung)], { type: 'application/json' }), ten);
+      datTrangThai('Đã lưu dự án ' + ten + (etabsLuu ? ', kèm kết quả ETABS' : '') + (soAnh ? ', ' + soAnh + ' ảnh' : ''));
+    }).catch(function (e) { datTrangThai('Lỗi lưu dự án: ' + e.message); });
+  }
+  function moDuAn() {
+    var inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.addEventListener('change', function () {
+      var f = inp.files && inp.files[0];
+      if (!f) return;
+      f.text().then(function (chuoi) { apDungDuAn(chuoi, f.name); }, function (e) { datTrangThai('Không đọc được file: ' + e.message); });
+    });
+    inp.click();
+  }
+  function apDungDuAn(chuoi, tenFile) {
+    var r = MCT.duAn.docFileDuAn(chuoi, MAC_DINH);
+    if (!r.ok) { datTrangThai('Không mở được ' + tenFile + ': ' + r.loi); window.alert('Không mở được dự án: ' + r.loi); return Promise.resolve(false); }
+    var soAnh = r.anh ? Object.keys(r.anh).length : 0;
+    if (!window.confirm('Mở dự án ' + (r.tenMong || tenFile) + (r.cau ? ' – ' + r.cau : '') + (r.luuLuc ? ' (lưu ' + new Date(r.luuLuc).toLocaleString('vi-VN') + ')' : '') +
+        '?\n\nThông số đang nhập trên app được thay bằng số liệu trong file' + (r.etabs ? ', kèm kết quả ETABS' : '') +
+        (soAnh ? ', ' + soAnh + ' ảnh chụp (thay ảnh đang có)' : '') + '. Lưu dự án hiện tại trước nếu cần.')) return Promise.resolve(false);
+    state = r.state;
+    luu();
+    if (r.etabs) luuKetQuaEtabs(r.etabs);
+    else { etabsLuu = null; try { localStorage.removeItem(KHOA_ETABS); } catch (e) { /* bỏ qua */ } }
+    etabsDungKq = null; etabsPhanTichKq = null;
+    var kp = khoiPhucCauTuThem();
+    capNhatBanSao();
+    var xongAnh = soAnh && MCT.hinhChup ? MCT.hinhChup.xoaHet().then(function () {
+      return Promise.all(Object.keys(r.anh).map(function (k) { return MCT.hinhChup.luuAnh(r.anh[k]); }));
+    }).then(napAnhChup) : Promise.resolve();
+    return xongAnh.then(function () {
+      tinh(); veDanhMuc(); veTrang();
+      datTrangThai('Đã mở dự án ' + tenFile + (kp ? '. ' + kp : ''));
+      return true;
+    }, function (e) { tinh(); veDanhMuc(); veTrang(); datTrangThai('Đã mở dự án (lỗi ảnh: ' + e.message + ')'); return true; });
+  }
+  function duAnMoi() {
+    if (!window.confirm('Tạo dự án mới? Thông số đang nhập trở về mặc định, xoá kết quả ETABS và ảnh chụp đã lưu trên máy. Lưu dự án hiện tại trước nếu cần.')) return;
+    state = sao(MAC_DINH);
+    luu();
+    etabsLuu = null; etabsDungKq = null; etabsPhanTichKq = null;
+    try { localStorage.removeItem(KHOA_ETABS); } catch (e) { /* bỏ qua */ }
+    (MCT.hinhChup ? MCT.hinhChup.xoaHet().then(napAnhChup, function () { /* bỏ qua */ }) : Promise.resolve()).then(function () {
+      tinh(); veDanhMuc(); veTrang(); datTrangThai('Đã tạo dự án mới');
+    });
+  }
+
   function khoiDong() {
     var hash = (location.hash || '').replace('#', '');
     if (TRANG[hash]) trangHienTai = hash;
-    // Móng dùng cẩu tự thêm mà thư viện trên máy không còn (xoá dữ liệu, máy khác): khôi phục từ bản lưu kèm số liệu móng
-    var khoiPhuc = '';
-    if (!MCT.calc.timCau(state.cau.ten) && state.cau.banSao) {
-      var kp = MCT.calc.docFileCau(JSON.stringify([state.cau.banSao]));
-      if (kp.ds.length && khoaCau(kp.ds[0].ten) === khoaCau(state.cau.ten)) {
-        luuThuVienCau(dsCauTuThem().concat(kp.ds));
-        khoiPhuc = 'Đã khôi phục cẩu ' + kp.ds[0].ten + ' (tự thêm) từ số liệu móng';
-      }
-    }
+    var khoiPhuc = khoiPhucCauTuThem();
     capNhatBanSao();
     tinh();
     veDanhMuc();
     veTrang();
     if (khoiPhuc) datTrangThai(khoiPhuc);
     napAnhChup().then(veLaiTrangHinh, function () { /* trình duyệt chặn IndexedDB */ });
+    document.addEventListener('keydown', function (e) {   // Ctrl+S: lưu dự án
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && String(e.key).toLowerCase() === 's') { e.preventDefault(); luuDuAn(true); }
+    });
     document.addEventListener('paste', function (e) {
       if (trangHienTai !== 'etabs-hinh' || !choDan) return;
       var f = anhTuClipboardSuKien(e);
@@ -2658,6 +2743,9 @@
       if (nut && !nut.disabled) chuyenTrang(nut.getAttribute('data-trang'));
       if (e.target.closest('[data-action="toggle-nav"]')) document.body.classList.toggle('nav-open');
       if (e.target.closest('[data-action="xuat-tm"]')) xuatThuyetMinh();
+      if (e.target.closest('[data-action="du-an-luu"]')) luuDuAn(!($('#du-an-kem-anh') && !$('#du-an-kem-anh').checked));
+      if (e.target.closest('[data-action="du-an-mo"]')) moDuAn();
+      if (e.target.closest('[data-action="du-an-moi"]')) duAnMoi();
       var nutHinh = e.target.closest('[data-action^="hinh-"]');
       if (nutHinh && !nutHinh.disabled) xuLyHinh(nutHinh.getAttribute('data-action'), nutHinh.getAttribute('data-khoa'));
       if (e.target.closest('[data-action="etabs-kiem-tra"]')) etabsChay('kiem-tra');

@@ -227,11 +227,12 @@ if (!app.requestSingleInstanceLock()) {
     // Xuất thuyết minh: hiện hộp thoại "Lưu thành", mặc định vào thư mục Documents
     // File cẩu tự thêm (.json): hộp thoại riêng
     require('electron').session.defaultSession.on('will-download', function (e, item) {
-      var laJson = /\.json$/i.test(item.getFilename());
+      var ten = item.getFilename(), laDuAn = /\.mct\.json$/i.test(ten), laJson = /\.json$/i.test(ten);
       item.setSaveDialogOptions({
-        title: laJson ? 'Lưu file cẩu tháp' : 'Lưu thuyết minh',
-        defaultPath: path.join(app.getPath('documents'), item.getFilename()),
-        filters: laJson ? [{ name: 'Cẩu tháp (JSON)', extensions: ['json'] }] : [{ name: 'Word', extensions: ['docx'] }]
+        title: laDuAn ? 'Lưu dự án móng cẩu tháp' : laJson ? 'Lưu file cẩu tháp' : 'Lưu thuyết minh',
+        defaultPath: path.join(app.getPath('documents'), ten),
+        filters: laDuAn ? [{ name: 'Dự án móng cẩu tháp (.mct.json)', extensions: ['json'] }]
+          : laJson ? [{ name: 'Cẩu tháp (JSON)', extensions: ['json'] }] : [{ name: 'Word', extensions: ['docx'] }]
       });
     });
     taoCuaSo();

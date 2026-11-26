@@ -155,7 +155,8 @@ namespace MctEtabs
                     if (tenEtabs != ma) khacTen++;
                     tenDiem[ma] = tenEtabs;
                 }
-                kq.GhiBuoc(buoc, true, tenDiem.Count + " diem" + (khacTen > 0 ? " (" + khacTen + " diem ETABS dat ten khac)" : ""));
+                string rieng = DatDiemRieng(e, m, ma => tenDiem.TryGetValue(ma, out string t) ? t : ma);
+                kq.GhiBuoc(buoc, true, tenDiem.Count + " diem" + (khacTen > 0 ? " (" + khacTen + " diem ETABS dat ten khac)" : "") + rieng);
 
                 string Ten(JsonNode n)
                 {
@@ -232,6 +233,22 @@ namespace MctEtabs
         }
 
         // ---------- Các bước dùng chung cho dựng mô hình và cập nhật mô hình ----------
+        /// <summary>
+        /// Điểm riêng (special point): đầu cọc, điểm đặt lực nằm trong tấm đài khi không chia tấm (một ô vỏ) – không thuộc đỉnh ô vỏ nào;
+        /// đánh dấu để ETABS giữ điểm và chia lưới tấm qua điểm khi phân tích. Bản ETABS không có SetSpecialPoint thì bỏ qua.
+        /// </summary>
+        internal static string DatDiemRieng(BoGoiEtabs e, JsonObject m, Func<string, string> ten)
+        {
+            if (!(m["diemRieng"] is JsonArray ds) || ds.Count == 0) return "";
+            int duoc = 0; string loi = null;
+            foreach (JsonNode d in ds)
+            {
+                try { e.Goi("PointObj", "cPointObj", "SetSpecialPoint", new object[] { ten((string)d), true, "Objects" }); duoc++; }
+                catch (Exception ex) { loi ??= Api.GocLoi(ex).Message; }
+            }
+            return "; " + duoc + "/" + ds.Count + " diem trong tam (special point)" + (loi != null ? " – SetSpecialPoint: " + loi : "");
+        }
+
         internal static string DatVatLieu(BoGoiEtabs e, JsonObject m)
         {
             foreach (JsonNode v in (JsonArray)m["vatLieu"])

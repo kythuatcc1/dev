@@ -1409,7 +1409,9 @@
     var out = [tieuDe('3. MÔ HÌNH TÍNH TOÁN', 2, true)];
     out.push(doan('Sử dụng phần mềm ETABS kết hợp với các thông số đầu vào để kiểm tra khả năng chịu lực của móng cẩu tháp. Mô hình gồm:'));
     out.push(gach('Đài móng: phần tử tấm vỏ dày (thick shell) kích thước ' + g(ts.X) + ' × ' + g(ts.Y) + ' m, dày H = ' + g(ts.H) +
-      ' m, đặt tại mặt phẳng giữa đài (cao độ ' + f(ts.zGiua, 2) + ' m); lưới chia ' + (ts.nx - 1) + ' × ' + (ts.ny - 1) + ' ô (≤ ' + g(ts.luoi) + ' m).'));
+      ' m, đặt tại mặt phẳng giữa đài (cao độ ' + f(ts.zGiua, 2) + ' m); ' + (ts.chiaDai === 'khong'
+        ? 'một ô vỏ, ETABS tự chia lưới khi phân tích (đi qua đầu cọc và điểm đặt lực).'
+        : 'lưới chia ' + (ts.nx - 1) + ' × ' + (ts.ny - 1) + ' ô' + (ts.chiaDai === 'toi-thieu' ? ' tại các đường qua cọc, tâm đài, điểm đặt lực.' : ' (≤ ' + g(ts.luoi) + ' m).'))));
     out.push(gach('Cọc: ' + ts.soCoc + ' cọc, phần tử thanh tiết diện tròn D = ' + g(ts.D * 1000) + ' mm, chia đoạn ' + g(ts.buocCoc) +
       ' m từ đáy đài (cao độ ' + f(ts.zDay, 2) + ' m) tới mũi cọc (cao độ ' + f(ts.zMui, 2) + ' m); đoạn cọc nằm trong đài mô hình bằng thanh cứng.'));
     out.push(gach('Đất nền: lò xo ngang tại các nút cọc, độ cứng K = k·z·b_{p}·l (TCVN 10304:2025, phụ lục A); k là hệ số nền tỉ lệ của lớp đất (bảng A.1), ' +

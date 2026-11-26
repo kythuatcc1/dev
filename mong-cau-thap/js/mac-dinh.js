@@ -75,6 +75,7 @@
       duongDan: '',         // thư mục cài ETABS; để trống thì tự tìm
       batDauLoXo: 'day-dai',// lò xo đất bắt đầu từ: 'day-dai' (móng đài thấp) | 'day-ho' (đáy hố đào – đầu cọc tính toán)
       luoi: 0.25,           // m – kích thước lưới chia tấm đài
+      chiaDai: 'deu',       // chia tấm đài: 'deu' lưới đều ≤ luoi | 'toi-thieu' chỉ tại cọc, tâm, điểm đặt lực | 'khong' một ô vỏ, ETABS tự chia
       buocCoc: 1,           // m – bước chia cọc (vị trí lò xo đất)
       diemDatLuc: 'tam',    // điểm đặt lực cẩu tháp: 'tam' – một điểm tại tâm cẩu (như báo cáo thẩm tra) | 'chan' – chia về 4 chân cẩu
       tamCauX: 0, tamCauY: 0, // m – tâm cẩu so với tâm đài (chỉ dùng cho mô hình ETABS)

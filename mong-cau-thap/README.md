@@ -23,6 +23,7 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | GĐ9 | Đóng gói chương trình Windows (.exe) bằng Electron | ✔ |
 | GĐ11 | Thêm cẩu tháp ngoài catalogue (trang "Thêm cẩu tháp") – xem mục dưới | ✔ |
 | GĐ10 | Tính bằng ETABS v22/v23 (xem [docs/02-etabs.md](docs/02-etabs.md)): bước 1 kết nối ✔, bước 2 dựng mô hình ✔, bước 3 tải trọng & tổ hợp ✔, bước 4 phân tích & nội lực, bước 5 chọn phương pháp, bước 6 thuyết minh ETABS (hình nội lực app tự vẽ), bước 7 cập nhật mô hình trong file đang có – cả khi đổi hình học (chiều cao đài, chiều dài cọc, điểm đặt lực, dầm) | đang làm (chờ chạy thử bước 4, 7 trên ETABS thật) |
+| GĐ15 | Lưu / mở dự án (.mct.json); chia tấm đài đều / tối thiểu / không chia | ✔ |
 | GĐ14 | Ảnh chụp thật từ ETABS cho thuyết minh (trang "Hình chụp ETABS": chụp cửa sổ ETABS, cắt vùng mô hình, dán / chọn file) | ✔ (chờ thử chụp trên Windows có ETABS) |
 | GĐ13 | Điểm đặt lực cẩu tháp (tâm cẩu / 4 chân, lệch tâm); hình mặt cắt móng và địa chất trên app và thuyết minh | ✔ |
 | GĐ12 | Dầm giằng cọc: kích thước, cao độ, thép tuỳ chỉnh; mô hình ETABS; kiểm tra uốn, kéo, nén, cắt, thép theo TCVN 5574:2018 | ✔ (thử với ETABS giả lập) |
@@ -65,6 +66,7 @@ js/bieu-do.js            biểu đồ SVG dùng chung (SPT, M/Q/σz, tương tá
 js/bieu-do-etabs.js      hình vẽ từ kết quả ETABS cho thuyết minh (mô hình 3D, tải, nội lực cọc / đài / dầm, chuyển vị)
 js/bieu-do-mat-cat.js    mặt cắt móng và địa chất (cao độ đài, cọc, lớp đất có ghi chú)
 js/hinh-chup.js          ảnh chụp ETABS / ảnh tải lên cho thuyết minh: danh mục vị trí hình, lưu IndexedDB, cắt ảnh
+js/du-an.js              lưu / mở dự án (.mct.json): thông số, kết quả ETABS, ảnh chụp
 js/bao-cao/              tạo thuyết minh Word (.docx)
 vendor/                  thư viện docx 9.15.3 (MIT) – tạo file Word ngay trong trình duyệt, không cần mạng
 tools/                   script trích dữ liệu từ file Excel
@@ -90,6 +92,12 @@ Ghi chú:
 - Số liệu nhập lưu tại `%APPDATA%\MongCauThap`, riêng với số liệu khi mở `index.html` bằng trình duyệt.
 - Khi sửa code app (`index.html`, `css`, `js`) cần chạy lại lệnh đóng gói để cập nhật file .exe.
 - Mã nguồn vỏ chương trình ở `desktop/` (`main.js`: cửa sổ, menu, hộp thoại lưu thuyết minh, kết nối ETABS; `preload.js`: cầu nối trang app; `etabs/MctEtabs/`: cầu nối C# (.NET 8) gọi API ETABS, bản đã biên dịch ở `etabs/cau-noi-etabs/`; `dong-goi.js`: lệnh đóng gói; `icon.svg`: biểu tượng).
+
+## Lưu / mở dự án
+Nút **Lưu dự án** (thanh trên, hoặc Ctrl+S) lưu toàn bộ thông số đang nhập, kết quả ETABS đã lấy và (tuỳ chọn) ảnh chụp ETABS ra một file
+`.mct.json`; **Mở dự án** mở lại file đó (trên máy này hoặc máy khác), **Dự án mới** (trang Thông tin dự án) trở về số liệu mặc định.
+Cẩu tự thêm dùng cho móng được lưu kèm và tự khôi phục khi mở. File dự án bản cũ thiếu thông số mới thì thông số đó lấy mặc định
+(`js/du-an.js`, test `tests/du-an.test.js`).
 
 ## Xuất thuyết minh
 Bấm **Xuất thuyết minh** ở góc trên. File .docx trình bày theo thuyết minh mẫu

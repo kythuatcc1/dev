@@ -72,6 +72,7 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 | + | Điểm đặt lực cẩu tháp: một điểm tại tâm cẩu hoặc chia về 4 chân; tâm cẩu lệch tâm đài | Đã làm |
 | + | Hình mặt cắt móng và địa chất (cao độ đài, cọc, lớp đất có ghi chú) trên app và thuyết minh | Đã làm |
 | + | Ảnh chụp thật từ ETABS (chụp cửa sổ / màn hình, dán, chọn file, cắt vùng) đặt vào các vị trí hình của thuyết minh | Đã làm – chờ thử chụp trên Windows có ETABS |
+| + | Chia tấm đài: đều / tối thiểu / không chia (một ô vỏ, ETABS tự chia) | Đã làm (thử với ETABS giả lập) |
 | + | Dầm giằng cọc (số liệu, mô hình, nội lực, kiểm tra TCVN 5574:2018, thuyết minh 6.4) | Đã làm (thử với ETABS giả lập) |
 | + | Hình nội lực app tự vẽ từ kết quả ETABS, chèn vào các ô dán hình của thuyết minh | Đã làm |
 
@@ -79,6 +80,12 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 - **Gốc toạ độ:** tâm đài = tâm cẩu (như toạ độ cọc mục B); Z = cao độ so với MĐTN; đơn vị kN, m.
 - **Đài:** tấm vỏ dày (`ShellThick`, tiết diện `DAI`, dày H) đặt ở mặt phẳng giữa đài; lưới chia ≤ 0,25 m (chỉnh được),
   đường lưới đi qua tâm cọc, 4 chân cẩu, tâm đài và mép đài – cọc và chân cẩu nối đúng nút của tấm.
+- **Chia tấm đài** (`etabs.chiaDai`): `deu` – lưới đều ≤ kích thước lưới (mặc định); `toi-thieu` – chỉ các đường qua mép đài, tâm đài,
+  tâm cọc, điểm đặt lực (ô lớn); `khong` – **không chia**: một ô vỏ `V1_1` cả đài, đầu cọc / tâm đài / điểm đặt lực / chân cẩu là điểm nằm
+  trong tấm (`D0_<k>`, gửi trong `diemRieng`, cầu nối đặt `PointObj.SetSpecialPoint` để ETABS giữ điểm), ETABS tự chia lưới tấm khi phân tích
+  (Analyze → Automatic Mesh Settings for Floors). Nội lực đài đọc tại các nút ETABS chia (`AreaForceShell` + `PointElm.GetCoordCartesian`);
+  mặt cắt đài chỉ lấy đường có nút suốt ≥ 90 % bề rộng đài; hình mômen / lực cắt đài vẽ theo toạ độ nút có kết quả. Chưa thử trên ETABS thật:
+  nếu ETABS không nối điểm đặt lực / đầu cọc với tấm, dùng `toi-thieu`.
 - **Cọc:** thanh tròn D (`COC`), nút ở đáy đài rồi mỗi 1 m (chỉnh được) tới mũi; đoạn từ giữa đài tới đáy đài là
   thanh cứng `COC_TRONG_DAI` (hệ số độ cứng ×100, khối lượng và trọng lượng = 0 vì đã tính trong đài).
 - **Lò xo đất ngang:** K = k·z·b<sub>p</sub>·l tại mỗi nút cọc dưới cao độ bắt đầu, gán cả U1 và U2; k theo lớp (bảng A.1),

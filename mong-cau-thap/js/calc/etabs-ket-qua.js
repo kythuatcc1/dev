@@ -182,6 +182,9 @@
       Object.keys(duong).forEach(function (k) {
         var ds = duong[k].sort(function (a, b) { return a.t - b.t; });
         if (ds.length < 2) return;
+        // chỉ lấy mặt cắt có nút suốt bề rộng đài (lưới ETABS tự chia có thể không thẳng hàng)
+        var rongDai = truc === 0 ? m.thongSo.Y : m.thongSo.X;
+        if (ds[ds.length - 1].t - ds[0].t < 0.9 * rongDai) return;
         var dong = { viTri: Number(k), b: ds[ds.length - 1].t - ds[0].t, Mmax: null, Mmin: null, Vmax: null };
         raw.toHop.forEach(function (ten, ci) {
           var M = 0, V = 0, du = true;

@@ -35,7 +35,7 @@ function duLieuTheo(doi) {
   const st = JSON.parse(JSON.stringify(trangThai));
   doi(st);
   const kqx = globalThis.MCT.calc.tinhTatCa(st), mx = globalThis.MCT.calc.taoMoHinhEtabs(st, kqx), tx = globalThis.MCT.calc.taiTrongEtabs(st, kqx, mx);
-  return { kq: kqx, m: mx, t: tx, gui: globalThis.MCT.calc.duLieuGuiEtabs(mx, tx) };
+  return { s: st, kq: kqx, m: mx, t: tx, gui: globalThis.MCT.calc.duLieuGuiEtabs(mx, tx) };
 }
 const capNhatCau = duLieuTheo((st) => { st.cau.ten = 'ZT6016-10 thân 1.6m'; st.cau.chieuCao = 45.6; });
 const capNhatLuoi = duLieuTheo((st) => { st.etabs.luoi = 0.5; });
@@ -44,6 +44,11 @@ const capNhatH = duLieuTheo((st) => { st.dai.H = 2.0; });
 const capNhatCoc = duLieuTheo((st) => { st.dai.H = 2.0; st.sct.L = 36; });
 const capNhat4Chan = duLieuTheo((st) => { st.dai.H = 2.0; st.sct.L = 36; st.etabs.diemDatLuc = 'chan'; st.etabs.tamCauX = 0.3; st.etabs.tamCauY = 0.2; });
 const capNhatVeTam = duLieuTheo((st) => { st.dai.H = 2.0; st.sct.L = 36; });
+const khongChia = duLieuTheo((st) => { st.etabs.chiaDai = 'khong'; });
+const capNhatKhongChia = duLieuTheo((st) => {
+  st.dai.H = 2.0; st.sct.L = 36; st.etabs.chiaDai = 'khong';
+  st.damGiang.ds = [[1, 2], [2, 3], [3, 1]].map((c) => Object.assign({}, st.damGiang.mau, { tuCoc: c[0], denCoc: c[1] }));
+});
 const capNhatDam = duLieuTheo((st) => {
   st.dai.H = 2.0; st.sct.L = 36;
   st.damGiang.ds = [[1, 2], [2, 3], [3, 1]].map((c) => Object.assign({}, st.damGiang.mau, { tuCoc: c[0], denCoc: c[1] }));
@@ -300,6 +305,30 @@ const ca = [
     const f = khopMoHinh(fileEdb, capNhatDam);
     assert.deepStrictEqual(f.F.get('DG2').slice(0, 2), ['C2_m8', 'C3_m8']);
   }, fileEdb],
+  ['cập nhật mô hình: chuyển sang không chia tấm đài (một ô vỏ, đầu cọc và điểm đặt lực là điểm riêng trong tấm)', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatKhongChia.gui, fileMoHinh: fileEdb } }, function (k) {
+    const g = capNhatKhongTaoMoi(k);
+    const db = k.thongTin.dongBo;
+    assert.strictEqual(db.veLai, false);
+    assert.ok(db.xoaVo > 0 && db.xoaDiem > 0, JSON.stringify(db));
+    assert.strictEqual(g.soVo, 1);
+    assert.deepStrictEqual(g.diemRieng, capNhatKhongChia.m.diemRieng.slice().sort());
+    khopMoHinh(fileEdb, capNhatKhongChia);
+  }, fileEdb],
+  ['dựng mô hình: không chia tấm đài, rồi phân tích – nội lực đài đọc tại nút ETABS trả về', '', { lenh: 'dung-mo-hinh', duLieu: { moHinh: khongChia.gui, fileMoHinh: fileEdb + '.khong-chia.EDB' } }, function (k) {
+    assert.strictEqual(k.ok, true, k.loi);
+    const g = JSON.parse(fs.readFileSync(fileGhi, 'utf8'));
+    assert.strictEqual(g.soVo, 1);
+    assert.strictEqual(g.diemRieng.length, khongChia.m.diemRieng.length);
+    assert.deepStrictEqual(g.diemCoLuc, [khongChia.m.nutTai]);
+    assert.ok(k.buoc.some((b) => b.ten === 'diem' && /diem trong tam \(special point\)/.test(b.chiTiet)));
+  }],
+  ['phân tích mô hình không chia tấm đài', '', { lenh: 'phan-tich', duLieu: globalThis.MCT.calc.duLieuPhanTich(khongChia.m, khongChia.t) }, function (k) {
+    assert.strictEqual(k.ok, true, k.loi);
+    assert.strictEqual(k.ketQua.dai.nut.length, 4, 'nút kết quả tấm (giả lập: 4 góc)');
+    const r = globalThis.MCT.calc.ketQuaEtabs(k.ketQua, khongChia.m, khongChia.t, khongChia.s, khongChia.kq);
+    assert.strictEqual(r.hopLe, true, (r.loi || []).join('; '));
+    assert.ok(r.dai.X.duoi && r.dai.Y.duoi, 'có mặt cắt đài theo X, Y');
+  }, fileEdb + '.khong-chia.EDB'],
   ['cập nhật mô hình: ETABS đang mở mô hình khác → tự mở đúng file', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: duLieuMoHinh, fileMoHinh: fileEdb } }, function (k) {
     assert.strictEqual(k.ok, true, k.loi);
     assert.ok(k.buoc.some((b) => b.ten === 'mo-file' && /Da mo/.test(b.chiTiet)));

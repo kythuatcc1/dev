@@ -214,12 +214,15 @@
       if (!vMax || v > vMax.v) vMax = { v: v, x: n.x, y: n.y };
       if (!vMin || v < vMin.v) vMin = { v: v, x: n.x, y: n.y };
     });
-    for (var i = 0; i < m.xs.length - 1; i++) {
-      for (var k = 0; k < m.ys.length - 1; k++) {
-        var v = [gt(m.xs[i], m.ys[k]), gt(m.xs[i + 1], m.ys[k]), gt(m.xs[i + 1], m.ys[k + 1]), gt(m.xs[i], m.ys[k + 1])].filter(function (a) { return a !== null; });
+    // lưới ô màu theo toạ độ nút có kết quả (lưới app chia, hoặc lưới ETABS tự chia khi không chia tấm đài)
+    function cacGiaTri(ds) { return ds.map(function (v) { return Number(v.toFixed(4)); }).filter(function (v, i, a) { return a.indexOf(v) === i; }).sort(function (a, b) { return a - b; }); }
+    var gx = cacGiaTri(nutBao.map(function (n) { return n.x; })), gy = cacGiaTri(nutBao.map(function (n) { return n.y; }));
+    for (var i = 0; i < gx.length - 1; i++) {
+      for (var k = 0; k < gy.length - 1; k++) {
+        var v = [gt(gx[i], gy[k]), gt(gx[i + 1], gy[k]), gt(gx[i + 1], gy[k + 1]), gt(gx[i], gy[k + 1])].filter(function (a) { return a !== null; });
         if (!v.length) continue;
         var tb = v.reduce(function (a, b) { return a + b; }, 0) / v.length;
-        g += '<rect x="' + f1(X(m.xs[i])) + '" y="' + f1(Y(m.ys[k + 1])) + '" width="' + f1((m.xs[i + 1] - m.xs[i]) * s + 0.3) + '" height="' + f1((m.ys[k + 1] - m.ys[k]) * s + 0.3) +
+        g += '<rect x="' + f1(X(gx[i])) + '" y="' + f1(Y(gy[k + 1])) + '" width="' + f1((gx[i + 1] - gx[i]) * s + 0.3) + '" height="' + f1((gy[k + 1] - gy[k]) * s + 0.3) +
           '" fill="' + mauGiaTri(tb, lon) + '"/>';
       }
     }
