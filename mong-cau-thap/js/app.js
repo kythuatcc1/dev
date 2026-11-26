@@ -356,7 +356,7 @@
       '</span>' + oSoTho(path, nhan.replace(/<[^>]+>/g, '')) + '<span class="unit">' + (dv || '') + '</span></div>';
   }
 
-  var TEN_COT_CAU = { N: 'lực dọc', M: 'mômen', H: 'lực ngang', CR: 'mômen CR', T: 'mômen xoắn' };
+  var TEN_COT_CAU = { N: 'lực dọc', M: 'mômen', H: 'lực ngang', CR: 'mômen CR', T: 'mômen xoắn', F1: 'phản lực nhổ', F2: 'phản lực nén' };
 
   TRANG['cau-moi'] = {
     tieuDe: 'Thêm cẩu tháp',
@@ -412,16 +412,23 @@
         'max(M/(H<sub>t</sub>·√2) − N/4) ở chiều cao lớn nhất của bảng tải.</p></section>';
 
       // Quy đổi
-      var coCR = d.quyTacM === 'cr';
-      var kyHieu = ['N', 'M', 'H'].concat(coCR ? ['CR'] : [], d.kieuT !== 'khong' ? ['T'] : []);
-      html += '<section class="card"><h2>Quy đổi tải trọng</h2><div class="params">' +
+      var laPL = d.cachNhap === 'phan-luc';
+      var coCR = d.quyTacM === 'cr' && !laPL;
+      var kyHieu = (laPL ? ['F1', 'F2', 'H'] : ['N', 'M', 'H'].concat(coCR ? ['CR'] : [])).concat(d.kieuT !== 'khong' ? ['T'] : []);
+      html += '<section class="card"><h2>Lực cẩu theo catalogue và quy đổi</h2><div class="params">' +
+        oChon('cauNhap.cachNhap', [{ v: 'noi-luc', t: 'Catalogue cho đủ nội lực N, M, H (Q)' },
+          { v: 'phan-luc', t: 'Catalogue chỉ cho phản lực chân F1, F2 (và Q)' }], 'Lực cẩu trong catalogue', '', '', false, true) +
         oChon('cauNhap.quyTacN', [{ v: 'x_n', t: 'N × n' }, { v: 'cong40_n', t: '(N + 40) × n – như Zoomlion L125' }], 'Lực dọc quy đổi N<sub>qđ</sub>') +
-        oChon('cauNhap.quyTacM', [{ v: 'x_n', t: 'M × n' }, { v: 'cr', t: 'Có thêm mômen CR – như MC175B, MC205B' }],
-          'Mômen quy đổi M<sub>qđ</sub>', '', '', false, true) +
+        (laPL ? '' : oChon('cauNhap.quyTacM', [{ v: 'x_n', t: 'M × n' }, { v: 'cr', t: 'Có thêm mômen CR – như MC175B, MC205B' }],
+          'Mômen quy đổi M<sub>qđ</sub>', '', '', false, true)) +
         oChon('cauNhap.kieuT', [{ v: 'mot', t: 'Một giá trị cho mọi chiều cao' }, { v: 'theo-hang', t: 'Theo từng chiều cao (cột T của bảng tải)' },
           { v: 'khong', t: 'Catalogue không có' }], 'Mômen xoắn T khi làm việc', '', '', false, true) +
         (d.kieuT === 'mot' ? dongSoTho('cauNhap.mXoan', 'Mômen xoắn khi làm việc', '<i>T</i> =', 'kNm') : '') +
-        '</div><div class="formula">H<sub>qđ</sub> = H × n' +
+        '</div>' + (laPL ? '<div class="formula">Phản lực chân đế → nội lực (Cách 1, file nhap_so_lieu.xlsx): F1 – phản lực nhổ (hướng lên), F2 – phản lực nén;<br>' +
+          'N = 2·(F2 − F1);  M = (F1 + F2)·H<sub>t</sub>/√2' + (MCT.calc.docSoNhap(d.beRongThan) > 0 ? ' (H<sub>t</sub> = ' + so(MCT.calc.docSoNhap(d.beRongThan)) + ' m)' : '') +
+          ';  H (Q) theo catalogue – để trống: H<sub>KLV</sub> = 10 %·M<sub>KLV</sub>, H<sub>LV</sub> = 70 %·H<sub>KLV</sub>.<br>' +
+          'Lực nhổ 1 chân P<sub>ct</sub> = M/(H<sub>t</sub>·√2) − N/4 = F1.</div>' : '') +
+        '<div class="formula">H<sub>qđ</sub> = H × n' +
         (coCR ? ';  làm việc: M<sub>qđ</sub> = (M + CR) × n;  không làm việc: M<sub>qđ</sub> = (M &lt; 2CR ? CR : M − CR) × n (như sheet Solieu)' : '') +
         '</div><h3>Ký hiệu theo catalogue (in ở bảng tải và thuyết minh)</h3><p class="hang-nut">' +
         kyHieu.map(function (k) {
@@ -431,7 +438,10 @@
 
       // Bảng tải
       var tdCot = function (tt) {
-        return cot[tt].map(function (k) { return '<th>' + esc((d.nhan && d.nhan[k]) || k) + '<br><span class="muted">' + (k === 'N' || k === 'H' ? 'kN' : 'kNm') + '</span></th>'; }).join('');
+        return cot[tt].map(function (k) {
+          return '<th>' + esc((d.nhan && d.nhan[k]) || k) + (laPL && k === 'H' ? ' (Q)' : '') + '<br><span class="muted">' +
+            (k === 'M' || k === 'CR' || k === 'T' ? 'kNm' : 'kN') + '</span></th>';
+        }).join('');
       };
       var dongBang = (d.hang || []).map(function (h, i) {
         var pth = 'cauNhap.hang.' + i + '.';
@@ -449,6 +459,8 @@
         '<th colspan="' + cot.lv.length + '">Làm việc</th><th colspan="' + cot.klv.length + '">Không làm việc</th><th rowspan="2"></th></tr><tr>' +
         tdCot('lv') + tdCot('klv') + '</tr></thead><tbody>' + dongBang + '</tbody></table></div>' +
         '<p><button type="button" class="btn btn-ghost" data-action="them-hang-cau">+ Thêm dòng</button></p>' +
+        (laPL ? '<p class="hint">Nhập phản lực chân đế F1 (nhổ), F2 (nén) theo catalogue (giá trị tuyệt đối, F2 &gt; F1). Ô H (Q) để trống nếu catalogue không có: ' +
+          'app lấy H<sub>KLV</sub> = 10 %·M<sub>KLV</sub>, H<sub>LV</sub> = 70 %·H<sub>KLV</sub>. Nội lực N, M, H quy đổi xem ở khung Kiểm tra số liệu.</p>' : '') +
         '<p class="hint">Đơn vị kN, kNm (catalogue tính bằng tấn thì đổi trước: 1 T = 9,81 kN). Nhập giá trị tuyệt đối; ' +
         'app tự sắp chiều cao tăng dần khi lưu. Móng tra gần đúng: lấy dòng cuối cùng có H ≤ chiều cao tự đứng tính toán.</p>' +
         '<div class="field field-wide"><label for="dan-bang-cau">Dán nhanh cả bảng từ Excel – thứ tự cột: H, làm việc ' + esc(cot.lv.join(', ')) +
@@ -480,8 +492,21 @@
         var lv = MCT.calc.quyDoi(c, h, 'lv', n), klv = MCT.calc.quyDoi(c, h, 'klv', n);
         return '<tr><td class="r">' + so(h.h) + '</td>' + o(lv.N) + o(lv.M) + o(lv.H) + o(klv.N) + o(klv.M) + o(klv.H) + '</tr>';
       }).join('');
+      var bangPL = '';
+      if (c.cachNhap === 'phan-luc') {
+        var oPL = function (v, tuTinh) { return '<td class="r">' + so(v) + (tuTinh ? '*' : '') + '</td>'; };
+        bangPL = '<h3>Nội lực quy đổi từ phản lực chân đế (chưa nhân n)</h3><div class="table-wrap"><table class="tbl compact"><thead><tr>' +
+          '<th rowspan="2">H (m)</th><th colspan="5">Làm việc</th><th colspan="5">Không làm việc</th></tr><tr>' +
+          ['lv', 'klv'].map(function () { return '<th>F1 (kN)</th><th>F2 (kN)</th><th>N (kN)</th><th>M (kNm)</th><th>H (kN)</th>'; }).join('') +
+          '</tr></thead><tbody>' + c.hang.map(function (h) {
+            return '<tr><td class="r">' + so(h.h) + '</td>' + ['lv', 'klv'].map(function (tt) {
+              return oPL(h.phanLuc[tt].F1) + oPL(h.phanLuc[tt].F2) + oPL(h[tt].N) + oPL(h[tt].M) + oPL(h[tt].H, typeof h.phanLuc[tt].H !== 'number');
+            }).join('') + '</tr>';
+          }).join('') + '</tbody></table></div><p class="hint">N = 2·(F2 − F1); M = (F1 + F2)·H<sub>t</sub>/√2 (H<sub>t</sub> = ' + so(c.beRongThan) +
+          ' m). * H tính theo tỉ lệ (catalogue không có Q).</p>';
+      }
       return '<section class="card"><h2>Kiểm tra số liệu</h2>' + canhBao +
-        '<div class="ket-luan-lon ok">Số liệu hợp lệ' + (d.tenGoc ? '' : ' – bấm "Lưu cẩu" để thêm vào danh sách') + '</div>' +
+        '<div class="ket-luan-lon ok">Số liệu hợp lệ' + (d.tenGoc ? '' : ' – bấm "Lưu cẩu" để thêm vào danh sách') + '</div>' + bangPL +
         quyTacText({ cau: c, hang: null, nhan: c.nhan.lv }) +
         '<div class="table-wrap"><table class="tbl compact"><thead><tr><th rowspan="2">H (m)</th><th colspan="3">Làm việc (đã nhân n = ' + so(n, 2) + ')</th>' +
         '<th colspan="3">Không làm việc</th></tr><tr><th>N<sub>qđ</sub> (kN)</th><th>M<sub>qđ</sub> (kNm)</th><th>H<sub>qđ</sub> (kN)</th>' +

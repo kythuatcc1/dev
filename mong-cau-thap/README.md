@@ -46,8 +46,15 @@ trang **Thêm cẩu tháp** (hoặc nút "+ Thêm cẩu chưa có trong danh sá
 
 1. Nhập tên cẩu, loại cẩu, chiều dài tay cần, bề rộng thân H<sub>t</sub>, đường kính cụm bulong D<sub>1</sub>, tổng chiều dày bản thép Σt,
    hệ số an toàn n, lực nhổ 1 chân cẩu (để trống: tự tính như Excel). Có thể bấm "Sao chép" để lấy một cẩu có sẵn làm mẫu.
-2. Chọn cách quy đổi: N × n hoặc (N + 40) × n; M × n hoặc có thêm mômen CR (như MC175B); mômen xoắn T một giá trị / theo từng chiều cao / không có.
-3. Nhập bảng tải chân đế theo chiều cao tự đứng (kN, kNm) – gõ từng ô hoặc dán cả bảng từ Excel (thứ tự cột hiện ngay trên ô dán).
+2. Chọn **lực cẩu trong catalogue** (như file `nhap_so_lieu.xlsx`, sheet TSC):
+   - *Catalogue cho đủ nội lực N, M, H (Q)* (Cách 2) – nhập thẳng;
+   - *Catalogue chỉ cho phản lực chân F1 (nhổ), F2 (nén) và Q* (Cách 1) – app quy đổi theo bề rộng thân H<sub>t</sub>:
+     N = 2·(F2 − F1), M = (F1 + F2)·H<sub>t</sub>/√2; Q để trống thì Q<sub>KLV</sub> = 10 %·M<sub>KLV</sub>, Q<sub>LV</sub> = 70 %·Q<sub>KLV</sub>
+     (khớp ô Y48:AD48 của file Excel). Phản lực gốc lưu kèm cẩu (sửa lại được); thuyết minh in bảng quy đổi của dòng tính toán.
+   Chọn cách quy đổi: N × n hoặc (N + 40) × n; M × n hoặc có thêm mômen CR (như MC175B – chỉ khi nhập nội lực); mômen xoắn T một giá trị /
+   theo từng chiều cao / không có.
+3. Nhập bảng tải chân đế theo chiều cao tự đứng (kN, kNm) – gõ từng ô hoặc dán cả bảng từ Excel (thứ tự cột hiện ngay trên ô dán:
+   H, LV N M H …; hoặc H, LV F1 F2 Q, KLV F1 F2 Q khi nhập phản lực).
 4. Xem phần "Kiểm tra số liệu" (lỗi nhập, tải quy đổi từng chiều cao) rồi bấm **Lưu cẩu** hoặc **Lưu và dùng cho móng này**.
 
 Cẩu tự thêm lưu trên máy (dùng chung mọi móng), hiện trong ô chọn cẩu ở trang A.1 với chữ "tự thêm" và được tính, xuất thuyết minh,

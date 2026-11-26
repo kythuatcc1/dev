@@ -23,8 +23,9 @@
     cauNhap: {
       tenGoc: '', ten: '', loai: 'bang', chieuDaiTayCan: '', beRongThan: '', duongKinhNhomBulong: 0.4, tongChieuDayBanThep: 40,
       heSoAnToan: 1.2, quyTacN: 'x_n', quyTacM: 'x_n', kieuT: 'mot', mXoan: '', pctCoDinh: '',
-      nhan: { N: 'N', M: 'M', H: 'H', CR: 'CR', T: 'T' },
-      hang: [{ h: '', lv: { N: '', M: '', H: '', CR: '', T: '' }, klv: { N: '', M: '', H: '', CR: '' } }],
+      cachNhap: 'noi-luc',   // lực cẩu theo catalogue: 'noi-luc' (N, M, H) | 'phan-luc' (phản lực chân F1 nhổ, F2 nén, Q)
+      nhan: { N: 'N', M: 'M', H: 'H', CR: 'CR', T: 'T', F1: 'F1', F2: 'F2' },
+      hang: [{ h: '', lv: { N: '', M: '', H: '', CR: '', T: '', F1: '', F2: '' }, klv: { N: '', M: '', H: '', CR: '', F1: '', F2: '' } }],
       canhBao: []
     },
     dai: { beTong: 'B35', cotThep: 'CB500-V', a_cm: 15, X: 4, Y: 3.678, H: 1.6 },

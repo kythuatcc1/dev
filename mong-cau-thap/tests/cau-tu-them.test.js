@@ -175,3 +175,87 @@ test('Cẩu tự thêm không có mômen xoắn, không có lực nhổ cho sẵ
   // chiều cao thấp hơn dòng đầu → báo ngoài catalogue
   assert.match(tinhVoiCau('Potain MCT 88', 10).A.loi.join(' '), /nằm ngoài catalogue/);
 });
+
+// Cách 1 của file nhap_so_lieu.xlsx (sheet TSC): catalogue chỉ cho phản lực chân F1 (nhổ), F2 (nén), không có Q
+function nhapPhanLuc(ten, hang) {
+  return Object.assign(JSON.parse(JSON.stringify(MCT.macDinh.cauNhap)), {
+    ten: ten, chieuDaiTayCan: 50, beRongThan: 1.6, heSoAnToan: 1.15, kieuT: 'khong', cachNhap: 'phan-luc', hang: hang
+  });
+}
+
+test('Catalogue chỉ cho phản lực F1, F2: quy đổi N, M, Q đúng ô Excel (Y48:AD48), lực nhổ 1 chân = F1', () => {
+  const kq = C.taoCauTuNhap(nhapPhanLuc('POTAIN MR150 (phản lực)', [
+    { h: 34.05, lv: { F1: 970, F2: 1240, H: '' }, klv: { F1: 1210, F2: 1480, H: '' } }]), []);
+  assert.equal(kq.hopLe, true, kq.loi.join('; '));
+  const h = kq.cau.hang[0];
+  const gan = (a, e, m) => assert.ok(Math.abs(a - e) < 1e-9, `${m}: ${a} ≠ ${e}`);
+  // giá trị Excel tính sẵn (Y48, Z48, AA48, AB48, AC48, AD48)
+  gan(h.lv.N, 540, 'N LV'); gan(h.lv.M, 2500.329578275632, 'M LV'); gan(h.lv.H, 213.03713103588305, 'Q LV = 0,7·Q KLV');
+  gan(h.klv.N, 540, 'N KLV'); gan(h.klv.M, 3043.3875862269006, 'M KLV'); gan(h.klv.H, 304.3387586226901, 'Q KLV = 0,1·M KLV');
+  assert.deepEqual(h.phanLuc, { lv: { F1: 970, F2: 1240, H: null }, klv: { F1: 1210, F2: 1480, H: null } });
+  assert.equal(kq.cau.cachNhap, 'phan-luc');
+  // lực nhổ 1 chân app tính = F1 lớn nhất
+  gan(C.lucNhoChanCau(kq.cau), 1210, 'Pct');
+  // tính trọn với cẩu này
+  C.datCauTuThem([kq.cau]);
+  const r = tinhVoiCau('POTAIN MR150 (phản lực)', 34.05);
+  for (const m of ['A', 'B', 'C', 'D', 'E', 'F']) assert.equal(r[m].hopLe, true, m + ': ' + (r[m].loi || []).join('; '));
+  gan(r.A.quyDoi.lv.N, 540 * 1.15, 'N quy đổi LV');
+  gan(r.A.quyDoi.klv.M, 3043.3875862269006 * 1.15, 'M quy đổi KLV');
+});
+
+test('Phản lực có Q theo catalogue: dùng Q nhập; sửa cẩu trả lại đúng F1, F2, Q; báo lỗi F2 ≤ F1; dán bảng theo cột F1, F2, Q', () => {
+  const kq = C.taoCauTuNhap(nhapPhanLuc('Cẩu phản lực có Q', [
+    { h: 30, lv: { F1: '725', F2: '1051', H: '31' }, klv: { F1: 910, F2: 1187, H: 105 } },
+    { h: 40, lv: { F1: 800, F2: 1100, H: '' }, klv: { F1: 950, F2: 1250, H: 110 } }]), []);
+  assert.equal(kq.hopLe, true, kq.loi.join('; '));
+  const [h1, h2] = kq.cau.hang;
+  assert.equal(h1.lv.H, 31); assert.equal(h1.klv.H, 105);
+  assert.ok(Math.abs(h1.lv.N - 652) < 1e-9 && Math.abs(h1.lv.M - 1776 * 1.6 / Math.SQRT2) < 1e-9);
+  assert.ok(Math.abs(h2.lv.H - 0.7 * 110) < 1e-9, 'Q LV trống → 0,7·Q KLV nhập');
+  // sửa cẩu: số liệu nhập trả lại phản lực
+  const d = C.cauSangNhap(kq.cau);
+  assert.equal(d.cachNhap, 'phan-luc');
+  assert.deepEqual([d.hang[0].lv.F1, d.hang[0].lv.F2, d.hang[0].lv.H, d.hang[1].lv.H], [725, 1051, 31, '']);
+  const lai = C.taoCauTuNhap(d, [kq.cau]);
+  assert.equal(lai.hopLe, true, lai.loi.join('; '));
+  assert.deepEqual(lai.cau.hang, kq.cau.hang);
+  // file chia sẻ giữ cách nhập
+  const doc = C.docFileCau(JSON.stringify(C.taoFileCau([kq.cau])));
+  assert.equal(doc.ds[0].cachNhap, 'phan-luc');
+  assert.deepEqual(doc.ds[0].hang, kq.cau.hang);
+  // F2 ≤ F1
+  const sai = C.taoCauTuNhap(nhapPhanLuc('Sai', [{ h: 30, lv: { F1: 1000, F2: 900, H: '' }, klv: { F1: 900, F2: 1000, H: '' } }]), []);
+  assert.match(sai.loi.join(' '), /LV F2 \(nén\) phải lớn hơn F1/);
+  // dán bảng theo cột H, LV F1 F2 Q, KLV F1 F2 Q (Q trống được)
+  const cot = C.cotBangTai({ cachNhap: 'phan-luc', kieuT: 'khong' });
+  assert.deepEqual(cot, { lv: ['F1', 'F2', 'H'], klv: ['F1', 'F2', 'H'] });
+  const dan = C.docBangDan('H\tF1\tF2\tQ\tF1\tF2\tQ\n34,05\t970\t1240\t\t1210\t1480\t', cot);
+  assert.deepEqual(dan.loi, []);
+  assert.deepEqual(dan.hang[0], { h: 34.05, lv: { F1: 970, F2: 1240, H: '' }, klv: { F1: 1210, F2: 1480, H: '' } });
+});
+
+test('Thuyết minh với cẩu nhập bằng phản lực: có đoạn quy đổi và bảng F1, F2 → N, M, H của dòng tính toán', async () => {
+  globalThis.docx = require('../vendor/docx-9.15.3.umd.js');
+  require('../js/bao-cao/thuyet-minh.js');
+  const kq = C.taoCauTuNhap(nhapPhanLuc('MR150 phản lực', [{ h: 34.05, lv: { F1: 970, F2: 1240, H: '' }, klv: { F1: 1210, F2: 1480, H: 105 } }]), []);
+  assert.equal(kq.hopLe, true, kq.loi.join('; '));
+  C.datCauTuThem([kq.cau]);
+  const s = JSON.parse(JSON.stringify(MCT.macDinh));
+  s.cau.ten = 'MR150 phản lực'; s.cau.chieuCao = 34.05;
+  const buf = await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(s, C.tinhTatCa(s)));
+  const zlib = require('node:zlib');
+  const eocd = buf.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  let p = buf.readUInt32LE(eocd + 16), xml = '';
+  for (let i = 0; i < buf.readUInt16LE(eocd + 10); i++) {
+    const nen = buf.readUInt16LE(p + 10), cs = buf.readUInt32LE(p + 20), lt = buf.readUInt16LE(p + 28), le = buf.readUInt16LE(p + 30), lc = buf.readUInt16LE(p + 32), off = buf.readUInt32LE(p + 42);
+    if (buf.slice(p + 46, p + 46 + lt).toString() === 'word/document.xml') {
+      const st = off + 30 + buf.readUInt16LE(off + 26) + buf.readUInt16LE(off + 28);
+      xml = (nen === 0 ? buf.slice(st, st + cs) : zlib.inflateRawSync(buf.slice(st, st + cs))).toString('utf8');
+    }
+    p += 46 + lt + le + lc;
+  }
+  const chu = xml.replace(/<[^>]+>/g, '');
+  ['Catalogue cho phản lực chân đế F1 (nhổ) và F2 (nén)', 'N = 2·(F2 − F1)', 'Quy đổi phản lực chân đế sang nội lực – chiều cao 34.05 m', '2500.33', '3043.39', '73.50*', '105.00']
+    .forEach((t) => assert.ok(chu.includes(t), 'thiếu: ' + t));
+});
