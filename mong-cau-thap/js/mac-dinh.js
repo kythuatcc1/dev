@@ -24,6 +24,7 @@
       tenGoc: '', ten: '', loai: 'bang', chieuDaiTayCan: '', beRongThan: '', duongKinhNhomBulong: 0.4, tongChieuDayBanThep: 40,
       heSoAnToan: 1.2, quyTacN: 'x_n', quyTacM: 'x_n', kieuT: 'mot', mXoan: '', pctCoDinh: '',
       cachNhap: 'noi-luc',   // lực cẩu theo catalogue: 'noi-luc' (N, M, H) | 'phan-luc' (phản lực chân F1 nhổ, F2 nén, Q)
+      lamTronTan: 'tu-dong', // làm tròn N, M, H theo 0,1 T như Excel: 'tu-dong' (khi nhập phản lực) | 'co' | 'khong'
       nhan: { N: 'N', M: 'M', H: 'H', CR: 'CR', T: 'T', F1: 'F1', F2: 'F2' },
       hang: [{ h: '', lv: { N: '', M: '', H: '', CR: '', T: '', F1: '', F2: '' }, klv: { N: '', M: '', H: '', CR: '', F1: '', F2: '' } }],
       canhBao: []

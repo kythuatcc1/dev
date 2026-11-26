@@ -177,10 +177,10 @@ test('Cẩu tự thêm không có mômen xoắn, không có lực nhổ cho sẵ
 });
 
 // Cách 1 của file nhap_so_lieu.xlsx (sheet TSC): catalogue chỉ cho phản lực chân F1 (nhổ), F2 (nén), không có Q
-function nhapPhanLuc(ten, hang) {
+function nhapPhanLuc(ten, hang, them) {   // mặc định không làm tròn theo tấn – so đúng các ô kN của Excel
   return Object.assign(JSON.parse(JSON.stringify(MCT.macDinh.cauNhap)), {
-    ten: ten, chieuDaiTayCan: 50, beRongThan: 1.6, heSoAnToan: 1.15, kieuT: 'khong', cachNhap: 'phan-luc', hang: hang
-  });
+    ten: ten, chieuDaiTayCan: 50, beRongThan: 1.6, heSoAnToan: 1.15, kieuT: 'khong', cachNhap: 'phan-luc', lamTronTan: 'khong', hang: hang
+  }, them || {});
 }
 
 test('Catalogue chỉ cho phản lực F1, F2: quy đổi N, M, Q đúng ô Excel (Y48:AD48), lực nhổ 1 chân = F1', () => {
@@ -258,4 +258,35 @@ test('Thuyết minh với cẩu nhập bằng phản lực: có đoạn quy đ�
   const chu = xml.replace(/<[^>]+>/g, '');
   ['Catalogue cho phản lực chân đế F1 (nhổ) và F2 (nén)', 'N = 2·(F2 − F1)', 'Quy đổi phản lực chân đế sang nội lực – chiều cao 34.05 m', '2500.33', '3043.39', '73.50*', '105.00']
     .forEach((t) => assert.ok(chu.includes(t), 'thiếu: ' + t));
+});
+
+test('Làm tròn theo tấn như Excel (mặc định khi nhập phản lực): tải tính toán khớp đúng bảng tấn của file nhap_so_lieu.xlsx', () => {
+  const hang = [{ h: 34.05, lv: { F1: 970, F2: 1240, H: '' }, klv: { F1: 1210, F2: 1480, H: '' } }];
+  // ô H50:L51 (catalogue, T) và H56:L57 (× hệ số an toàn) của sheet TSC, với n = 1,15 và n = 1,2
+  for (const [n, mong] of [[1.15, { lv: [63.25, 293.135, 24.955], klv: [63.25, 356.73, 35.65] }],
+    [1.2, { lv: [66, 305.88, 26.04], klv: [66, 372.24, 37.2] }]]) {
+    const d = nhapPhanLuc('MR150 làm tròn ' + n, hang, { heSoAnToan: n, lamTronTan: 'tu-dong' });
+    const kq = C.taoCauTuNhap(d, []);
+    assert.equal(kq.hopLe, true, kq.loi.join('; '));
+    assert.equal(kq.cau.daLamTronTan, true);
+    const h = kq.cau.hang[0];
+    [['lv', [55, 254.9, 21.7]], ['klv', [55, 310.2, 31]]].forEach(([tt, T]) => {
+      ['N', 'M', 'H'].forEach((k, i) => assert.ok(Math.abs(h[tt][k] / 9.81 - T[i]) < 1e-9, `${tt} ${k} = ${h[tt][k] / 9.81} T ≠ ${T[i]}`));
+    });
+    C.datCauTuThem([kq.cau]);
+    const A = tinhVoiCau(kq.cau.ten, 34.05).A;
+    assert.equal(A.hopLe, true, (A.loi || []).join('; '));
+    ['lv', 'klv'].forEach((tt) => ['N', 'M', 'H'].forEach((k, i) => {
+      const T = A.quyDoi[tt][k] / 9.81;
+      assert.ok(Math.abs(T - mong[tt][i]) < 1e-9, `n = ${n}: ${tt} ${k}qđ = ${T} T ≠ Excel ${mong[tt][i]}`);
+    }));
+    // sửa lại giữ lựa chọn làm tròn
+    assert.equal(C.cauSangNhap(kq.cau).lamTronTan, 'tu-dong');
+  }
+  // tắt làm tròn: giữ kN chính xác; nhập nội lực mặc định không làm tròn
+  const khong = C.taoCauTuNhap(nhapPhanLuc('MR150 không làm tròn', hang, { lamTronTan: 'khong' }), []);
+  assert.equal(khong.cau.hang[0].lv.N, 540);
+  const noiLuc = C.taoCauTuNhap(Object.assign(banSao('LLT5020-10', 'LLT bản sao làm tròn'), { lamTronTan: 'tu-dong' }), []);
+  assert.equal(noiLuc.cau.daLamTronTan, false);
+  assert.deepEqual(noiLuc.cau.hang, C.timCau('LLT5020-10').hang.map((h) => noiLuc.cau.hang.find((x) => x.h === h.h)));
 });

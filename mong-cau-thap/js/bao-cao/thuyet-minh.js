@@ -427,7 +427,8 @@
       var pl = A.hang.phanLuc, nF1 = (cau.nhanPhanLuc && cau.nhanPhanLuc.F1) || 'F1', nF2 = (cau.nhanPhanLuc && cau.nhanPhanLuc.F2) || 'F2';
       out.push(doan('Catalogue cho phản lực chân đế ' + nF1 + ' (nhổ) và ' + nF2 + ' (nén); nội lực tại chân đế quy đổi theo kích thước thân cẩu H_{t} = ' +
         g(cau.beRongThan) + ' m: N = 2·(' + nF2 + ' − ' + nF1 + '); M = (' + nF1 + ' + ' + nF2 + ')·H_{t}/√2; lực ngang H theo catalogue' +
-        (typeof pl.klv.H !== 'number' || typeof pl.lv.H !== 'number' ? ' (catalogue không có thì H_{KLV} = 10%·M_{KLV}, H_{LV} = 70%·H_{KLV})' : '') + '.'));
+        (typeof pl.klv.H !== 'number' || typeof pl.lv.H !== 'number' ? ' (catalogue không có thì H_{KLV} = 10%·M_{KLV}, H_{LV} = 70%·H_{KLV})' : '') +
+        (cau.daLamTronTan ? '; N, M, H làm tròn 0,1 T (1 T = 9,81 kN)' : '') + '.'));
       out.push(bangDayDu(['Trạng thái', nF1 + ' (kN)', nF2 + ' (kN)', 'N (kN)', 'M (kNm)', 'H (kN)'], [['lv', 'Làm việc'], ['klv', 'Không làm việc']].map(function (x) {
         var r = A.hang[x[0]];
         return [x[1], f(pl[x[0]].F1, 2), f(pl[x[0]].F2, 2), f(r.N, 2), f(r.M, 2), f(r.H, 2) + (typeof pl[x[0]].H !== 'number' ? '*' : '')];

@@ -11,6 +11,8 @@
 //        Q không có trong catalogue: Q không làm việc = 10 %·M không làm việc (W48 = AC48·0,1),
 //        Q làm việc = 70 %·Q không làm việc (T48 = 0,7·W48).
 //     Lực nhổ 1 chân theo app (M/(Ht·√2) − N/4) đúng bằng F1.
+//  Làm tròn theo tấn như Excel (d.lamTronTan: 'tu-dong' – bật khi nhập phản lực | 'co' | 'khong'): bảng tính làm bằng tấn
+//  (H50 = ROUND(Y53/9,81; 1)…) rồi nhân hệ số an toàn – app lấy N, M, H = ROUND(kN/9,81; 1)·9,81 để tải quy đổi khớp đúng Excel.
 (function (MCT) {
   'use strict';
   MCT.data = MCT.data || {};
@@ -48,6 +50,9 @@
     var coCR = d.quyTacM === 'cr';
     return { lv: ['N', 'M', 'H'].concat(coCR ? ['CR'] : [], coT ? ['T'] : []), klv: ['N', 'M', 'H'].concat(coCR ? ['CR'] : []) };
   }
+
+  /** kN (kNm) → làm tròn 0,1 T (T.m) như Excel ROUND(x/9,81; 1) → kN (kNm). */
+  function lamTronTheoTan(v) { return typeof v === 'number' ? Math.round(v / 9.81 * 10 + 1e-9) / 10 * 9.81 : v; }
 
   /**
    * Phản lực chân đế → nội lực tại chân đế (Cách 1 của file nhap_so_lieu.xlsx).
@@ -96,6 +101,8 @@
     var tBan = soDuong(d.tongChieuDayBanThep, 'tổng chiều dày bản thép');
     var n = soDuong(d.heSoAnToan, 'hệ số an toàn n');
     var cachNhap = d.cachNhap === 'phan-luc' ? 'phan-luc' : 'noi-luc';
+    var lamTronTan = d.lamTronTan === 'co' || d.lamTronTan === 'khong' ? d.lamTronTan : 'tu-dong';
+    var coLamTron = lamTronTan === 'co' || (lamTronTan === 'tu-dong' && cachNhap === 'phan-luc');
     var quyTacN = d.quyTacN === 'cong40_n' ? 'cong40_n' : 'x_n';
     var quyTacM = d.quyTacM === 'cr' && cachNhap === 'noi-luc' ? 'cr' : 'x_n';
     var kieuT = d.kieuT === 'mot' || d.kieuT === 'theo-hang' ? d.kieuT : 'khong';
@@ -137,6 +144,7 @@
           if (kieuT === 'theo-hang') dong.lv.T = docSo(r.lv.T);
         }
       }
+      if (ok && coLamTron) ['lv', 'klv'].forEach(function (tt) { ['N', 'M', 'H'].forEach(function (k) { dong[tt][k] = lamTronTheoTan(dong[tt][k]); }); });
       if (ok) hang.push(dong);
     });
     if (!hang.length && !loi.some(function (m) { return /^Bảng tải/.test(m); })) loi.push('Bảng tải theo chiều cao cần ít nhất 1 dòng.');
@@ -169,7 +177,7 @@
           klv: { N: quyTacN, M: quyTacM === 'cr' ? 'cr_klv_n' : 'x_n', H: 'x_n' }
         },
         pctCoDinh: pct,
-        cachNhap: cachNhap,
+        cachNhap: cachNhap, lamTronTan: lamTronTan, daLamTronTan: coLamTron,
         nhanPhanLuc: cachNhap === 'phan-luc' ? { F1: nhan('F1'), F2: nhan('F2') } : null,
         duongKinhNhomBulong: D1, tongChieuDayBanThep: tBan,
         heSoAnToan: n,
@@ -194,6 +202,7 @@
     var laPhanLuc = cau.cachNhap === 'phan-luc' && (cau.hang || []).every(function (h) { return h.phanLuc; });
     return {
       cachNhap: laPhanLuc ? 'phan-luc' : 'noi-luc',
+      lamTronTan: cau.lamTronTan || (cau.daLamTronTan ? 'co' : 'khong'),
       tenGoc: saoChep ? '' : cau.ten,
       ten: saoChep ? '' : cau.ten,
       loai: /luffing/i.test(en) ? 'gat-gu' : /flat/i.test(en) ? 'dinh-bang' : 'bang',
@@ -290,6 +299,7 @@
   MCT.calc.docSoNhap = docSo;
   MCT.calc.cotBangTai = cotBangTai;
   MCT.calc.phanLucSangNoiLuc = phanLucSangNoiLuc;
+  MCT.calc.lamTronTheoTan = lamTronTheoTan;
   MCT.calc.taoCauTuNhap = taoCauTuNhap;
   MCT.calc.cauSangNhap = cauSangNhap;
   MCT.calc.datCauTuThem = datCauTuThem;
