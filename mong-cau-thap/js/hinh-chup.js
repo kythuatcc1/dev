@@ -21,7 +21,7 @@
       { khoa: 'matBangHoKhoan', nhom: 'ngoai', ten: 'Hình 2.2 Mặt bằng hố khoan (thuyết minh ETABS)', huongDan: 'Ảnh mặt bằng vị trí hố khoan trong báo cáo khảo sát – dán hoặc chọn file.' },
       { khoa: 'hinhTruHoKhoan', nhom: 'ngoai', ten: 'Hình 2.4 Hình trụ hố khoan (thuyết minh ETABS)', huongDan: 'Ảnh hình trụ hố khoan trong báo cáo khảo sát – dán hoặc chọn file.' },
       { khoa: 'etabsMoHinh3D', nhom: 'mo-hinh', ten: 'Hình 3.1 Mô hình móng cẩu tháp', huongDan: 'View → Set Default 3D View; Display → Undeformed Shape; nếu muốn thấy lò xo: Display → Show Assigns → Joint → Springs.' },
-      { khoa: 'etabsMatBang', nhom: 'mo-hinh', ten: 'Hình 3.2 Mặt bằng đài trong mô hình', huongDan: 'View → Set Plan View, chọn tầng GIUA_DAI (mặt phẳng tấm đài). Không chụp thì dùng mặt bằng app vẽ.' },
+      { khoa: 'etabsMatBang', nhom: 'mo-hinh', ten: 'Hình 3.2 Mặt bằng đài trong mô hình', huongDan: 'View → Set Plan View, chọn tầng GIUA_DAI (mặt phẳng giữa đài móng). Không chụp thì dùng mặt bằng app vẽ.' },
       { khoa: 'etabsTai1', nhom: 'mo-hinh', ten: 'Hình 3.3 Lực Fx1, Fy1, Fz1 tác dụng lên móng', huongDan: 'Display → Show Load Assigns → Joint; chọn load pattern FX1, FY1, FZ1; hiện giá trị; nhìn 3D.' },
       { khoa: 'etabsTai2', nhom: 'mo-hinh', ten: 'Hình 3.4 Lực Mx1, My1' + (coMZ ? ', Mz1' : '') + ' tác dụng lên móng', huongDan: 'Display → Show Load Assigns → Joint; chọn MX1, MY1' + (coMZ ? ', MZ1' : '') + '.' },
       { khoa: 'etabsTai3', nhom: 'mo-hinh', ten: 'Hình 3.5 Lực Fx2, Fy2, Fz2 tác dụng lên móng', huongDan: 'Display → Show Load Assigns → Joint; chọn FX2, FY2, FZ2.' },

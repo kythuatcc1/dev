@@ -1421,9 +1421,9 @@
     var m = E.m, t = E.t, ts = m.thongSo;
     var out = [tieuDe('3. MÔ HÌNH TÍNH TOÁN', 2, true)];
     out.push(doan('Sử dụng phần mềm ETABS kết hợp với các thông số đầu vào để kiểm tra khả năng chịu lực của móng cẩu tháp. Mô hình gồm:'));
-    out.push(gach('Đài móng: phần tử tấm vỏ dày (thick shell) kích thước ' + g(ts.X) + ' × ' + g(ts.Y) + ' m, dày H = ' + g(ts.H) +
+    out.push(gach('Đài móng: mô hình bằng phần tử shell dày (thick shell), kích thước ' + g(ts.X) + ' × ' + g(ts.Y) + ' m, dày H = ' + g(ts.H) +
       ' m, đặt tại mặt phẳng giữa đài (cao độ ' + f(ts.zGiua, 2) + ' m); ' + (ts.chiaDai === 'khong'
-        ? 'một ô vỏ, ETABS tự chia lưới khi phân tích (đi qua đầu cọc và điểm đặt lực).'
+        ? 'cả đài móng là một phần tử, ETABS tự chia lưới khi phân tích (đi qua đầu cọc và điểm đặt lực).'
         : 'lưới chia ' + (ts.nx - 1) + ' × ' + (ts.ny - 1) + ' ô' + (ts.chiaDai === 'toi-thieu' ? ' tại các đường qua cọc, tâm đài, điểm đặt lực.' : ' (≤ ' + g(ts.luoi) + ' m).'))));
     out.push(gach('Cọc: ' + ts.soCoc + ' cọc, phần tử thanh tiết diện tròn D = ' + g(ts.D * 1000) + ' mm, chia đoạn ' + g(ts.buocCoc) +
       ' m từ đáy đài (cao độ ' + f(ts.zDay, 2) + ' m) tới mũi cọc (cao độ ' + f(ts.zMui, 2) + ' m); đoạn cọc nằm trong đài mô hình bằng thanh cứng.'));
@@ -1437,7 +1437,7 @@
       m.bangLoXo.map(function (r) { return [f(r.caoDo, 2), f(r.doSau, 2), String(r.lop), f(r.k, 0), f(r.l, 2), f(r.K, 0)]; }),
       [1500, 1500, 1300, 2000, 1500, 1838], { giuChung: false, fillTieuDe: 'F2F2F2' }));
     out.push(chuThich('Bảng 3.1 Độ cứng lò xo đất ngang tại nút cọc (gán cho cả hai phương X, Y)'));
-    out = out.concat(hinhAnh(hinh.etabsMatBang, 430, 'Mặt bằng mô hình đài', 'Hình 3.2 Mặt bằng đài trong mô hình ETABS (lưới tấm vỏ, cọc, điểm đặt tải)'));
+    out = out.concat(hinhAnh(hinh.etabsMatBang, 430, 'Mặt bằng mô hình đài', 'Hình 3.2 Mặt bằng đài trong mô hình ETABS (lưới chia đài móng, cọc, điểm đặt tải)'));
 
     out.push(tieuDe('3.1. ' + tenCau, 3));
     function gt(ten) {
@@ -1589,7 +1589,7 @@
 
     // 6.2 Đài
     out.push(tieuDe('6.2. Kiểm tra đài móng', 3));
-    out.push(doan('Mômen, lực cắt trong đài lấy từ kết quả ETABS: tích phân nội lực tấm vỏ (M_{11}, V_{13} theo phương X; M_{22}, V_{23} theo phương Y) ' +
+    out.push(doan('Mômen, lực cắt trong đài lấy từ kết quả ETABS: tích phân nội lực đài móng (M_{11}, V_{13} theo phương X; M_{22}, V_{23} theo phương Y) ' +
       'trên mặt cắt suốt bề rộng đài tại mỗi đường lưới, lấy bao mọi tổ hợp. Mômen dương: thớ dưới chịu kéo.'));
     out.push(tieuMuc('Kiểm tra đài chịu uốn'));
     out = out.concat(luoiChup(['M11max', 'M11min', 'M22max', 'M22min'].map(function (k) { return hinh['etabsMomenDai_' + k]; }),

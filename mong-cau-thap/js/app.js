@@ -1574,11 +1574,11 @@
     'dong-bo-hinh-hoc': 'Sửa hình học trong file (dời / thêm / xoá)',
     'xoa-to-hop-cu': 'Xoá tổ hợp, lực cẩu cũ của app', 'noi-luc-dam': 'Nội lực dầm giằng',
     'mo-hinh-moi': 'Mô hình mới', 'tang': 'Tầng (cao độ nút)', 'vat-lieu': 'Vật liệu', 'tiet-dien': 'Tiết diện',
-    'diem': 'Điểm', 'thanh': 'Thanh cọc', 'vo': 'Vỏ (tấm đài)', 'lo-xo': 'Lò xo đất', 'goi': 'Gối mũi cọc',
+    'diem': 'Điểm', 'thanh': 'Thanh cọc', 'vo': 'Đài móng (phần tử shell)', 'lo-xo': 'Lò xo đất', 'goi': 'Gối mũi cọc',
     'luu': 'Lưu file .EDB', 'kiem-tra-so-luong': 'Kiểm tra số lượng trong ETABS',
     'tai-trong': 'Load pattern và lực cẩu tháp', 'to-hop': 'Tổ hợp tải trọng',
     'kiem-tra-mo-hinh': 'Mô hình đang mở trong ETABS', 'phan-tich': 'Chạy phân tích', 'chon-to-hop': 'Chọn tổ hợp xuất kết quả',
-    'noi-luc-coc': 'Nội lực cọc', 'chuyen-vi': 'Chuyển vị', 'noi-luc-dai': 'Nội lực tấm đài'
+    'noi-luc-coc': 'Nội lực cọc', 'chuyen-vi': 'Chuyển vị', 'noi-luc-dai': 'Nội lực đài móng'
   };
 
   function bangBuocEtabs(r) {
@@ -1745,7 +1745,7 @@
   // Mặt bằng đài trong mô hình ETABS: lưới tấm, cọc, điểm đặt tải ở tâm đài
   function svgMatBangEtabs(m) {
     return '<div class="bieu-do-svg">' + svgMatBangEtabsChi(m) + '</div>' +
-      '<p class="hint">Lưới tấm đài (xám), cọc (xanh), điểm đặt lực cẩu tháp trên tấm vỏ (đỏ: tâm cẩu' +
+      '<p class="hint">Lưới chia đài móng (xám), cọc (xanh), điểm đặt lực cẩu tháp trên đài móng (đỏ: tâm cẩu' +
       (m.thongSo.diemDatLuc === 'chan' ? '; vuông đỏ: 4 chân cẩu nhận lực' : ' – như file PDF') + ').</p>';
   }
 
@@ -1856,7 +1856,7 @@
     var tm = trangThaiMoHinh(), tat = etabsDangChay ? ' disabled' : '';
     var trangThai = tm.khop ? '<div class="alert alert-info">Mô hình trong ETABS khớp thông số hiện tại: ' + esc(state.etabs.fileDung) + '</div>'
       : tm.capNhatDuoc && tm.hinhHocDoi ? '<p>Hình học đã đổi (đài, cọc, lưới, điểm đặt lực, dầm giằng…): <strong>cập nhật</strong> sửa ngay trong file đang có ' +
-        '(' + esc(state.etabs.fileDung) + ') – dời / thêm / xoá nút, thanh, ô vỏ, đặt lại tầng, lò xo, gối, tải trọng; không tạo mô hình mới.</p>'
+        '(' + esc(state.etabs.fileDung) + ') – dời / thêm / xoá nút, thanh, ô đài móng, đặt lại tầng, lò xo, gối, tải trọng; không tạo mô hình mới.</p>'
       : tm.capNhatDuoc ? '<p>Thông số đã đổi, hình học giữ nguyên: <strong>cập nhật</strong> mô hình trong file đang có ' +
         '(' + esc(state.etabs.fileDung) + ') – không phải dựng lại.</p>'
       : '';
@@ -1891,9 +1891,9 @@
     var tomTat = !r.ok ? '' : laCapNhat
       ? '<p class="hint">' + (db ? (db.veLai ? 'Vẽ lại các đối tượng của app trong file đang có (' + esc(db.lyDoVeLai) + '). ' : '') +
           'Điểm: dời ' + db.doiDiem + ', thêm ' + db.themDiem + ', xoá ' + db.xoaDiem + '; thanh: giữ ' + db.giuThanh + ', thêm ' + db.themThanh + ', xoá ' + db.xoaThanh +
-          '; ô vỏ: giữ ' + db.giuVo + ', thêm ' + db.themVo + ', xoá ' + db.xoaVo + '. ' : '') +
+          '; ô đài móng: giữ ' + db.giuVo + ', thêm ' + db.themVo + ', xoá ' + db.xoaVo + '. ' : '') +
         esc(t.soLoXo) + ' lò xo, ' + esc(t.soToHop) + ' tổ hợp; ' + esc(t.soLenhApi) + ' lệnh API trong ' + esc(t.thoiGianGiay) + ' giây.</p>'
-      : '<p class="hint">' + esc(t.soDiem) + ' điểm, ' + esc(t.soThanh) + ' thanh, ' + esc(t.soVo) + ' ô vỏ, ' + esc(t.soLoXo) +
+      : '<p class="hint">' + esc(t.soDiem) + ' điểm, ' + esc(t.soThanh) + ' thanh, ' + esc(t.soVo) + ' ô đài móng, ' + esc(t.soLoXo) +
         ' lò xo, ' + esc(t.soToHop) + ' tổ hợp; ' + esc(t.soLenhApi) + ' lệnh API trong ' + esc(t.thoiGianGiay) + ' giây. Mở ETABS để xem mô hình.</p>';
     return '<section class="card"><h2>' + (laCapNhat ? 'Kết quả cập nhật mô hình' : 'Kết quả dựng mô hình') + '</h2><div class="ket-luan-lon ' + (r.ok ? 'ok' : 'fail') + '">' +
       (r.ok ? (laCapNhat ? 'Đã cập nhật mô hình trong file đang có: ' : 'Đã dựng và lưu mô hình: ') + esc(t.fileMoHinh || '')
@@ -1916,18 +1916,18 @@
       var chia = oChon('etabs.chiaDai', [
         { v: 'deu', t: 'Chia lưới đều (≤ kích thước lưới)' },
         { v: 'toi-thieu', t: 'Chỉ chia tại cọc, tâm đài, điểm đặt lực' },
-        { v: 'khong', t: 'Không chia – một ô vỏ, ETABS tự chia khi phân tích' }], 'Chia tấm đài', '', '', false, true);
+        { v: 'khong', t: 'Không chia – cả đài là 1 ô, ETABS tự chia khi phân tích' }], 'Chia lưới đài móng', '', '', false, true);
       var kieuChia = state.etabs.chiaDai || 'deu';
       return '<section class="card"><h2>Thông số dựng mô hình</h2><div class="params">' + chon + chia +
-        (kieuChia === 'deu' ? oNhapSo('etabs.luoi', 'Kích thước lưới chia tấm đài', '', 'm') : '') +
+        (kieuChia === 'deu' ? oNhapSo('etabs.luoi', 'Kích thước lưới chia đài móng', '', 'm') : '') +
         oNhapSo('etabs.buocCoc', 'Bước chia cọc (khoảng cách lò xo đất)', '', 'm') + datLuc +
         oNhapSo('etabs.tamCauX', 'Tâm cẩu lệch tâm đài theo X', 'x<sub>c</sub> =', 'm') +
         oNhapSo('etabs.tamCauY', 'Tâm cẩu lệch tâm đài theo Y', 'y<sub>c</sub> =', 'm') + '</div>' +
-        (kieuChia === 'khong' ? '<p class="hint">Không chia: đài là một ô vỏ; đầu cọc, tâm đài, điểm đặt lực là điểm nằm trong tấm (điểm riêng – special point). ' +
-          'ETABS tự chia lưới tấm qua các điểm này khi phân tích theo Analyze → Automatic Mesh Settings for Floors (chỉnh kích thước lưới trong ETABS nếu cần). ' +
-          'Nội lực đài đọc tại các nút ETABS chia. Nếu ETABS báo điểm đặt lực / đầu cọc không nối với tấm, chọn "Chỉ chia tại cọc, tâm đài, điểm đặt lực".</p>'
-          : kieuChia === 'toi-thieu' ? '<p class="hint">Chỉ chia tấm đài tại các đường qua mép đài, tâm đài, tâm cọc, điểm đặt lực (ô lớn, ETABS có thể chia nhỏ thêm khi phân tích).</p>' : '') +
-        '<p class="hint">Lưới tấm đài luôn đi qua điểm đặt lực. Chia về 4 chân: lực ngang, lực đứng chia đều; mômen lật thành cặp lực đứng, ' +
+        (kieuChia === 'khong' ? '<p class="hint">Không chia: cả đài móng là một ô (một phần tử shell); đầu cọc, tâm đài, điểm đặt lực là các nút nằm trong đài móng (điểm riêng – special point). ' +
+          'ETABS tự chia lưới đài móng qua các nút này khi phân tích theo Analyze → Automatic Mesh Settings for Floors (chỉnh kích thước lưới trong ETABS nếu cần). ' +
+          'Nội lực đài đọc tại các nút ETABS chia. Nếu ETABS báo điểm đặt lực / đầu cọc không nối với đài móng, chọn "Chỉ chia tại cọc, tâm đài, điểm đặt lực".</p>'
+          : kieuChia === 'toi-thieu' ? '<p class="hint">Chỉ chia đài móng tại các đường qua mép đài, tâm đài, tâm cọc, điểm đặt lực (ô lớn, ETABS có thể chia nhỏ thêm khi phân tích).</p>' : '') +
+        '<p class="hint">Lưới chia đài móng luôn đi qua điểm đặt lực. Chia về 4 chân: lực ngang, lực đứng chia đều; mômen lật thành cặp lực đứng, ' +
         'mômen xoắn thành lực ngang tiếp tuyến – tổng đúng bằng tải cẩu. Tâm cẩu lệch tâm chỉ dùng cho mô hình ETABS (phương pháp giải tích ' +
         'vẫn coi tâm cẩu trùng tâm đài). Đổi điểm đặt lực, chiều dài cọc, chiều cao đài… thì bấm cập nhật mô hình – không cần dựng mới.</p>' +
         '<div class="field field-wide" style="margin-top:12px"><label for="in-etabs.fileMoHinh">Lưu mô hình vào (để trống: Documents\\MongCauThap\\' +
@@ -1940,26 +1940,28 @@
       var kq = veKetQuaDung();
       if (!m.hopLe) return kq + loiHtml(m);
       var t = m.thongSo, tk = m.thongKe;
-      var thongSo = '<section class="card"><h2>Mô hình sẽ dựng</h2><div class="grid-2"><div class="params">' +
-        dong('Đài (tấm vỏ dày)', '', so(t.X, 3) + ' × ' + so(t.Y, 3) + ' × ' + so(t.H, 2), 'm') +
-        dong('Cao độ mặt / giữa / đáy', '', so(t.zMat, 2) + ' / ' + so(t.zGiua, 2) + ' / ' + so(t.zDay, 2), 'm') +
-        dong('Tấm vỏ đặt ở', '', 'mặt phẳng giữa đài', '') +
-        dong('Lưới chia tấm', '', t.chiaDai === 'khong' ? 'không chia – 1 ô vỏ, ETABS tự chia khi phân tích' :
-          (t.nx - 1) + ' × ' + (t.ny - 1) + ' ô' + (t.chiaDai === 'toi-thieu' ? ' (chỉ tại cọc, tâm, điểm đặt lực)' : ' (≤ ' + so(t.luoi, 2) + ' m)'), '') +
+      var chiaLuoi = t.chiaDai === 'khong' ? 'không chia – ETABS tự chia khi phân tích'
+        : (t.nx - 1) + ' × ' + (t.ny - 1) + ' ô' + (t.chiaDai === 'toi-thieu' ? ' (chỉ tại cọc, tâm đài, điểm đặt lực)' : ' (≤ ' + so(t.luoi, 2) + ' m)');
+      var thongSo = '<section class="card"><h2>Mô hình sẽ dựng</h2><div class="grid-mo-ta">' +
+        '<div><h3>Đài móng và cọc</h3><div class="params params-mo-ta">' +
+        dong('Kích thước đài móng (dài × rộng × cao)', '', so(t.X, 3) + ' × ' + so(t.Y, 3) + ' × ' + so(t.H, 2), 'm') +
+        dong('Cao độ mặt / giữa / đáy đài', '', so(t.zMat, 2) + ' / ' + so(t.zGiua, 2) + ' / ' + so(t.zDay, 2), 'm') +
+        dong('Phần tử đài móng', '', 'shell dày, đặt ở mặt phẳng giữa đài', '') +
+        dong('Chia lưới đài móng', '', chiaLuoi, '') +
         dong('Cọc', '', t.soCoc + ' cọc D' + so(t.D * 1000, 0), '') +
-        dong('Mũi cọc', '', so(t.zMui, 2), 'm') +
-        dong('Mũi cọc', '', 'gối chặn chuyển vị đứng', '') +
-        '</div><div class="params">' +
-        dong('Lò xo bắt đầu', '', so(t.zBatDau, 2) + (t.batDauLoXo === 'day-ho' ? ' (đáy hố)' : ' (đáy đài)'), 'm') +
+        dong('Cao độ mũi cọc', '', so(t.zMui, 2), 'm') +
+        dong('Liên kết mũi cọc', '', 'gối chặn chuyển vị đứng', '') +
+        '</div></div><div><h3>Đất nền, tải trọng, quy mô mô hình</h3><div class="params params-mo-ta">' +
+        dong('Lò xo đất bắt đầu từ', '', so(t.zBatDau, 2) + (t.batDauLoXo === 'day-ho' ? ' (đáy hố đào)' : ' (đáy đài)'), 'm') +
         dong('Bề rộng quy ước', '<i>b</i><sub>p</sub> =', so(t.bp, 2), 'm') +
         dong('Điểm đặt lực cẩu', '', t.diemDatLuc === 'chan'
-          ? '4 chân ' + m.chan.map(function (c) { return esc(c.nut); }).join(', ') + ' (tâm ' + so(t.xc, 2) + '; ' + so(t.yc, 2) + ', Ht ' + so(t.Ht, 2) + ' m)'
+          ? '4 chân cẩu (nút ' + m.chan.map(function (c) { return esc(c.nut); }).join(', ') + '), tâm (' + so(t.xc, 2) + '; ' + so(t.yc, 2) + '), H<sub>t</sub> = ' + so(t.Ht, 2) + ' m'
           : 'nút ' + esc(m.nutTai) + ' (' + so(t.xc, 2) + '; ' + so(t.yc, 2) + '; ' + so(t.zGiua, 2) + ')', t.diemDatLuc === 'chan' ? '' : 'm') +
         dong('Số tầng ETABS', '', String(tk.soTang), '') +
-        dong('Điểm / thanh / ô vỏ', '', tk.soDiem + ' / ' + tk.soThanh + ' / ' + tk.soVo, '') +
+        dong('Nút / thanh / ô đài móng', '', tk.soDiem + ' / ' + tk.soThanh + ' / ' + tk.soVo, '') +
         dong('Lò xo đất', '', tk.soLoXo + ' (' + m.bangLoXo.length + ' nút × ' + t.soCoc + ' cọc)', '') +
         (tk.soDam ? dong('Dầm giằng', '', tk.soDam + ' dầm: ' + m.dam.map(function (d) { return d.ten + ' ' + d.tuCoc + '–' + d.denCoc + ' (z ' + so(d.z, 2) + ')'; }).join(', '), '') : '') +
-        '</div></div></section>';
+        '</div></div></div></section>';
       var matBang = '<section class="card"><h2>Mặt bằng đài trong mô hình</h2>' + svgMatBangEtabs(m) + '</section>' + svgMatCat(m);
       var bang = '<section class="card"><h2>Lò xo đất ngang tại nút cọc</h2>' +
         '<p>K = k·z·b<sub>p</sub>·l (TCVN 10304:2025 phụ lục A); k theo lớp đất (bảng A.1), z tính từ cao độ bắt đầu lò xo, ' +
@@ -2031,7 +2033,7 @@
 
   var etabsVanTayGui = null, etabsHinhHocGui = null;
 
-  // Dấu vân tay hình học: tầng, toạ độ điểm, hai đầu thanh, nút ô vỏ. Trùng với lần dựng gần nhất → cập nhật mô hình tại chỗ được.
+  // Dấu vân tay hình học: tầng, toạ độ điểm, hai đầu thanh, nút ô đài móng. Trùng với lần dựng gần nhất → cập nhật mô hình tại chỗ được.
   function vanTayHinhHoc(m) {
     var chuoi = JSON.stringify({ tang: m.tang, diem: m.diem, thanh: m.thanh.map(function (t) { return [t.ten, t.dau, t.cuoi]; }),
       vo: m.vo.map(function (v) { return [v.ten].concat(v.diem); }) }), h = 0;
@@ -2258,7 +2260,7 @@
           '<i>Q</i><sub>b</sub> = 0,5·<i>R</i><sub>bt</sub>·b·h<sub>0</sub> = ' + so(c.Qb) + ' kN', c.ok);
       }
       html += '<section class="card"><h2>Đài: mômen, lực cắt trên mặt cắt suốt bề rộng đài</h2>' +
-        '<p>Mômen, lực cắt mỗi mặt cắt = tích phân nội lực tấm vỏ (M11, V13 theo X; M22, V23 theo Y) trên suốt bề rộng đài, ' +
+        '<p>Mômen, lực cắt mỗi mặt cắt = tích phân nội lực đài móng (M11, V13 theo X; M22, V23 theo Y) trên suốt bề rộng đài, ' +
         'lấy bao mọi tổ hợp. M &gt; 0: thớ dưới chịu kéo. h<sub>0</sub> = H − a = ' + so(d.h0, 3) + ' m. Thép tính như mục D.</p>' +
         '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Lớp thép</th><th>M (kNm)</th><th>Mặt cắt (m)</th><th>b (m)</th><th>α<sub>m</sub></th>' +
         '<th>A<sub>s</sub> cần (mm²/m)</th><th>Chọn</th><th>A<sub>s</sub> chọn (mm²/m)</th><th></th></tr></thead><tbody>' +
@@ -2336,7 +2338,7 @@
       if (!tm.hopLe) { datTrangThai('Mô hình hoặc tải trọng chưa hợp lệ.'); return; }
       if (!tm.capNhatDuoc) { datTrangThai('Chưa dựng mô hình – bấm Dựng mô hình trong ETABS trước.'); return; }
       if (!window.confirm('Cập nhật mô hình trong file đang có?\n\n' + state.etabs.fileDung + '\n\nApp sửa ' +
-          (tm.hinhHocDoi ? 'hình học (dời / thêm / xoá nút, thanh, ô vỏ, đặt lại tầng), ' : '') + 'vật liệu, tiết diện, lò xo đất, gối, tải trọng và tổ hợp ' +
+          (tm.hinhHocDoi ? 'hình học (dời / thêm / xoá nút, thanh, ô đài móng, đặt lại tầng), ' : '') + 'vật liệu, tiết diện, lò xo đất, gối, tải trọng và tổ hợp ' +
           'theo thông số hiện tại – không tạo mô hình mới. Nếu ETABS đang mở mô hình khác, ETABS sẽ mở file này (mô hình đang mở KHÔNG được lưu). ' +
           'Kết quả phân tích cũ trong ETABS bị xoá.')) return;
       duLieu = { moHinh: MCT.calc.duLieuGuiEtabs(tm.m, tm.t), fileMoHinh: state.etabs.fileDung };

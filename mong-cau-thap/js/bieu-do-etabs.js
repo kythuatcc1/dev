@@ -93,7 +93,7 @@
       yChu = yc;
     });
     g += '<line x1="' + x0 + '" y1="' + f1(yTop) + '" x2="' + x0 + '" y2="' + f1(yDay) + '" stroke="#6b7280"/>';
-    g += chu(W - 12, H - 30, 'Xanh lá: tấm đài (shell); xanh dương: cọc (frame); xám: lò xo đất', { phai: true, co: 10, mau: '#6b7280' }) +
+    g += chu(W - 12, H - 30, 'Xanh lá: đài móng (shell); xanh dương: cọc (frame); xám: lò xo đất', { phai: true, co: 10, mau: '#6b7280' }) +
       chu(W - 12, H - 16, 'Tam giác: gối mũi cọc; đỏ: ' + ((m.chan || []).length ? '4 chân cẩu nhận tải' : 'điểm đặt tải') + ((m.dam || []).length ? '; nâu: dầm giằng' : ''), { phai: true, co: 10, mau: '#6b7280' });
     return khung(W, H, g, 'MÔ HÌNH MÓNG CẨU THÁP (ETABS)');
   }
@@ -247,13 +247,13 @@
     if (loai === 'cat') {
       var H1 = (kichThuoc && kichThuoc.h) || 290;
       return khung(W, H1, panelDai(m, nutBao, 'V13', 'abs', 10, 26, W / 2 - 20, H1 - 40, 'V13 (kN/m) – bao') +
-        panelDai(m, nutBao, 'V23', 'abs', W / 2 + 10, 26, W / 2 - 20, H1 - 40, 'V23 (kN/m) – bao'), 'LỰC CẮT TẤM ĐÀI (ETABS)');
+        panelDai(m, nutBao, 'V23', 'abs', W / 2 + 10, 26, W / 2 - 20, H1 - 40, 'V23 (kN/m) – bao'), 'LỰC CẮT ĐÀI MÓNG (ETABS)');
     }
     var H = (kichThuoc && kichThuoc.h) || 560, h = (H - 40) / 2;
     return khung(W, H, panelDai(m, nutBao, 'M11', 1, 10, 26, W / 2 - 20, h, 'M11 max (kNm/m)') +
       panelDai(m, nutBao, 'M11', 0, W / 2 + 10, 26, W / 2 - 20, h, 'M11 min (kNm/m)') +
       panelDai(m, nutBao, 'M22', 1, 10, 26 + h, W / 2 - 20, h, 'M22 max (kNm/m)') +
-      panelDai(m, nutBao, 'M22', 0, W / 2 + 10, 26 + h, W / 2 - 20, h, 'M22 min (kNm/m)'), 'MÔMEN TẤM ĐÀI (ETABS, M > 0: thớ dưới kéo)');
+      panelDai(m, nutBao, 'M22', 0, W / 2 + 10, 26 + h, W / 2 - 20, h, 'M22 min (kNm/m)'), 'MÔMEN ĐÀI MÓNG (ETABS, M > 0: thớ dưới kéo)');
   }
 
   /** Chuyển vị ngang (tổ hợp bất lợi của từng nút) tại tâm đài và đầu cọc – mặt bằng, mũi tên Ux, Uy. */

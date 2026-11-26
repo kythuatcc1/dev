@@ -96,6 +96,13 @@ body {
 .params { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; row-gap: 6px; align-items: center; }
 .params .lbl { color: var(--ink); }
 .params .val { display: flex; align-items: center; gap: 6px; justify-content: flex-end; white-space: nowrap; }
+/* Bảng mô tả (nhãn – giá trị chữ dài): nhãn đủ rộng, giá trị xuống dòng thay vì ép nhãn */
+.grid-mo-ta { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); gap: 8px 32px; }
+.params-mo-ta { grid-template-columns: minmax(11em, 1fr) minmax(0, 1.25fr); column-gap: 20px; row-gap: 8px; align-items: start; }
+.params-mo-ta .val { white-space: normal; align-items: baseline; }
+.params-mo-ta .val .num { white-space: normal; min-width: 0; text-align: right; }
+.params-mo-ta .val .sym:empty, .params-mo-ta .val .unit:empty { display: none; }
+.params-mo-ta .val .unit { min-width: 24px; }
 .sym { font-style: italic; color: var(--muted); min-width: 44px; text-align: right; }
 .unit { color: var(--muted); min-width: 44px; font-size: 13px; }
 .num { font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; font-weight: 600; }
