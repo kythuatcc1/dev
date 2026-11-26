@@ -408,7 +408,8 @@
         dongSoTho('cauNhap.tongChieuDayBanThep', 'Tổng chiều dày các bản thép cùng trượt về một phía (ép mặt bulong)', 'Σ<i>t</i> =', 'mm') +
         dongSoTho('cauNhap.heSoAnToan', 'Hệ số an toàn thiết kế', '<i>n</i> =', '') +
         dongSoTho('cauNhap.pctCoDinh', 'Lực nhổ lớn nhất tại 1 chân cẩu theo catalogue (để trống: app tự tính)', '<i>P</i><sub>ct</sub> =', 'kN') +
-        '</div><p class="hint">Excel lấy n = 1,2 (riêng MC205B 1,5). Lực nhổ để trống thì app tính như Excel: ' +
+        '</div><p class="hint">Excel CC1 lấy n = 1,2 (riêng MC205B 1,5); file nhap_so_lieu.xlsx (sheet TSC) lấy n = 1,15 – nhập đúng n theo bảng tính cần đối chiếu. ' +
+        'Lực nhổ để trống thì app tính như Excel: ' +
         'max(M/(H<sub>t</sub>·√2) − N/4) ở chiều cao lớn nhất của bảng tải.</p></section>';
 
       // Quy đổi
@@ -511,12 +512,30 @@
         '<div class="table-wrap"><table class="tbl compact"><thead><tr><th rowspan="2">H (m)</th><th colspan="3">Làm việc (đã nhân n = ' + so(n, 2) + ')</th>' +
         '<th colspan="3">Không làm việc</th></tr><tr><th>N<sub>qđ</sub> (kN)</th><th>M<sub>qđ</sub> (kNm)</th><th>H<sub>qđ</sub> (kN)</th>' +
         '<th>N<sub>qđ</sub> (kN)</th><th>M<sub>qđ</sub> (kNm)</th><th>H<sub>qđ</sub> (kN)</th></tr></thead><tbody>' + dongQd + '</tbody></table></div>' +
+        bangTanCau(c) +
         '<div class="params">' + dong('Lực nhổ lớn nhất tại 1 chân cẩu' + (typeof c.pctCoDinh === 'number' ? ' (theo catalogue)' : ' (app tính)'),
           '<i>P</i><sub>ct</sub> =', so(MCT.calc.lucNhoChanCau(c)), 'kN') +
         dong('Mômen xoắn khi làm việc', '<i>T</i> =', c.mXoan !== null ? so(c.mXoan) : c.nhanXoan ? 'theo từng chiều cao' : 'không có', c.mXoan !== null ? 'kNm' : '') +
         '</div>' + nut(true) + '</section>';
     }
   };
+
+  // Đối chiếu với bảng tính Excel làm theo tấn (vd. nhap_so_lieu.xlsx): ROUND(kN / 9,81; 1) rồi × n (chỉ để xem, app tính bằng kN)
+  function bangTanCau(c) {
+    var n = c.heSoAnToan, hang = c.hang[c.hang.length - 1];
+    function tan(v) { return Math.round(v / 9.81 * 10 + 1e-9) / 10; }
+    function o2(v) { return '<td class="r">' + so(Math.round(v * 100 + 1e-7) / 100, 2) + '</td>'; }
+    var dongT = [['lv', 'Làm việc'], ['klv', 'Không làm việc']].map(function (x) {
+      var r = hang[x[0]], t = [tan(r.N), tan(r.H), tan(r.M)];
+      return '<tr><td>' + x[1] + '</td>' + t.map(o2).join('') + t.map(function (v) { return o2(v * n); }).join('') + '</tr>';
+    }).join('');
+    return '<h3>Đổi sang tấn để đối chiếu Excel (chiều cao ' + so(hang.h) + ' m)</h3><div class="table-wrap"><table class="tbl compact"><thead><tr>' +
+      '<th rowspan="2">Trạng thái</th><th colspan="3">Theo catalogue (÷ 9,81, làm tròn 0,1 T)</th><th colspan="3">Tính toán (× n = ' + so(n, 2) + ')</th></tr><tr>' +
+      '<th>Lực đứng (T)</th><th>Lực ngang (T)</th><th>Mômen (T.m)</th><th>Lực đứng (T)</th><th>Lực ngang (T)</th><th>Mômen (T.m)</th></tr></thead><tbody>' +
+      dongT + '</tbody></table></div><p class="hint">Bảng này chỉ để so với bảng tính Excel làm theo tấn (ROUND(kN/9,81; 1) rồi nhân hệ số an toàn). ' +
+      'App tính bằng kN, kNm không làm tròn nên chênh vài phần nghìn. Hệ số an toàn lấy theo ô "Hệ số an toàn thiết kế n" ở trên ' +
+      '(file Excel CC1 dùng 1,2; file nhap_so_lieu.xlsx dùng 1,15).</p>';
+  }
 
   function quyTacText(r) {
     var qt = (r.hang && r.hang.quyTac) || r.cau.quyTac;
