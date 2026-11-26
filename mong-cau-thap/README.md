@@ -23,6 +23,7 @@ Mở file `index.html` bằng trình duyệt (Chrome, Edge, Safari…), không c
 | GĐ9 | Đóng gói chương trình Windows (.exe) bằng Electron | ✔ |
 | GĐ11 | Thêm cẩu tháp ngoài catalogue (trang "Thêm cẩu tháp") – xem mục dưới | ✔ |
 | GĐ10 | Tính bằng ETABS v22/v23 (xem [docs/02-etabs.md](docs/02-etabs.md)): bước 1 kết nối ✔, bước 2 dựng mô hình ✔, bước 3 tải trọng & tổ hợp ✔, bước 4 phân tích & nội lực, bước 5 chọn phương pháp, bước 6 thuyết minh ETABS (hình nội lực app tự vẽ), bước 7 cập nhật mô hình trong file đang có – cả khi đổi hình học (chiều cao đài, chiều dài cọc, điểm đặt lực, dầm) | đang làm (chờ chạy thử bước 4, 7 trên ETABS thật) |
+| GĐ16 | Giao diện theo nhận diện CC1: bộ màu dịu (xanh logo làm chữ tiêu đề, nút chính, ô nhập), font Barlow / Montserrat đóng gói, logo ở thanh trên, biểu tượng .exe mới – xem [docs/03-giao-dien-cc1.md](docs/03-giao-dien-cc1.md) | ✔ |
 | GĐ15 | Lưu / mở dự án (.mct.json); chia tấm đài đều / tối thiểu / không chia | ✔ |
 | GĐ14 | Ảnh chụp thật từ ETABS cho thuyết minh (trang "Hình chụp ETABS": chụp cửa sổ ETABS, cắt vùng mô hình, dán / chọn file) | ✔ (chờ thử chụp trên Windows có ETABS) |
 | GĐ13 | Điểm đặt lực cẩu tháp (tâm cẩu / 4 chân, lệch tâm); hình mặt cắt móng và địa chất trên app và thuyết minh | ✔ |
@@ -64,7 +65,7 @@ lưu kèm số liệu cẩu đó, nên nếu thư viện trên máy bị xoá ap
 ## Cấu trúc
 ```
 index.html               giao diện
-css/app.css
+css/app.css              màu, bố cục (bộ màu CC1 ở khối :root); css/fonts.css + css/fonts/ font đóng gói; css/img/ logo CC1
 js/data/                 dữ liệu trích từ Excel (tự sinh, không sửa tay)
 js/calc/                 phần tính toán, mỗi file ứng với một mục trong Excel
 js/app.js                điều khiển giao diện
