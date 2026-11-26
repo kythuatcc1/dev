@@ -90,12 +90,6 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
   thanh cứng `COC_TRONG_DAI` (hệ số độ cứng ×100, khối lượng và trọng lượng = 0 vì đã tính trong đài).
 - **Lò xo đất ngang:** K = k·z·b<sub>p</sub>·l tại mỗi nút cọc dưới cao độ bắt đầu, gán cả U1 và U2; k theo lớp (bảng A.1),
   b<sub>p</sub> như phần sức chịu tải; cao độ bắt đầu: đáy đài (mặc định) hoặc đáy hố đào (chèn thêm nút tại cao độ này).
-- **Lò xo ma sát thân cọc** (tuỳ chọn `etabs.loXoMaSat = 'co'`, mặc định tắt): tại cùng các nút có lò xo ngang thêm độ cứng đứng U3
-  K<sub>z</sub> = f·u·l / s<sub>ms</sub>; f là ma sát đơn vị trung bình trên đoạn l (lấy mẫu mỗi 0,1 m) theo đúng công thức SPT của sức chịu tải
-  (`MCT.calc.maSatTaiCaoDo`: đất rời f<sub>s</sub> = min(hệ số·N, cận), đất dính f<sub>c</sub> = min(hệ số·6,25·N, cận), theo phương pháp thi công),
-  u = πD, s<sub>ms</sub> = chuyển vị huy động hết ma sát (`etabs.sMaSat`, mặc định 10 mm; thường 0,5–1 % D cho cọc khoan nhồi) – quan hệ
-  tuyến tính (cát tuyến). Mũi cọc vẫn gối cứng UZ. Thuộc tính lò xo `LX_<K>_<Kz>`. Kiểm: lò xo từ đáy hố đào (−13 m) cho u·Σf·l = 4553 kN
-  ≈ R<sub>tu</sub> = 4561 kN của mục sức chịu tải (số liệu mặc định).
 - **Lò xo trong ETABS:** gán bằng thuộc tính lò xo điểm có tên (Define → Spring Properties → Point Springs; xem bằng
   Display → Show Assigns → Joint → Springs). Bản đầu gán bằng `SetSpring` theo hệ tổng thể – kiểu lò xo giao diện ETABS không có
   (chỉ có theo trục cục bộ) và bấm xem lò xo làm ETABS văng; mô hình dựng trước bản sửa cần dựng lại.
@@ -223,8 +217,8 @@ ETABS được **app tự vẽ hình từ kết quả ETABS và chèn sẵn** (x
 - Kết quả trả về `thongTin.dongBo`: số điểm dời / thêm / xoá, thanh và ô vỏ giữ / thêm / xoá, có phải vẽ lại không và lý do.
 - Thử bằng ETABS giả lập: `npm run thu-cau-noi` – đổi cẩu (xoá MZ1); lưới 0,5 m (xoá / dời / thêm); chiều cao đài 1,6 → 2,0 m (ETABS
   không đổi tầng khi còn đối tượng → vẽ lại trong file); cọc dài thêm 3 m (ETABS đổi được tầng → chỉ thêm nút, chuyển gối mũi cọc);
-  4 chân + tâm cẩu lệch (dời nút lưới, kiểm tra hợp lực); thêm lò xo ma sát thân cọc (chỉ đổi thuộc tính lò xo, có U3); bản ETABS không có `EditPoint` (vẽ lại); thêm dầm giằng bằng cập nhật; tự mở file;
-  thiếu file. Mỗi tình huống so file lưu với mô hình app: tập điểm và toạ độ, thanh, ô vỏ, gối chỉ ở mũi cọc, lò xo (nút và độ cứng U1, U2, U3), tầng, điểm đặt lực,
+  4 chân + tâm cẩu lệch (dời nút lưới, kiểm tra hợp lực); bản ETABS không có `EditPoint` (vẽ lại); thêm dầm giằng bằng cập nhật; tự mở file;
+  thiếu file. Mỗi tình huống so file lưu với mô hình app: tập điểm và toạ độ, thanh, ô vỏ, gối chỉ ở mũi cọc, lò xo, tầng, điểm đặt lực,
   và không có lần khởi tạo mô hình mới.
 
 ## Hình tự vẽ trong thuyết minh (`js/bieu-do-etabs.js`)
@@ -272,21 +266,6 @@ MĐTN, mực nước ngầm, đáy hố đào, các lớp đất tô theo loại
 SPT trung bình, hệ số nền k; đài (kích thước, H), cọc (D, L, mũi cọc, tên cọc), thân cẩu, thước cao độ; khi có mô hình ETABS thêm dầm
 giằng và điểm đặt lực (tâm cẩu / 4 chân). Hiện ở trang **Số liệu địa chất** và **Mô hình ETABS**; thuyết minh giải tích: Hình 2.2 (sau biểu đồ
 SPT); thuyết minh ETABS: Hình 2.5 (mục 2.4 số liệu địa chất).
-
-## Đối chiếu phương pháp giải tích (Excel) và mô hình ETABS
-Số liệu mặc định (LLT5020-10, 3 cọc D800, đài 4 × 3,678 × 1,6 m). Mô hình kiểm chứng ngoài app, không phải ETABS: đài là lưới dầm theo đúng lưới
-app chia, cọc thanh, lò xo và tải trọng, tổ hợp lấy từ app.
-- **Lực dọc cọc.** Tải, tổ hợp hai cách như nhau. Chênh lệch do 3 giả thiết:
-  - Đầu cọc ngàm vào đài (ETABS): cọc gánh một phần mômen lật bằng uốn, P<sub>max</sub> giảm khoảng 10 % (2789 so với 3098 kN khi đầu khớp).
-  - Excel lấy mômen quanh tâm đài; nhóm 3 cọc có trọng tâm lệch 7,7 cm. Đúng ra phải lấy quanh trọng tâm nhóm cọc: C1, C2 3098 kN
-    (Excel 3198,5); C3 3179 kN (Excel 2964 – thấp hơn 7 %).
-  - Lò xo ma sát thân cọc (s<sub>ms</sub> = 10 mm): P<sub>max</sub> tăng khoảng 2 % (5–20 mm: 1–3 %).
-
-  Thay gối cứng mũi cọc bằng lò xo mũi làm thay đổi nhiều hơn: P<sub>max</sub> 2563 kN, M đầu cọc 451 kNm.
-- **Mômen đài.** Lực 1 điểm ở tâm cẩu cho mômen trên mặt cắt sát tâm đài 690–740 kNm/m – không thực tế, chân cẩu truyền lực qua 4 chân.
-  Chia về 4 chân thì tại mép chân cẩu ETABS ≈ Excel (X 168 / 174, Y 249 / 230 kNm/m). Riêng phương X, mômen lớn nhất ở đường qua tâm đài
-  (dưới 342, trên −424 kNm/m): cọc C3 nằm trên đường này, giữa hai chân cẩu. Excel chỉ xét cọc ngoài mép chân cẩu nên không có trường hợp này.
-- Kịch bản kiểm chứng: ngoài kho mã (thư mục tạm của phiên làm việc).
 
 ## Chạy thử bước 1
 1. Mở ETABS v23, mở một mô hình bất kỳ hoặc tạo mô hình mới (đợi mô hình hiện ra).

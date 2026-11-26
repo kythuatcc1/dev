@@ -1918,12 +1918,7 @@
         { v: 'toi-thieu', t: 'Chỉ chia tại cọc, tâm đài, điểm đặt lực' },
         { v: 'khong', t: 'Không chia – cả đài là 1 ô, ETABS tự chia khi phân tích' }], 'Chia lưới đài móng', '', '', false, true);
       var kieuChia = state.etabs.chiaDai || 'deu';
-      var maSat = oChon('etabs.loXoMaSat', [
-        { v: 'khong', t: 'Không – chỉ lò xo ngang, mũi cọc gối cứng' },
-        { v: 'co', t: 'Có – thêm lò xo đứng ma sát thân cọc' }], 'Lò xo ma sát thân cọc', '', '', false, true);
-      var coMaSat = state.etabs.loXoMaSat === 'co';
-      return '<section class="card"><h2>Thông số dựng mô hình</h2><div class="params">' + chon + maSat +
-        (coMaSat ? oNhapSo('etabs.sMaSat', 'Chuyển vị huy động hết ma sát thân cọc', 's<sub>ms</sub> =', 'mm') : '') + chia +
+      return '<section class="card"><h2>Thông số dựng mô hình</h2><div class="params">' + chon + chia +
         (kieuChia === 'deu' ? oNhapSo('etabs.luoi', 'Kích thước lưới chia đài móng', '', 'm') : '') +
         oNhapSo('etabs.buocCoc', 'Bước chia cọc (khoảng cách lò xo đất)', '', 'm') + datLuc +
         oNhapSo('etabs.tamCauX', 'Tâm cẩu lệch tâm đài theo X', 'x<sub>c</sub> =', 'm') +
@@ -1932,9 +1927,6 @@
           'ETABS tự chia lưới đài móng qua các nút này khi phân tích theo Analyze → Automatic Mesh Settings for Floors (chỉnh kích thước lưới trong ETABS nếu cần). ' +
           'Nội lực đài đọc tại các nút ETABS chia. Nếu ETABS báo điểm đặt lực / đầu cọc không nối với đài móng, chọn "Chỉ chia tại cọc, tâm đài, điểm đặt lực".</p>'
           : kieuChia === 'toi-thieu' ? '<p class="hint">Chỉ chia đài móng tại các đường qua mép đài, tâm đài, tâm cọc, điểm đặt lực (ô lớn, ETABS có thể chia nhỏ thêm khi phân tích).</p>' : '') +
-        (coMaSat ? '<p class="hint">Lò xo ma sát thân cọc: tại mỗi nút có lò xo đất thêm độ cứng đứng K<sub>z</sub> = f·u·l / s<sub>ms</sub>; ' +
-          'f là ma sát đơn vị theo SPT (cùng công thức sức chịu tải cọc, phương pháp thi công đang chọn), u = πD, l là đoạn cọc nút đảm nhận. ' +
-          'Mũi cọc vẫn là gối chặn chuyển vị đứng. s<sub>ms</sub> thường lấy 0,5–1 % D (cọc khoan nhồi) – quan hệ ma sát – chuyển vị coi là tuyến tính.</p>' : '') +
         '<p class="hint">Lưới chia đài móng luôn đi qua điểm đặt lực. Chia về 4 chân: lực ngang, lực đứng chia đều; mômen lật thành cặp lực đứng, ' +
         'mômen xoắn thành lực ngang tiếp tuyến – tổng đúng bằng tải cẩu. Tâm cẩu lệch tâm chỉ dùng cho mô hình ETABS (phương pháp giải tích ' +
         'vẫn coi tâm cẩu trùng tâm đài). Đổi điểm đặt lực, chiều dài cọc, chiều cao đài… thì bấm cập nhật mô hình – không cần dựng mới.</p>' +
@@ -1962,7 +1954,6 @@
         '</div></div><div><h3>Đất nền, tải trọng, quy mô mô hình</h3><div class="params params-mo-ta">' +
         dong('Lò xo đất bắt đầu từ', '', so(t.zBatDau, 2) + (t.batDauLoXo === 'day-ho' ? ' (đáy hố đào)' : ' (đáy đài)'), 'm') +
         dong('Bề rộng quy ước', '<i>b</i><sub>p</sub> =', so(t.bp, 2), 'm') +
-        dong('Lò xo ma sát thân cọc', '', t.loXoMaSat ? 'có – K<sub>z</sub> = f·u·l / s<sub>ms</sub>, s<sub>ms</sub> = ' + so(t.sMaSat, 1) + ' mm' : 'không', '') +
         dong('Điểm đặt lực cẩu', '', t.diemDatLuc === 'chan'
           ? '4 chân cẩu (nút ' + m.chan.map(function (c) { return esc(c.nut); }).join(', ') + '), tâm (' + so(t.xc, 2) + '; ' + so(t.yc, 2) + '), H<sub>t</sub> = ' + so(t.Ht, 2) + ' m'
           : 'nút ' + esc(m.nutTai) + ' (' + so(t.xc, 2) + '; ' + so(t.yc, 2) + '; ' + so(t.zGiua, 2) + ')', t.diemDatLuc === 'chan' ? '' : 'm') +
@@ -1972,25 +1963,17 @@
         (tk.soDam ? dong('Dầm giằng', '', tk.soDam + ' dầm: ' + m.dam.map(function (d) { return d.ten + ' ' + d.tuCoc + '–' + d.denCoc + ' (z ' + so(d.z, 2) + ')'; }).join(', '), '') : '') +
         '</div></div></div></section>';
       var matBang = '<section class="card"><h2>Mặt bằng đài trong mô hình</h2>' + svgMatBangEtabs(m) + '</section>' + svgMatCat(m);
-      var ms = t.loXoMaSat;
-      var tongMaSat = ms ? m.bangLoXo.reduce(function (a, r) { return a + r.f * t.u * r.l; }, 0) : 0;
-      var bang = '<section class="card"><h2>' + (ms ? 'Lò xo đất tại nút cọc (ngang và ma sát thân cọc)' : 'Lò xo đất ngang tại nút cọc') + '</h2>' +
+      var bang = '<section class="card"><h2>Lò xo đất ngang tại nút cọc</h2>' +
         '<p>K = k·z·b<sub>p</sub>·l (TCVN 10304:2025 phụ lục A); k theo lớp đất (bảng A.1), z tính từ cao độ bắt đầu lò xo, ' +
         'l là đoạn cọc nút đảm nhận. Gán cho cả hai phương U1, U2 (trục cục bộ của điểm, trùng X, Y), giống nhau ở mọi cọc.</p>' +
-        (ms ? '<p>K<sub>z</sub> = f·u·l / s<sub>ms</sub> gán cho phương U3: f là ma sát đơn vị trung bình trên đoạn l theo SPT (' +
-          esc(t.phuongPhapThiCong) + '; đất rời f<sub>s</sub>, đất dính f<sub>c</sub> như mục sức chịu tải cọc), u = πD = ' + so(t.u, 3) +
-          ' m, s<sub>ms</sub> = ' + so(t.sMaSat, 1) + ' mm. Tổng ma sát thân một cọc u·Σf·l = ' + so(tongMaSat, 0) + ' kN (tính từ cao độ bắt đầu lò xo).</p>' : '') +
         '<p class="hint">Trong ETABS: mỗi độ cứng là một thuộc tính lò xo điểm (Define → Spring Properties → Point Springs) tên ' +
-        '<code>LX_&lt;K&gt;</code>' + (ms ? ' (có ma sát: <code>LX_&lt;K&gt;_&lt;K<sub>z</sub>&gt;</code>)' : '') +
-        ', gán cho điểm bằng Assign → Joint → Springs – xem bằng Display → Show Assigns → Joint → Springs.</p>' +
+        '<code>LX_&lt;K&gt;</code>, gán cho điểm bằng Assign → Joint → Springs – xem bằng Display → Show Assigns → Joint → Springs.</p>' +
         '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Cao độ (m)</th><th>z (m)</th><th>Lớp</th>' +
-        '<th>k (kN/m⁴)</th><th>l (m)</th><th>K (kN/m)</th>' + (ms ? '<th>f (kPa)</th><th>K<sub>z</sub> (kN/m)</th>' : '') +
-        '<th>Thuộc tính ETABS</th></tr></thead><tbody>' +
+        '<th>k (kN/m⁴)</th><th>l (m)</th><th>K (kN/m)</th><th>Thuộc tính ETABS</th></tr></thead><tbody>' +
         m.bangLoXo.map(function (r) {
           return '<tr><td class="r">' + so(r.caoDo, 2) + '</td><td class="r">' + so(r.doSau, 2) + '</td><td class="c">' + esc(r.lop) +
-            '</td><td class="r">' + so(r.k, 0) + '</td><td class="r">' + so(r.l, 2) + '</td><td class="r">' + so(r.K, 0) + '</td>' +
-            (ms ? '<td class="r">' + so(r.f, 1) + '</td><td class="r">' + so(r.Kz, 0) + '</td>' : '') + '<td class="c">' +
-            esc(r.thuocTinh || '–') + '</td></tr>';
+            '</td><td class="r">' + so(r.k, 0) + '</td><td class="r">' + so(r.l, 2) + '</td><td class="r">' + so(r.K, 0) + '</td><td class="c">' +
+            (r.K > 0 ? 'LX_' + Math.round(r.K) : '–') + '</td></tr>';
         }).join('') + '</tbody></table></div></section>';
       return kq + thongSo + matBang + bang;
     }

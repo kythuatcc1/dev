@@ -1430,25 +1430,13 @@
     out.push(gach('Đất nền: lò xo ngang tại các nút cọc, độ cứng K = k·z·b_{p}·l (TCVN 10304:2025, phụ lục A); k là hệ số nền tỉ lệ của lớp đất (bảng A.1), ' +
       'z tính từ ' + (ts.batDauLoXo === 'day-ho' ? 'đáy hố đào' : 'đáy đài') + ' (cao độ ' + f(ts.zBatDau, 2) + ' m), b_{p} = ' + g(ts.bp) +
       ' m, l là đoạn cọc nút lò xo đảm nhận. Mỗi độ cứng là một thuộc tính lò xo điểm LX_<K> (trục cục bộ U1, U2).'));
-    if (ts.loXoMaSat) {
-      out.push(gach('Ma sát thân cọc: lò xo đứng tại các nút có lò xo đất, độ cứng K_{z} = f·u·l / s_{ms}; f là ma sát đơn vị trung bình trên đoạn l theo SPT ' +
-        '(cùng công thức tính sức chịu tải cọc ở Phần 1, ' + ts.phuongPhapThiCong + '), u = πD = ' + f(ts.u, 3) + ' m, s_{ms} = ' + g(ts.sMaSat) +
-        ' mm là chuyển vị huy động hết ma sát (quan hệ ma sát – chuyển vị tuyến tính). Thuộc tính lò xo LX_<K>_<K_{z}> (U1, U2, U3).'));
-    }
     out.push(gach('Mũi cọc: gối chặn chuyển vị đứng.'));
     out.push(gach('Tải trọng cẩu tháp đặt tại ' + moTaDiemDat(m) + '.'));
     out = out.concat(hinhHoacO(hinh.etabsMoHinh3D, hinh.etabsMoHinh3D && hinh.etabsMoHinh3D.chup ? 600 : 470, 'Mô hình 3D móng cẩu tháp trong ETABS (đài, cọc, lò xo đất)', '', 7600, 'Hình 3.1 Mô hình móng cẩu tháp'));
-    if (ts.loXoMaSat) {
-      out.push(bangDayDu(['Cao độ (m)', 'Độ sâu z (m)', 'Lớp đất', 'k (kN/m^{4})', 'Đoạn cọc l (m)', 'K ngang (kN/m)', 'Ma sát f (kPa)', 'K_{z} đứng (kN/m)'],
-        m.bangLoXo.map(function (r) { return [f(r.caoDo, 2), f(r.doSau, 2), String(r.lop), f(r.k, 0), f(r.l, 2), f(r.K, 0), f(r.f, 1), f(r.Kz, 0)]; }),
-        [1150, 1150, 950, 1250, 1150, 1250, 1250, 1488], { giuChung: false, fillTieuDe: 'F2F2F2' }));
-      out.push(chuThich('Bảng 3.1 Độ cứng lò xo đất tại nút cọc: ngang K (cả hai phương X, Y) và đứng K_{z} (ma sát thân cọc)'));
-    } else {
-      out.push(bangDayDu(['Cao độ (m)', 'Độ sâu z (m)', 'Lớp đất', 'Hệ số nền tỉ lệ k (kN/m^{4})', 'Đoạn cọc l (m)', 'Độ cứng lò xo K (kN/m)'],
-        m.bangLoXo.map(function (r) { return [f(r.caoDo, 2), f(r.doSau, 2), String(r.lop), f(r.k, 0), f(r.l, 2), f(r.K, 0)]; }),
-        [1500, 1500, 1300, 2000, 1500, 1838], { giuChung: false, fillTieuDe: 'F2F2F2' }));
-      out.push(chuThich('Bảng 3.1 Độ cứng lò xo đất ngang tại nút cọc (gán cho cả hai phương X, Y)'));
-    }
+    out.push(bangDayDu(['Cao độ (m)', 'Độ sâu z (m)', 'Lớp đất', 'Hệ số nền tỉ lệ k (kN/m^{4})', 'Đoạn cọc l (m)', 'Độ cứng lò xo K (kN/m)'],
+      m.bangLoXo.map(function (r) { return [f(r.caoDo, 2), f(r.doSau, 2), String(r.lop), f(r.k, 0), f(r.l, 2), f(r.K, 0)]; }),
+      [1500, 1500, 1300, 2000, 1500, 1838], { giuChung: false, fillTieuDe: 'F2F2F2' }));
+    out.push(chuThich('Bảng 3.1 Độ cứng lò xo đất ngang tại nút cọc (gán cho cả hai phương X, Y)'));
     out = out.concat(hinhAnh(hinh.etabsMatBang, 430, 'Mặt bằng mô hình đài', 'Hình 3.2 Mặt bằng đài trong mô hình ETABS (lưới chia đài móng, cọc, điểm đặt tải)'));
 
     out.push(tieuDe('3.1. ' + tenCau, 3));
@@ -1549,8 +1537,7 @@
 
     // Tải ngang: P–M, cắt, chuyển vị
     out.push(tieuMuc('Kiểm tra cọc chịu tải trọng ngang'));
-    out.push(doan('Nội lực, chuyển vị cọc lấy từ mô hình ETABS (mục 3) có lò xo đất ngang' + (E.m && E.m.thongSo && E.m.thongSo.loXoMaSat ? ' và lò xo ma sát thân cọc' : '') +
-      ' tại các nút cọc, bao mọi tổ hợp tải trọng (mục 2.3).'));
+    out.push(doan('Nội lực, chuyển vị cọc lấy từ mô hình ETABS (mục 3) có lò xo đất ngang tại các nút cọc, bao mọi tổ hợp tải trọng (mục 2.3).'));
     out = out.concat(kiemTraPM(s, kq, hinh, E, tenCau));
 
     // Bảng Check Shear

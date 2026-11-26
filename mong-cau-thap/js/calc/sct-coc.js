@@ -109,15 +109,6 @@
     return tong / soLop;
   }
 
-  /** Ma sát đơn vị thân cọc tại cao độ z (kPa) – cùng công thức mục 3: đất rời fs = min(hệ số·N, cận), đất dính
-   *  fc = min(hệ số·6,25·N, cận) (cu = 6,25·N), N nội suy theo cao độ. pp: phương pháp thi công (PHUONG_PHAP). */
-  function maSatTaiCaoDo(DC, pp, z) {
-    var l = DC.lopTaiCaoDo(z);
-    if (!l) return null;
-    var N = noiSuySPT(DC.sptTheoDoSau.slice(0, 33), z);
-    return String(l.loai || '').charAt(0) === 'C' ? Math.min(pp.heSoFs * N, pp.chanFs) : Math.min(pp.heSoFc * 6.25 * N, pp.chanFc);
-  }
-
   function sctSPT(c, DC, v) {
     var pp = timTheo(PHUONG_PHAP, 'ten', v.phuongPhapThiCong) || PHUONG_PHAP[1];
     // Bảng SPT dùng để nội suy: 'SCT Coc nhoi FULL'!D156:E188 (33 dòng đầu của bảng SPT)
@@ -196,6 +187,5 @@
   MCT.calc.PHUONG_PHAP_THI_CONG = PHUONG_PHAP;
   MCT.calc.thongSoCoc = thongSoCoc;
   MCT.calc.noiSuySPT = noiSuySPT;
-  MCT.calc.maSatTaiCaoDo = maSatTaiCaoDo;
   MCT.calc.tinhSCT = tinhSCT;
 })(globalThis.MCT = globalThis.MCT || {});
