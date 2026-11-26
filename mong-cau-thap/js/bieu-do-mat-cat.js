@@ -24,15 +24,11 @@
       (net ? ' stroke-dasharray="' + net + '"' : '') + '/>';
   }
 
-  // Màu và mẫu tô theo loại đất: cát chấm, sét gạch chéo
-  var MAU_DAT = { 'Cát': ['#f6e7b4', 'cham'], 'Cát pha': ['#eedcae', 'cham'], 'Sét pha': ['#dccbb0', 'gach'], 'Sét': ['#cdb79a', 'gach'] };
+  // Mỗi lớp đất một màu (theo thứ tự lớp, các màu đất dễ phân biệt); mẫu tô theo loại đất: cát chấm, sét gạch chéo
+  var BANG_MAU = ['#f3e3a3', '#c9a37b', '#a9c79b', '#e0b48a', '#b3c7dd', '#d8c7a0', '#9fc2b6', '#d4a1a1', '#bdb08a', '#c3b3d1'];
   function mauDat(loai, i) {
-    var m = MAU_DAT[loai] || ['#e5e7eb', ''];
-    return { nen: i % 2 ? m[0] : toi(m[0], 0.94), mau: m[1] };
-  }
-  function toi(hex, k) {
-    var n = parseInt(hex.slice(1), 16), r = Math.round((n >> 16) * k), g = Math.round(((n >> 8) & 255) * k), b = Math.round((n & 255) * k);
-    return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    var t = String(loai || '').toLowerCase();
+    return { nen: BANG_MAU[i % BANG_MAU.length], mau: /cát/.test(t) ? 'cham' : /sét/.test(t) ? 'gach' : '' };
   }
 
   /**
@@ -73,12 +69,12 @@
     if (!d) return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' 60" width="' + W + '" height="60"><rect width="100%" height="100%" fill="#fff"/>' +
       chu(W / 2, 34, 'Chưa đủ số liệu địa chất / cọc / đài để vẽ mặt cắt', { giua: true }) + '</svg>';
     var dai = d.dai, ts = d.cocTs;
-    var zTren = Math.max(0, dai.zMat) + Math.max(1.2, 0.06 * (dai.zMat - ts.mui)) + 2;   // chừa chỗ cho thân cẩu
+    var zTren = Math.max(0, dai.zMat) + 0.6;   // trên mặt đất: chừa một dải ảnh riêng cho thân cẩu (CAO_THAN px)
     var zDuoi = Math.max(d.dayDiaChat, ts.mui - Math.max(3, 0.12 * ts.L));
-    var top = 40, bot = H - 54, ky = (bot - top) / (zTren - zDuoi);
+    var CAO_THAN = 190, top = 40 + CAO_THAN, bot = H - 54, ky = (bot - top) / (zTren - zDuoi);
     var Y = function (z) { return top + (zTren - z) * ky; };
     // Mặt cắt theo phương X: đài và cọc ở vùng giữa trái; bên phải ghi chú lớp đất
-    var x0 = 96, x1 = W - 12, xMongTrai = x0 + 40, xMongPhai = Math.min(xMongTrai + 230, W * 0.5), xGhi = W - 240;
+    var x0 = 96, x1 = W - 12, xMongTrai = x0 + 56, xMongPhai = Math.min(xMongTrai + 230, W * 0.5), xGhi = W - 240;
     var kx = (xMongPhai - xMongTrai) / Math.max(dai.X, 1e-6), xTam = (xMongTrai + xMongPhai) / 2;
     var X = function (x) { return xTam + x * kx; };
     var g = '<defs>' +
@@ -166,20 +162,36 @@
 
     // ---- Cẩu tháp và điểm đặt lực ----
     var Ht = d.cau.Ht > 0 ? d.cau.Ht : Math.min(1.6, dai.X / 2), xC = d.diemDat ? d.diemDat.x : 0;
-    var yThan = top + 4, xThan1 = X(xC - Ht / 2), xThan2 = X(xC + Ht / 2);
-    g += '<rect x="' + f1(xThan1) + '" y="' + f1(yThan) + '" width="' + f1(xThan2 - xThan1) + '" height="' + f1(yMat - yThan) + '" fill="none" stroke="#374151" stroke-width="1.4"/>';
-    for (var yy = yMat; yy > yThan + 6; yy -= (xThan2 - xThan1)) {
-      var y2b = Math.max(yy - (xThan2 - xThan1), yThan);
-      g += duong(xThan1, yy, xThan2, y2b, '#6b7280', 0.8) + duong(xThan2, yy, xThan1, y2b, '#6b7280', 0.8);
+    var yThan = 46, xThan1 = X(xC - Ht / 2), xThan2 = X(xC + Ht / 2), bThan = xThan2 - xThan1;
+    // Thân cẩu dạng giàn (đoạn thân tiêu chuẩn): 2 thanh cánh, thanh ngang mỗi khoang, thanh xiên zig-zag; màu vàng như cẩu thật
+    var yDe = yMat - 7, khoang = Math.max(bThan * 0.62, 20), MAU_CANH = '#b7791f', MAU_XIEN = '#d69e2e';
+    g += '<rect x="' + f1(xThan1) + '" y="' + f1(yThan) + '" width="' + f1(bThan) + '" height="' + f1(yDe - yThan) + '" fill="#fef3c7" fill-opacity="0.55"/>';
+    var yk = yDe, le = 0;
+    while (yk - khoang > yThan + 4) {
+      var yt = yk - khoang;
+      g += duong(xThan1, yt, xThan2, yt, MAU_XIEN, 1.4) +                                           // thanh ngang
+        duong(le ? xThan2 : xThan1, yk, le ? xThan1 : xThan2, yt, MAU_XIEN, 1.4);                    // thanh xiên đổi chiều mỗi khoang
+      yk = yt; le = 1 - le;
     }
-    g += chu(xThan2 + 8, yThan + 12, 'Cẩu tháp ' + d.cau.ten + (d.cau.Ht > 0 ? ' (Ht = ' + so(d.cau.Ht, 2) + ' m)' : ''), { co: 11, dam: true, vien: true });
+    g += duong(le ? xThan2 : xThan1, yk, le ? xThan1 : xThan2, yThan + 4, MAU_XIEN, 1.4);
+    g += duong(xThan1, yDe, xThan1, yThan, MAU_CANH, 3.2) + duong(xThan2, yDe, xThan2, yThan, MAU_CANH, 3.2);   // thanh cánh (chân cẩu)
+    // ký hiệu cắt: thân cẩu còn tiếp tục lên trên
+    g += '<path d="M' + f1(xThan1 - 10) + ' ' + f1(yThan + 2) + ' L' + f1(xThan1 + bThan * 0.35) + ' ' + f1(yThan + 2) + ' l6 -6 l6 12 l6 -6 L' +
+      f1(xThan2 + 10) + ' ' + f1(yThan + 2) + '" fill="none" stroke="#374151" stroke-width="1.2"/>';
+    // chân đế: đoạn chân cẩu, bản đế và bulong neo vào đài
+    [xThan1, xThan2].forEach(function (xc) {
+      g += '<rect x="' + f1(xc - 7) + '" y="' + f1(yDe) + '" width="14" height="7" fill="#4b5563"/>' +
+        duong(xc - 4, yMat, xc - 4, yMat + 12, '#4b5563', 1, '2 2') + duong(xc + 4, yMat, xc + 4, yMat + 12, '#4b5563', 1, '2 2');
+    });
+    g += chu(xThan2 + 14, yThan + 16, 'Cẩu tháp ' + d.cau.ten + (d.cau.Ht > 0 ? ' (thân ' + so(d.cau.Ht, 2) + ' × ' + so(d.cau.Ht, 2) + ' m)' : ''), { co: 11, dam: true, vien: true });
     if (d.diemDat) {
-      var dsX = d.diemDat.kieu === 'chan' ? [xC - Ht / 2, xC + Ht / 2] : [xC];
+      // mũi tên lực đặt lên mặt đài (không đè chữ trong đài)
+      var dsX = d.diemDat.kieu === 'chan' ? [[xC - Ht / 2, -10], [xC + Ht / 2, 10]] : [[xC, 0]];   // 4 chân: mũi tên sát ngoài thanh cánh
       dsX.forEach(function (x) {
-        var xa = X(x), ya = Y((dai.zMat + dai.zDay) / 2);
-        g += duong(xa, yMat - 26, xa, ya - 6, '#dc2626', 2) + '<path d="M' + f1(xa) + ' ' + f1(ya) + ' l-5 -9 h10 Z" fill="#dc2626"/>';
+        var xa = X(x[0]) + x[1];
+        g += duong(xa, yMat - 38, xa, yMat - 9, '#dc2626', 2.2) + '<path d="M' + f1(xa) + ' ' + f1(yMat) + ' l-5 -10 h10 Z" fill="#dc2626"/>';
       });
-      g += chu(xThan2 + 8, yThan + 26, d.diemDat.kieu === 'chan' ? 'Lực cẩu chia về 4 chân (mô hình ETABS)' : 'Điểm đặt lực tại tâm cẩu (mô hình ETABS)', { co: 11, mau: '#dc2626', vien: true });
+      g += chu(xThan2 + 14, yThan + 31, d.diemDat.kieu === 'chan' ? 'Lực cẩu chia về 4 chân (mô hình ETABS)' : 'Điểm đặt lực tại tâm cẩu (mô hình ETABS)', { co: 11, mau: '#dc2626', vien: true });
     }
 
     // ---- Ghi chú lớp đất (bên phải) ----
