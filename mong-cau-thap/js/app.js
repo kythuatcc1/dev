@@ -264,13 +264,11 @@
         '</tbody></table></div>';
 
       var q = r.quyDoi;
-      var oT = function (v) { return '<td class="r muted">' + soTan(v) + '</td>'; };
-      var bangQuyDoi = q.lv ? '<div class="table-wrap"><table class="tbl"><thead><tr><th></th><th>N<sub>qđ</sub></th><th>M<sub>qđ</sub></th><th>H<sub>qđ</sub></th>' +
-        '<th>N<sub>qđ</sub></th><th>M<sub>qđ</sub></th><th>H<sub>qđ</sub></th></tr>' +
-        '<tr class="units"><th></th><th>kN</th><th>kNm</th><th>kN</th><th>T</th><th>T.m</th><th>T</th></tr></thead><tbody>' +
-        '<tr><td>Khi cẩu làm việc</td>' + o(q.lv.N) + o(q.lv.M) + o(q.lv.H) + oT(q.lv.N) + oT(q.lv.M) + oT(q.lv.H) + '</tr>' +
-        '<tr><td>Khi cẩu không làm việc</td>' + o(q.klv.N) + o(q.klv.M) + o(q.klv.H) + oT(q.klv.N) + oT(q.klv.M) + oT(q.klv.H) + '</tr>' +
-        '</tbody></table></div><p class="hint">Cột T, T.m: đổi kN ÷ 9,81 để đối chiếu bảng tính Excel làm theo tấn.</p>' : '';
+      var bangQuyDoi = q.lv ? '<div class="table-wrap"><table class="tbl"><thead><tr><th></th><th>N<sub>qđ</sub></th><th>M<sub>qđ</sub></th><th>H<sub>qđ</sub></th></tr>' +
+        '<tr class="units"><th></th><th>kN</th><th>kNm</th><th>kN</th></tr></thead><tbody>' +
+        '<tr><td>Khi cẩu làm việc</td>' + o(q.lv.N) + o(q.lv.M) + o(q.lv.H) + '</tr>' +
+        '<tr><td>Khi cẩu không làm việc</td>' + o(q.klv.N) + o(q.klv.M) + o(q.klv.H) + '</tr>' +
+        '</tbody></table></div>' : '';
 
       return loiHtml() +
         '<section class="card"><h2>A.1. Thông số cẩu từ catalogue</h2><div class="params">' +
@@ -358,8 +356,6 @@
       '</span>' + oSoTho(path, nhan.replace(/<[^>]+>/g, '')) + '<span class="unit">' + (dv || '') + '</span></div>';
   }
 
-  // kN → tấn (÷ 9,81), 2 chữ số – để đối chiếu bảng tính Excel làm theo tấn
-  function soTan(v) { return typeof v === 'number' && isFinite(v) ? so(Math.round(v / 9.81 * 100 + 1e-7) / 100, 2) : '-'; }
   var TEN_COT_CAU = { N: 'lực dọc', M: 'mômen', H: 'lực ngang', CR: 'mômen CR', T: 'mômen xoắn', F1: 'phản lực nhổ', F2: 'phản lực nén' };
 
   TRANG['cau-moi'] = {
@@ -423,9 +419,6 @@
       html += '<section class="card"><h2>Lực cẩu theo catalogue và quy đổi</h2><div class="params">' +
         oChon('cauNhap.cachNhap', [{ v: 'noi-luc', t: 'Catalogue cho đủ nội lực N, M, H (Q)' },
           { v: 'phan-luc', t: 'Catalogue chỉ cho phản lực chân F1, F2 (và Q)' }], 'Lực cẩu trong catalogue', '', '', false, true) +
-        oChon('cauNhap.lamTronTan', [{ v: 'tu-dong', t: 'Tự động – làm tròn khi nhập phản lực' },
-          { v: 'co', t: 'Làm tròn 0,1 T như bảng tính Excel theo tấn' }, { v: 'khong', t: 'Không làm tròn (giữ kN)' }],
-          'Làm tròn N, M, H theo tấn', '', '', false, true) +
         oChon('cauNhap.quyTacN', [{ v: 'x_n', t: 'N × n' }, { v: 'cong40_n', t: '(N + 40) × n – như Zoomlion L125' }], 'Lực dọc quy đổi N<sub>qđ</sub>') +
         (laPL ? '' : oChon('cauNhap.quyTacM', [{ v: 'x_n', t: 'M × n' }, { v: 'cr', t: 'Có thêm mômen CR – như MC175B, MC205B' }],
           'Mômen quy đổi M<sub>qđ</sub>', '', '', false, true)) +
@@ -495,7 +488,7 @@
           nut(false) + '</section>';
       }
       var c = kq.cau, n = c.heSoAnToan;
-      function o(v) { return '<td class="r">' + so(v) + '<br><span class="muted">' + soTan(v) + ' T</span></td>'; }
+      function o(v) { return '<td class="r">' + so(v) + '</td>'; }
       var dongQd = c.hang.map(function (h) {
         var lv = MCT.calc.quyDoi(c, h, 'lv', n), klv = MCT.calc.quyDoi(c, h, 'klv', n);
         return '<tr><td class="r">' + so(h.h) + '</td>' + o(lv.N) + o(lv.M) + o(lv.H) + o(klv.N) + o(klv.M) + o(klv.H) + '</tr>';
@@ -511,8 +504,7 @@
               return oPL(h.phanLuc[tt].F1) + oPL(h.phanLuc[tt].F2) + oPL(h[tt].N) + oPL(h[tt].M) + oPL(h[tt].H, typeof h.phanLuc[tt].H !== 'number');
             }).join('') + '</tr>';
           }).join('') + '</tbody></table></div><p class="hint">N = 2·(F2 − F1); M = (F1 + F2)·H<sub>t</sub>/√2 (H<sub>t</sub> = ' + so(c.beRongThan) +
-          ' m). * H tính theo tỉ lệ (catalogue không có Q).' +
-          (c.daLamTronTan ? ' N, M, H đã làm tròn 0,1 T như Excel: ROUND(kN/9,81; 1)·9,81 (ví dụ 540 kN = 55,05 T → 55,0 T = 539,55 kN).' : '') + '</p>';
+          ' m). * H tính theo tỉ lệ (catalogue không có Q).</p>';
       }
       return '<section class="card"><h2>Kiểm tra số liệu</h2>' + canhBao +
         '<div class="ket-luan-lon ok">Số liệu hợp lệ' + (d.tenGoc ? '' : ' – bấm "Lưu cẩu" để thêm vào danh sách') + '</div>' + bangPL +

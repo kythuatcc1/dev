@@ -51,8 +51,6 @@ trang **Thêm cẩu tháp** (hoặc nút "+ Thêm cẩu chưa có trong danh sá
    - *Catalogue chỉ cho phản lực chân F1 (nhổ), F2 (nén) và Q* (Cách 1) – app quy đổi theo bề rộng thân H<sub>t</sub>:
      N = 2·(F2 − F1), M = (F1 + F2)·H<sub>t</sub>/√2; Q để trống thì Q<sub>KLV</sub> = 10 %·M<sub>KLV</sub>, Q<sub>LV</sub> = 70 %·Q<sub>KLV</sub>
      (khớp ô Y48:AD48 của file Excel). Phản lực gốc lưu kèm cẩu (sửa lại được); thuyết minh in bảng quy đổi của dòng tính toán.
-   - *Làm tròn N, M, H theo tấn*: tự động bật khi nhập phản lực – N, M, H = ROUND(kN/9,81; 1)·9,81 như bảng tính Excel làm theo tấn,
-     nên tải tính toán khớp đúng (n = 1,2: 66,00 T; 305,88 T.m; 26,04 T …). Trang A.1 và trang Thêm cẩu hiện thêm cột tấn để đối chiếu.
    Chọn cách quy đổi: N × n hoặc (N + 40) × n; M × n hoặc có thêm mômen CR (như MC175B – chỉ khi nhập nội lực); mômen xoắn T một giá trị /
    theo từng chiều cao / không có.
 3. Nhập bảng tải chân đế theo chiều cao tự đứng (kN, kNm) – gõ từng ô hoặc dán cả bảng từ Excel (thứ tự cột hiện ngay trên ô dán:
