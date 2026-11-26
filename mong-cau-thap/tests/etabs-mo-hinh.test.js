@@ -260,3 +260,48 @@ test('Không chia tấm đài: một ô vỏ, đầu cọc và điểm đặt l�
   // không cần kích thước lưới
   assert.equal(tao((s) => { s.etabs.chiaDai = 'khong'; s.etabs.luoi = 0; }).hopLe, true);
 });
+
+test('Lò xo ma sát thân cọc: Kz = f·u·l / s_ms, f theo SPT như sức chịu tải, thuộc tính LX_<K>_<Kz>', () => {
+  // mặc định tắt: chỉ lò xo ngang, không có cột f / Kz
+  const m0 = tao();
+  assert.equal(m0.thongSo.loXoMaSat, false);
+  m0.loXo.forEach((l) => { assert.equal(l.k[2], 0); assert.match(l.thuocTinh, /^LX_\d+$/); });
+  assert.ok(m0.bangLoXo.every((r) => r.Kz === undefined && r.f === undefined));
+
+  const m = tao((s) => { s.etabs.loXoMaSat = 'co'; s.etabs.sMaSat = 10; });
+  assert.equal(m.hopLe, true, m.loi.join('; '));
+  const t = m.thongSo, u = Math.PI * t.D;
+  gan(t.u, u, 'u = πD'); gan(t.sMaSat, 10, 's_ms');
+  assert.equal(m.loXo.length, m0.loXo.length, 'cùng các nút lò xo');
+  m.bangLoXo.forEach((r) => {
+    assert.ok(r.f > 0, 'f > 0 tại ' + r.caoDo);
+    gan(r.Kz, r.f * u * r.l / 0.01, 'Kz tại ' + r.caoDo);
+    assert.equal(r.thuocTinh, 'LX_' + Math.round(r.K) + '_' + Math.round(r.Kz));
+  });
+  m.loXo.forEach((l) => {
+    const tt = m.thuocTinhLoXo.find((p) => p.ten === l.thuocTinh);
+    assert.ok(tt, 'thiếu thuộc tính ' + l.thuocTinh);
+    assert.deepEqual(tt.k, l.k);
+    assert.ok(l.k[2] > 0 && l.k[0] === l.k[1]);
+  });
+  // đoạn trong một lớp đất rời: f = min(hệ số·N, cận) trung bình trên đoạn – khớp hàm ma sát của mục sức chịu tải
+  const kq = MCT.calc.tinhTatCa((() => { const s = JSON.parse(JSON.stringify(MCT.macDinh)); return s; })());
+  const pp = kq.SCT.spt.phuongPhap, r = m.bangLoXo.find((x) => x.caoDo === -20.6);
+  let tb = 0; for (let j = 0; j < 10; j++) tb += MCT.calc.maSatTaiCaoDo(kq.DC, pp, -20.1 - (j + 0.5) * 0.1);
+  gan(r.f, tb / 10, 'f trung bình tại −20,6');
+
+  // lò xo từ đáy hố đào (đầu cọc tính toán −13): tổng ma sát u·Σf·l ≈ Rtu theo SPT (cùng công thức, chỉ khác cách chia đoạn)
+  const mh = tao((s) => { s.etabs.loXoMaSat = 'co'; s.etabs.batDauLoXo = 'day-ho'; });
+  const tong = mh.bangLoXo.reduce((a, x) => a + x.f * mh.thongSo.u * x.l, 0);
+  assert.ok(Math.abs(tong / kq.SCT.spt.Rtu - 1) < 0.01, 'u·Σf·l = ' + tong + ' ≠ Rtu ' + kq.SCT.spt.Rtu);
+
+  // s_ms nhỏ hơn → lò xo cứng hơn tỉ lệ nghịch; s_ms ≤ 0 báo lỗi
+  const m5 = tao((s) => { s.etabs.loXoMaSat = 'co'; s.etabs.sMaSat = 5; });
+  m5.bangLoXo.forEach((x, i) => gan(x.Kz, 2 * m.bangLoXo[i].Kz, 'Kz với s = 5 mm'));
+  const loi = tao((s) => { s.etabs.loXoMaSat = 'co'; s.etabs.sMaSat = 0; });
+  assert.equal(loi.hopLe, false);
+  assert.match(loi.loi.join(' '), /huy động ma sát/);
+  // dữ liệu gửi cầu nối mang Kz ở phương U3
+  const gui = MCT.calc.duLieuGuiEtabs(m, null);
+  assert.ok(gui.loXo.every((l) => l.k[2] > 0) && gui.thuocTinhLoXo.every((p) => p.k[2] > 0));
+});

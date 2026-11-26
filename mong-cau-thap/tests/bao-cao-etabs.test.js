@@ -34,9 +34,10 @@ function docTrongZip(buf, ten) {
 }
 
 // Số liệu mặc định + kết quả ETABS giả lập (cùng quy luật với ETABSv1 giả lập của cầu nối)
-function soLieuEtabs(dsDam) {
+function soLieuEtabs(dsDam, sua) {
   const s = JSON.parse(JSON.stringify(MCT.macDinh));
   s.tinhToan.phuongPhap = 'etabs';
+  if (sua) sua(s);
   s.damGiang.ds = (dsDam || []).map((d) => Object.assign(JSON.parse(JSON.stringify(s.damGiang.mau)), d));
   const kq = MCT.calc.tinhTatCa(s);
   const m = MCT.calc.taoMoHinhEtabs(s, kq);
@@ -309,4 +310,17 @@ test('Chọn Giải tích: thuyết minh không có mục ETABS dù đang lưu k
   assert.ok(!chu.includes('ETABS'));
   assert.ok(chu.includes('Móng cẩu tháp đủ khả năng chịu lực'));
   assert.equal(MCT.baoCao.tenFile(L.s, L.tatCa), 'Thuyet_minh_mong_cau_thap_CT1_LLT5020-10.docx');
+});
+
+test('Thuyết minh ETABS có lò xo ma sát thân cọc: mô tả Kz = f·u·l / s_ms, bảng 3.1 thêm cột ma sát và độ cứng đứng', async () => {
+  const L = soLieuEtabs(null, (s) => { s.etabs.loXoMaSat = 'co'; s.etabs.sMaSat = 8; });
+  assert.equal(L.kE.hopLe, true, (L.kE.loi || []).join('; '));
+  const chu = chuCua(docTrongZip(await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(L.s, L.tatCa)), 'word/document.xml'));
+  ['Ma sát thân cọc: lò xo đứng tại các nút có lò xo đất', '= 8 mm là chuyển vị huy động hết ma sát', 'Ma sát f (kPa)', 'đứng (kN/m)',
+    'Bảng 3.1 Độ cứng lò xo đất tại nút cọc: ngang K', 'có lò xo đất ngang và lò xo ma sát thân cọc',
+    L.m.bangLoXo[5].Kz.toFixed(0)].forEach((t) => assert.ok(chu.includes(t), 'thiếu: ' + t));
+  // mặc định (tắt) không có các nội dung này
+  const L0 = soLieuEtabs();
+  const chu0 = chuCua(docTrongZip(await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(L0.s, L0.tatCa)), 'word/document.xml'));
+  ['Ma sát thân cọc', 'Ma sát f (kPa)', 'lò xo ma sát thân cọc'].forEach((t) => assert.ok(!chu0.includes(t), 'thừa: ' + t));
 });

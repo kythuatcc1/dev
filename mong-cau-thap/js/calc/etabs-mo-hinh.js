@@ -9,6 +9,9 @@
 //   Đất   : lò xo ngang tại nút cọc K = k·z·bp·l (TCVN 10304:2025 phụ lục A), k theo lớp đất (bảng A.1),
 //           z tính từ cao độ bắt đầu lò xo: đáy đài (móng đài thấp – mặc định) hoặc đáy hố đào (đầu cọc tính toán),
 //           l = chiều dài cọc nút đảm nhận (nửa đoạn trên + nửa đoạn dưới, chỉ phần nằm trong đất).
+//           Tuỳ chọn (s.etabs.loXoMaSat = 'co'): thêm lò xo đứng ma sát thân cọc tại cùng các nút, Kz = f·u·l / s_ms,
+//           f = ma sát đơn vị theo SPT (cùng công thức sức chịu tải mục 3, trung bình trên đoạn l), u = πD,
+//           s_ms = chuyển vị huy động hết ma sát (s.etabs.sMaSat, mm) – quan hệ ma sát – chuyển vị tuyến tính (cát tuyến).
 //   Mũi cọc: gối chặn chuyển vị đứng (UZ).
 //   Dầm giằng (tuỳ chọn, s.damGiang.ds): thanh chữ nhật b×h nối hai cọc tại cao độ tim dầm z (chèn nút z vào mọi cọc);
 //           trọng lượng bản thân tính theo vật liệu (γ = 25 kN/m³) trong DEAD.
@@ -68,6 +71,8 @@
     var luoi = Number(e.luoi), buocCoc = Number(e.buocCoc);
     var chiaDai = e.chiaDai === 'khong' || e.chiaDai === 'toi-thieu' ? e.chiaDai : 'deu';
     var batDau = e.batDauLoXo === 'day-ho' ? 'day-ho' : 'day-dai';
+    var coMaSat = e.loXoMaSat === 'co', sMaSat = Number(e.sMaSat);
+    if (coMaSat && !(sMaSat > 0)) loi.push('Chuyển vị huy động ma sát thân cọc phải lớn hơn 0 mm.');
     if (chiaDai === 'deu' && !(luoi > 0.05)) loi.push('Kích thước lưới chia đài phải lớn hơn 0,05 m.');
     if (!(buocCoc > 0.1)) loi.push('Bước chia cọc phải lớn hơn 0,1 m.');
     var kieuDat = e.diemDatLuc === 'chan' ? 'chan' : 'tam';
@@ -153,6 +158,13 @@
     var capDo = [zGiua].concat(duoiDay);                                     // từ mặt phẳng giữa đài xuống
     // Lò xo: nút i ở dưới cao độ bắt đầu (z > 0); l = phần trong đất của nửa đoạn trên + nửa đoạn dưới
     var bangLoXo = [];
+    var ppThiCong = S.spt && S.spt.phuongPhap, u = c.u || Math.PI * D;
+    // ma sát đơn vị trung bình trên đoạn [duoi, tren] (lấy mẫu mỗi ≤ 0,1 m – đoạn vắt qua ranh giới lớp)
+    function maSatTB(tren, duoi) {
+      var n = Math.max(1, Math.ceil((tren - duoi) / 0.1 - 1e-9)), tong = 0;
+      for (var j = 0; j < n; j++) tong += MCT.calc.maSatTaiCaoDo(DC, ppThiCong, tren - (j + 0.5) * (tren - duoi) / n) || 0;
+      return tong / n;
+    }
     capDo.forEach(function (z, i) {
       if (z > zBatDau - SAI_SO) return;
       var tren = i > 0 ? Math.max(0, Math.min(capDo[i - 1], zBatDau) - z) / 2 : 0;
@@ -161,25 +173,36 @@
       var lopNhap = DC.lopTaiCaoDo(z);
       var lop = lopNhap && DC.lop.filter(function (l) { return String(l.ten) === String(lopNhap.ten); })[0];
       var kk = lop && typeof lop.k === 'number' && isFinite(lop.k) ? lop.k : 0;
-      bangLoXo.push({ caoDo: z, doSau: tron(doSau), lop: lop ? String(lop.ten) : '–', k: kk, l: tron(l), K: kk * doSau * bp * l });
+      var r = { caoDo: z, doSau: tron(doSau), lop: lop ? String(lop.ten) : '–', k: kk, l: tron(l), K: kk * doSau * bp * l };
+      if (coMaSat) {
+        r.f = l > 0 ? maSatTB(z + tren, z - duoi) : 0;
+        r.Kz = r.f * u * l / (sMaSat / 1000);
+      }
+      bangLoXo.push(r);
     });
     var loXoTheoCao = {};
-    bangLoXo.forEach(function (r) { loXoTheoCao[r.caoDo] = r.K; });
+    bangLoXo.forEach(function (r) { loXoTheoCao[r.caoDo] = r; });
 
     // Lò xo gán bằng thuộc tính lò xo điểm có tên (Point Spring Property, hệ trục cục bộ của điểm) như khi gán trong
     // giao diện ETABS – mỗi độ cứng một thuộc tính "LX_<K kN/m>"; điểm mới tạo có trục cục bộ trùng trục tổng thể.
     var loXo = [], gioiHan = [], thuocTinhLoXo = [], daCoThuocTinh = {};
-    function thuocTinh(K) {
-      var tenTT = 'LX_' + Math.round(K);
-      if (!daCoThuocTinh[tenTT]) { daCoThuocTinh[tenTT] = true; thuocTinhLoXo.push({ ten: tenTT, k: [K, K, 0, 0, 0, 0] }); }
+    // tên thuộc tính: LX_<K> (chỉ lò xo ngang) hoặc LX_<K>_<Kz> (thêm lò xo đứng ma sát thân cọc)
+    function tenThuocTinh(K, Kz) { return 'LX_' + Math.round(K) + (Kz > 0 ? '_' + Math.round(Kz) : ''); }
+    function thuocTinh(k) {
+      var tenTT = tenThuocTinh(k[0], k[2]);
+      if (!daCoThuocTinh[tenTT]) { daCoThuocTinh[tenTT] = true; thuocTinhLoXo.push({ ten: tenTT, k: k }); }
       return tenTT;
     }
+    bangLoXo.forEach(function (r) { r.thuocTinh = r.K > 0 || r.Kz > 0 ? tenThuocTinh(r.K, r.Kz) : ''; });
     coc.forEach(function (p) {
       var ten = capDo.map(function (z, j) { return j === 0 ? timNutDai(p.x, p.y) : p.ten + '_' + tenSo(z); });
       capDo.forEach(function (z, j) {
         if (j > 0) diem.push({ ten: ten[j], x: p.x, y: p.y, z: z });
-        var K = loXoTheoCao[z];
-        if (K > 0) loXo.push({ diem: ten[j], k: [K, K, 0, 0, 0, 0], thuocTinh: thuocTinh(K) });
+        var r = loXoTheoCao[z];
+        if (r && (r.K > 0 || r.Kz > 0)) {
+          var k = [r.K, r.K, r.Kz || 0, 0, 0, 0];
+          loXo.push({ diem: ten[j], k: k, thuocTinh: thuocTinh(k) });
+        }
         if (j > 0) thanh.push({ ten: p.ten + '_' + j, dau: ten[j - 1], cuoi: ten[j], tietDien: j === 1 ? 'COC_TRONG_DAI' : 'COC' });
       });
       p.thanh = capDo.slice(1).map(function (z, j) { return p.ten + '_' + (j + 1); });   // từ trên xuống
@@ -227,7 +250,8 @@
       hopLe: true, loi: [],
       thongSo: {
         X: X, Y: Y, H: H, zMat: zMat, zGiua: zGiua, zDay: zDay, zMui: zMui, D: D, bp: bp, soCoc: coc.length,
-        batDauLoXo: batDau, zBatDau: zBatDau, luoi: luoi, chiaDai: chiaDai, buocCoc: buocCoc, nx: xs.length, ny: ys.length,
+        batDauLoXo: batDau, zBatDau: zBatDau, loXoMaSat: coMaSat, sMaSat: coMaSat ? sMaSat : null, u: u,
+        phuongPhapThiCong: ppThiCong ? ppThiCong.ten : '', luoi: luoi, chiaDai: chiaDai, buocCoc: buocCoc, nx: xs.length, ny: ys.length,
         diemDatLuc: kieuDat, xc: xc, yc: yc, Ht: Ht
       },
       tang: { caoDoDay: tron(mocTang[0]), ds: tang },

@@ -43,6 +43,9 @@ const capNhatLuoi = duLieuTheo((st) => { st.etabs.luoi = 0.5; });
 const capNhatH = duLieuTheo((st) => { st.dai.H = 2.0; });
 const capNhatCoc = duLieuTheo((st) => { st.dai.H = 2.0; st.sct.L = 36; });
 const capNhat4Chan = duLieuTheo((st) => { st.dai.H = 2.0; st.sct.L = 36; st.etabs.diemDatLuc = 'chan'; st.etabs.tamCauX = 0.3; st.etabs.tamCauY = 0.2; });
+const capNhat4ChanMaSat = duLieuTheo((st) => {
+  st.dai.H = 2.0; st.sct.L = 36; st.etabs.diemDatLuc = 'chan'; st.etabs.tamCauX = 0.3; st.etabs.tamCauY = 0.2; st.etabs.loXoMaSat = 'co'; st.etabs.sMaSat = 8;
+});
 const capNhatVeTam = duLieuTheo((st) => { st.dai.H = 2.0; st.sct.L = 36; });
 const khongChia = duLieuTheo((st) => { st.etabs.chiaDai = 'khong'; });
 const capNhatKhongChia = duLieuTheo((st) => {
@@ -56,14 +59,14 @@ const capNhatDam = duLieuTheo((st) => {
 
 // Đọc file .EDB giả lập (văn bản) và so với mô hình app: điểm, thanh, ô vỏ, gối, lò xo, tầng, điểm đặt lực FZ1
 function docEdb(file) {
-  const r = { P: new Map(), F: new Map(), A: new Map(), R: new Set(), S: new Set(), Q: [], T: [], day: NaN };
+  const r = { P: new Map(), F: new Map(), A: new Map(), R: new Set(), S: new Set(), SK: new Map(), Q: [], T: [], day: NaN };
   for (const dong of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
     const x = dong.split('|');
     if (x[0] === 'P') r.P.set(x[1], x.slice(2, 5).map(Number));
     else if (x[0] === 'F') r.F.set(x[1], x.slice(2));
     else if (x[0] === 'A') r.A.set(x[1], x[2].split(','));
     else if (x[0] === 'R' && x[2].includes('1')) r.R.add(x[1]);
-    else if (x[0] === 'S') r.S.add(x[1]);
+    else if (x[0] === 'S') { r.S.add(x[1]); r.SK.set(x[1], (x[2] || '').split(',').map(Number)); }
     else if (x[0] === 'Q') r.Q.push({ mau: x[1], diem: x[2], gt: x[3].split(',').map(Number) });
     else if (x[0] === 'T') r.T = x[1] ? x[1].split(',').map(Number) : [];
     else if (x[0] === 'DAY') r.day = Number(x[1]);
@@ -85,6 +88,10 @@ function khopMoHinh(file, x) {
   m.vo.forEach((v) => assert.deepStrictEqual(f.A.get(v.ten), v.diem, 'ô vỏ ' + v.ten));
   assert.deepStrictEqual(sx(f.R), sx(m.gioiHan.map((g) => g.diem)), 'gối chỉ ở mũi cọc');
   assert.deepStrictEqual(sx(f.S), sx(new Set(m.loXo.map((l) => l.diem))), 'lò xo đúng nút');
+  m.loXo.forEach((l) => {   // độ cứng U1, U2 (ngang) và U3 (ma sát thân cọc) đúng như app tính
+    const k = f.SK.get(l.diem);
+    assert.ok(k && k.length === 6 && l.k.every((v, i) => Math.abs(k[i] - v) <= 1e-6 * Math.max(1, v)), 'độ cứng lò xo ' + l.diem + ': ' + k + ' ≠ ' + l.k);
+  });
   let z = m.tang.caoDoDay;
   assert.ok(Math.abs(f.day - z) < 1e-6, 'cao độ đáy tầng');
   assert.strictEqual(f.T.length, m.tang.ds.length, 'số tầng');
@@ -292,6 +299,16 @@ const ca = [
     const mx = capNhat4Chan.t.mauTai.find((p) => p.ten === 'MX1');
     const M = f.Q.filter((q) => q.mau === 'MX1').reduce((a, q) => a + (f.P.get(q.diem)[1] - 0.2) * q.gt[2], 0);
     assert.ok(Math.abs(M - mx.luc.giaTri[3]) < 1e-3, 'MX1 ' + M + ' / ' + mx.luc.giaTri[3]);
+  }, fileEdb],
+  ['cập nhật mô hình: thêm lò xo ma sát thân cọc (U3) – chỉ đổi thuộc tính lò xo, hình học giữ nguyên', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhat4ChanMaSat.gui, fileMoHinh: fileEdb } }, function (k) {
+    const g = capNhatKhongTaoMoi(k);
+    assert.strictEqual(k.thongTin.dongBo.veLai, false);
+    assert.strictEqual(k.thongTin.dongBo.doiDiem, 0, 'hình học không đổi: ' + JSON.stringify(k.thongTin.dongBo));
+    assert.match(k.thongTin.cachGanLoXo, /PropPointSpring/);
+    assert.strictEqual(g.soThuocTinhLoXo, capNhat4ChanMaSat.m.thuocTinhLoXo.length, 'tạo thuộc tính LX_<K>_<Kz>');
+    assert.ok(capNhat4ChanMaSat.m.thuocTinhLoXo.every((p) => /^LX_\d+_\d+$/.test(p.ten) && p.k[2] > 0));
+    const f = khopMoHinh(fileEdb, capNhat4ChanMaSat);
+    assert.ok([...f.SK.values()].every((x) => x[2] > 0), 'mọi lò xo có độ cứng U3');
   }, fileEdb],
   ['cập nhật mô hình: bản ETABS không dời được điểm → xoá và vẽ lại đối tượng của app trong file đang có', 'khong-di-chuyen', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatVeTam.gui, fileMoHinh: fileEdb } }, function (k) {
     capNhatKhongTaoMoi(k);

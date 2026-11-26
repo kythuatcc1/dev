@@ -230,7 +230,7 @@ namespace ETABSv1
             foreach (var kv in TenVo) d.Add("A|" + kv.Key + "|" + string.Join(",", Vo[kv.Value]));
             foreach (string m in Mau) d.Add("L|" + m);
             d.Add("T|" + string.Join(",", CaoTang.Select(v => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture))));
-            foreach (var kv in LoXo) d.Add("S|" + kv.Key);
+            foreach (var kv in LoXo) d.Add("S|" + kv.Key + "|" + string.Join(",", kv.Value.Select(v => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture))));
             foreach (var kv in Goi) d.Add("R|" + kv.Key + "|" + string.Join(",", kv.Value.Select(b => b ? "1" : "0")));
             foreach (var kv in LucDiem) d.Add("Q|" + kv.Key + "|" + string.Join(",", kv.Value.Select(v => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture))));
             foreach (string t in TietDienThanh) d.Add("PF|" + t);
@@ -255,7 +255,7 @@ namespace ETABSv1
                     case "A": m.TenVo[x[1]] = m.Vo.Count; m.Vo.Add(x[2].Split(',')); break;
                     case "L": m.Mau.Add(x[1]); break;
                     case "T": m.CaoTang = x[1] == "" ? new List<double>() : x[1].Split(',').Select(so).ToList(); break;
-                    case "S": m.LoXo[x[1]] = new double[6]; break;
+                    case "S": m.LoXo[x[1]] = x.Length > 2 && x[2] != "" ? x[2].Split(',').Select(so).ToArray() : new double[6]; break;
                     case "R": m.Goi[x[1]] = x[2].Split(',').Select(b => b == "1").ToArray(); break;
                     case "Q": m.LucDiem[x[1] + "|" + x[2]] = x[3].Split(',').Select(so).ToArray(); break;
                     case "PF": m.TietDienThanh.Add(x[1]); break;

@@ -78,6 +78,8 @@
       luoi: 0.25,           // m – kích thước lưới chia tấm đài
       chiaDai: 'deu',       // chia tấm đài: 'deu' lưới đều ≤ luoi | 'toi-thieu' chỉ tại cọc, tâm, điểm đặt lực | 'khong' một ô vỏ, ETABS tự chia
       buocCoc: 1,           // m – bước chia cọc (vị trí lò xo đất)
+      loXoMaSat: 'khong',   // lò xo đứng ma sát thân cọc: 'khong' | 'co' (Kz = f·u·l / sMaSat tại các nút có lò xo đất)
+      sMaSat: 10,           // mm – chuyển vị huy động hết ma sát thân cọc (quan hệ tuyến tính, cát tuyến)
       diemDatLuc: 'tam',    // điểm đặt lực cẩu tháp: 'tam' – một điểm tại tâm cẩu (như báo cáo thẩm tra) | 'chan' – chia về 4 chân cẩu
       tamCauX: 0, tamCauY: 0, // m – tâm cẩu so với tâm đài (chỉ dùng cho mô hình ETABS)
       fileMoHinh: '',       // đường dẫn lưu mô hình .EDB; để trống: Documents\MongCauThap\<tên móng>.EDB
