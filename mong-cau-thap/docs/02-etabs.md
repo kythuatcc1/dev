@@ -265,6 +265,26 @@ API ETABS không có lệnh chụp màn hình hay đổi chế độ hiển th�
   dùng ảnh mặt bằng, catalogue). Chụp thật cửa sổ ETABS cần Windows + ETABS – chưa thử trên máy thật; bản Linux thử được chụp màn hình,
   dán clipboard và chụp giả lập (`MCT_CHUP_GIA_LAP=<file .png>`).
 
+## Tự chụp hình ETABS (lệnh `tu-chup`, `LenhTuChup.cs`; kịch bản `MCT.hinhChup.kichBan`)
+API ETABS không đổi được khung nhìn / hiển thị và không chụp ảnh (cView chỉ có RefreshView, RefreshWindow), nên cầu nối điều khiển giao diện
+ETABS bằng **Windows UI Automation** (gói `Interop.UIAutomationClient`, chạy được với `net8.0`; trên Linux lệnh báo `he-dieu-hanh`):
+- Mỗi hình một lần gọi cầu nối: `duLieu.thaoTac` = danh sách `{ loai: 'menu', duong: [...] }`, `{ loai: 'hop-thoai', dat: [chon | radio | tick | danhSach | nhap], xong: 'OK' }`,
+  `{ loai: 'phim' }`, `{ loai: 'doi' }`; so tên bỏ "&", "...", phím tắt, hoa thường (khớp đúng → bắt đầu bằng → chứa). Chạy trong luồng MTA; lệnh bấm
+  (Invoke) chạy ở luồng phụ, không chờ – mục menu mở hộp thoại modal làm Invoke chưa trả về tới khi hộp thoại đóng.
+- Hình đầu: `chuanBi` (đưa ETABS lên trước, phóng to, Options → Windows → One, phóng to khung nhìn) và `thamDo` (ghi cây menu File / View / Display /
+  Options, cây cửa sổ chính). Mỗi hộp thoại được ghi cây điều khiển trước và sau khi đặt (`thongTin.hopThoai`).
+- Chụp: vùng client của khung nhìn mô hình (cửa sổ con MDI; không có MDI thì vùng Pane lớn) – GDI BitBlt từ màn hình, ghi PNG (bộ mã PNG tự viết,
+  ZLibStream); tiến trình đặt Per-Monitor DPI aware nên toạ độ là pixel thật.
+- Kịch bản cho ETABS v23 tiếng Anh (`js/hinh-chup.js`): 3D (View → Set Default 3D View), mặt bằng tầng tấm đài (View → Set Plan View, tầng trên cùng
+  của mô hình: `MAT_DAI`), tải nút (Display → Load Assigns → Joint), lực cọc / dầm (Display → Force/Stress Diagrams → Frame/Pier/Spandrel/Link Forces,
+  tổ hợp `BAO`, Max/Min, thành phần), chuyển vị (Display → Deformed Shape, tổ hợp bất lợi), nội lực đài (Shell Stresses/Forces, M11/M22/V13/V23).
+  **Vòng 1 – chưa thử trên ETABS thật**: tên menu / điều khiển là dự đoán; nhật ký (nút "Lưu nhật ký tự chụp" → `nhat-ky-tu-chup-ETABS-*.json`:
+  thao tác, bước cầu nối, cây menu / hộp thoại, ảnh nhỏ) dùng để sửa kịch bản.
+- App (Electron): `tuChupEtabs` (cầu nối + đọc PNG), `cuaSoApp` (thu nhỏ app lúc chạy; F10 toàn hệ thống = dừng), chụp lần lượt bằng **F9**
+  (`f9Bat` / `f9Tat`: cửa sổ hướng dẫn nhỏ luôn nổi `huong-dan.html`, ẩn khi chụp; F9 → cầu nối chụp khung nhìn không thao tác) cho hình tự chụp lỗi.
+- Ảnh chụp ETABS (chụp tay, tự chụp, F9) đổi **nền trắng** nếu bật `hinhChup.nenTrang` (`MCT.hinhChup.nenTrang`): nền (màu nhiều nhất ở viền) → trắng,
+  màu xám (chữ, đường trắng) → đảo độ sáng, màu rực quá sáng → sẫm lại; ảnh gốc giữ để cắt lại.
+
 ## Mặt cắt móng và địa chất (`js/bieu-do-mat-cat.js`)
 `MCT.bieuDo.duLieuMatCat(state, kq, m)` + `MCT.bieuDo.matCat(d)`: mặt cắt theo phương X (tỉ lệ ngang phóng to so với tỉ lệ đứng):
 MĐTN, mực nước ngầm, đáy hố đào, các lớp đất tô theo loại (cát chấm, sét gạch chéo) có ghi chú tên lớp, loại đất, I<sub>L</sub>, chiều dày,

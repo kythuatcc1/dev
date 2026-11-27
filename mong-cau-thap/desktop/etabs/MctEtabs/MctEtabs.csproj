@@ -16,4 +16,8 @@
     <Version>0.2.0</Version>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Windows UI Automation (COM) cho lệnh tự chụp hình ETABS – thư viện interop, chạy được với TargetFramework net8.0 -->
+    <PackageReference Include="Interop.UIAutomationClient" Version="10.19041.0" />
+  </ItemGroup>
 </Project>

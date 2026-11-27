@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Hướng dẫn chụp ETABS</title>
+<style>
+  :root { --accent: #106b3c; --ink: #1f2623; --muted: #5e6a63; --line: #e2e6e3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px/1.45 "Segoe UI", system-ui, sans-serif; color: var(--ink); background: #fff; border: 2px solid var(--accent);
+    height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  header { -webkit-app-region: drag; background: var(--accent); color: #fff; padding: 5px 10px; font-weight: 600; display: flex; justify-content: space-between; }
+  main { padding: 8px 10px; flex: 1; overflow: auto; }
+  #ten { font-weight: 600; margin: 0 0 4px; }
+  #hd { margin: 0; color: var(--muted); }
+  #tt { margin: 6px 0 0; color: #a82a0a; }
+  footer { display: flex; gap: 6px; padding: 6px 10px 8px; border-top: 1px solid var(--line); align-items: center; }
+  button { font: inherit; padding: 4px 10px; border: 1px solid #c9d0cb; background: #fff; border-radius: 4px; cursor: pointer; }
+  button.chinh { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .phim { margin-left: auto; color: var(--muted); }
+</style>
+</head>
+<body>
+<header><span>Chụp hình ETABS – <span id="so"></span></span><span>F9 = chụp</span></header>
+<main><p id="ten"></p><p id="hd"></p><p id="tt"></p></main>
+<footer>
+  <button type="button" class="chinh" data-lenh="chup">Chụp (F9)</button>
+  <button type="button" data-lenh="bo-qua">Bỏ qua</button>
+  <button type="button" data-lenh="dung">Dừng</button>
+  <span class="phim">Chỉnh ETABS theo hướng dẫn rồi nhấn F9</span>
+</footer>
+<script>
+  document.querySelector('footer').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-lenh]');
+    if (b) window.huongDan.gui(b.getAttribute('data-lenh'));
+  });
+  window.huongDan.onNoiDung(function (nd) {
+    document.getElementById('so').textContent = nd.thuTu ? nd.thuTu + ' / ' + nd.tong : '';
+    document.getElementById('ten').textContent = nd.ten || '';
+    document.getElementById('hd').textContent = nd.huongDan || '';
+    document.getElementById('tt').textContent = nd.trangThai || '';
+  });
+</script>
+</body>
+</html>

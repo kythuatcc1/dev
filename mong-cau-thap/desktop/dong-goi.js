@@ -19,7 +19,7 @@ fs.mkdirSync(TAM, { recursive: true });
 for (const f of ['index.html', 'css', 'js', 'vendor']) {
   fs.cpSync(path.join(GOC, f), path.join(TAM, f), { recursive: true });
 }
-for (const f of ['main.js', 'preload.js', 'icon.png']) fs.copyFileSync(path.join(__dirname, f), path.join(TAM, f));
+for (const f of ['main.js', 'preload.js', 'preload-huong-dan.js', 'huong-dan.html', 'icon.png']) fs.copyFileSync(path.join(__dirname, f), path.join(TAM, f));
 fs.writeFileSync(path.join(TAM, 'package.json'), JSON.stringify({
   name: 'mong-cau-thap', productName: 'MongCauThap', version: pkg.version,
   description: pkg.description, main: 'main.js', private: true

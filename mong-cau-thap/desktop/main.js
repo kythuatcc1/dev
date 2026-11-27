@@ -1,7 +1,7 @@
 // Vỏ chương trình Windows (Electron): mở app index.html trong một cửa sổ riêng, chạy hoàn toàn offline.
 // Số liệu vẫn tự lưu như khi mở bằng trình duyệt (lưu trong %APPDATA%\MongCauThap).
 'use strict';
-const { app, BrowserWindow, Menu, shell, ipcMain, desktopCapturer, screen, nativeImage, clipboard } = require('electron');
+const { app, BrowserWindow, Menu, shell, ipcMain, desktopCapturer, screen, nativeImage, clipboard, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -168,6 +168,75 @@ async function chupEtabs(yc) {
   }
 }
 
+// ---- Tự chụp hình ETABS (lệnh "tu-chup" của cầu nối: UI Automation bấm menu / hộp thoại ETABS rồi chụp khung nhìn mô hình) ----
+// yc = { khoa, thaoTac: [...], chuanBi, thamDo, file } → { ok, png, w, h, kq: kết quả cầu nối (nhật ký) }
+async function tuChupEtabs(yc) {
+  const tam = fs.mkdtempSync(path.join(os.tmpdir(), 'mct-chup-'));
+  try {
+    const ten = String((yc && yc.khoa) || 'etabs').replace(/[^\w.-]/g, '_');
+    const kq = await goiEtabs({
+      lenh: 'tu-chup', thoiGianToiDa: 3 * 60 * 1000,
+      duLieu: { thaoTac: (yc && yc.thaoTac) || [], chuanBi: !!(yc && yc.chuanBi), thamDo: !!(yc && yc.thamDo), file: (yc && yc.file) || '',
+        chup: yc && yc.chup === false ? false : true, thuMucAnh: tam, tenAnh: ten }
+    });
+    const anh = kq && kq.thongTin && kq.thongTin.anh;
+    let png = null;
+    if (anh && anh.file && fs.existsSync(anh.file)) png = fs.readFileSync(anh.file);
+    return { ok: !!(kq && kq.ok && png), png: png, w: anh ? anh.w : 0, h: anh ? anh.h : 0, kq: kq };
+  } catch (e) {
+    return { ok: false, loi: e.message };
+  } finally {
+    fs.rmSync(tam, { recursive: true, force: true });
+  }
+}
+
+// Thu nhỏ / mở lại cửa sổ app trong lúc tự chụp (để ETABS hiện trên màn hình); lúc thu nhỏ: F10 (toàn hệ thống) = dừng
+function cuaSoApp(yc) {
+  if (!cuaSo) return false;
+  if (yc && yc.thuNho) {
+    if (!globalShortcut.isRegistered('F10')) globalShortcut.register('F10', function () { if (cuaSo) cuaSo.webContents.send('f9', 'dung'); });
+    cuaSo.minimize();
+  } else {
+    if (globalShortcut.isRegistered('F10')) globalShortcut.unregister('F10');
+    if (cuaSo.isMinimized()) cuaSo.restore();
+    cuaSo.show(); cuaSo.focus();
+  }
+  return true;
+}
+
+// ---- Chụp lần lượt bằng phím F9: cửa sổ hướng dẫn nhỏ luôn nổi trên cùng, F9 (toàn hệ thống) báo app chụp hình hiện tại ----
+let cuaSoHuongDan = null;
+function f9Bat(nd) {
+  if (!globalShortcut.isRegistered('F9')) {
+    // ẩn cửa sổ hướng dẫn trước khi chụp (cửa sổ luôn nổi có thể nằm trên khung nhìn ETABS); app gọi f9Bat để hiện lại
+    globalShortcut.register('F9', function () { anHuongDan(); if (cuaSo) cuaSo.webContents.send('f9', 'chup'); });
+  }
+  if (!cuaSoHuongDan || cuaSoHuongDan.isDestroyed()) {
+    const vung = screen.getPrimaryDisplay().workArea;
+    cuaSoHuongDan = new BrowserWindow({
+      width: 520, height: 210, x: vung.x + vung.width - 540, y: vung.y + vung.height - 230,
+      alwaysOnTop: true, frame: false, resizable: true, skipTaskbar: true, focusable: true, show: false,
+      title: 'Hướng dẫn chụp ETABS', backgroundColor: '#ffffff',
+      webPreferences: { preload: path.join(__dirname, 'preload-huong-dan.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+    });
+    cuaSoHuongDan.setAlwaysOnTop(true, 'screen-saver');
+    cuaSoHuongDan.loadFile(path.join(__dirname, 'huong-dan.html'));
+    cuaSoHuongDan.once('ready-to-show', function () { cuaSoHuongDan.showInactive(); cuaSoHuongDan.webContents.send('noi-dung', nd || {}); });
+    cuaSoHuongDan.on('closed', function () { cuaSoHuongDan = null; if (cuaSo) cuaSo.webContents.send('f9', 'dung'); });
+  } else {
+    cuaSoHuongDan.webContents.send('noi-dung', nd || {});
+    if (!cuaSoHuongDan.isVisible()) cuaSoHuongDan.showInactive();
+  }
+  return true;
+}
+function anHuongDan() { if (cuaSoHuongDan && !cuaSoHuongDan.isDestroyed()) cuaSoHuongDan.hide(); }
+function f9Tat() {
+  if (globalShortcut.isRegistered('F9')) globalShortcut.unregister('F9');
+  if (cuaSoHuongDan && !cuaSoHuongDan.isDestroyed()) { cuaSoHuongDan.removeAllListeners('closed'); cuaSoHuongDan.close(); }
+  cuaSoHuongDan = null;
+  return true;
+}
+
 // Ảnh trong clipboard: Electron 45 đọc clipboard kiểu W3C (clipboard.read → ClipboardItem); bản cũ có readImage
 async function anhClipboard() {
   const KHONG = { ok: false, loi: 'Clipboard không có ảnh. Trong ETABS dùng File → Capture Picture, hoặc Snipping Tool (Win + Shift + S), rồi dán lại.' };
@@ -204,7 +273,7 @@ function taoCuaSo() {
     }
   });
   cuaSo.once('ready-to-show', function () { cuaSo.maximize(); cuaSo.show(); });
-  cuaSo.on('closed', function () { cuaSo = null; });
+  cuaSo.on('closed', function () { cuaSo = null; f9Tat(); });
   // Liên kết ra ngoài mở bằng trình duyệt mặc định, không mở trong cửa sổ app
   cuaSo.webContents.setWindowOpenHandler(function (d) { moNgoai(d.url); return { action: 'deny' }; });
   cuaSo.webContents.on('will-navigate', function (e, url) {
@@ -223,6 +292,16 @@ if (!app.requestSingleInstanceLock()) {
     taoMenu();
     ipcMain.handle('etabs', function (e, yeuCau) { return goiEtabs(yeuCau); });
     ipcMain.handle('chup-etabs', function (e, yc) { return chupEtabs(yc); });
+    ipcMain.handle('tu-chup-etabs', function (e, yc) { return tuChupEtabs(yc); });
+    ipcMain.handle('cua-so-app', function (e, yc) { return cuaSoApp(yc); });
+    ipcMain.handle('f9-bat', function (e, nd) { return f9Bat(nd); });
+    ipcMain.handle('f9-tat', function () { return f9Tat(); });
+    // nút trên cửa sổ hướng dẫn F9 → trang app
+    ipcMain.on('huong-dan', function (e, lenh) {
+      if (lenh !== 'chup' && lenh !== 'bo-qua' && lenh !== 'dung') return;
+      if (lenh === 'chup') anHuongDan();
+      if (cuaSo) cuaSo.webContents.send('f9', lenh);
+    });
     ipcMain.handle('anh-clipboard', function () { return anhClipboard(); });
     // Xuất thuyết minh: hiện hộp thoại "Lưu thành", mặc định vào thư mục Documents
     // File cẩu tự thêm (.json): hộp thoại riêng
@@ -238,4 +317,5 @@ if (!app.requestSingleInstanceLock()) {
     taoCuaSo();
   });
   app.on('window-all-closed', function () { app.quit(); });
+  app.on('will-quit', function () { globalShortcut.unregisterAll(); });
 }

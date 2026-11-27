@@ -383,6 +383,9 @@ const ca = [
     // không có thư mục → tìm tiếp trong Program Files; trên máy build không có ETABS nên báo không thấy DLL
     if (process.platform !== 'win32') { assert.strictEqual(k.ok, false); assert.strictEqual(k.buocLoi, 'tim-dll'); }
   }],
+  ['tự chụp ETABS (UI Automation): máy không phải Windows → báo hệ điều hành, không treo', '', { lenh: 'tu-chup', duLieu: { thaoTac: [{ loai: 'menu', duong: ['View', 'Set Default 3D View'] }], chup: true } }, function (k) {
+    if (process.platform !== 'win32') { assert.strictEqual(k.ok, false); assert.strictEqual(k.buocLoi, 'he-dieu-hanh'); }
+  }],
   ['lệnh chưa hỗ trợ', '', { lenh: 'lenh-la' }, function (k) {
     assert.strictEqual(k.ok, false);
     assert.strictEqual(k.buocLoi, 'doc-yeu-cau');

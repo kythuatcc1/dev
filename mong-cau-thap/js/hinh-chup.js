@@ -11,6 +11,7 @@
    */
   function viTri(E) {
     var m = E && E.m && E.m.hopLe ? E.m : null, kE = E && E.kE, t = E && E.t;
+    var TANG = tangTam(m);
     var coMZ = t && t.hopLe && t.mauTai.some(function (p) { return p.ten === 'MZ1'; });
     var cv = kE && kE.chuyenVi, toHopCv = cv && cv.DeltaMax ? cv.DeltaMax.toHop : 'bất lợi';
     var LUC = 'Display → Force/Stress Diagrams → Frame/Pier/Spandrel/Link Forces; Load Case/Load Combination: BAO – ';
@@ -21,7 +22,7 @@
       { khoa: 'matBangHoKhoan', nhom: 'ngoai', ten: 'Hình 2.2 Mặt bằng hố khoan (thuyết minh ETABS)', huongDan: 'Ảnh mặt bằng vị trí hố khoan trong báo cáo khảo sát – dán hoặc chọn file.' },
       { khoa: 'hinhTruHoKhoan', nhom: 'ngoai', ten: 'Hình 2.4 Hình trụ hố khoan (thuyết minh ETABS)', huongDan: 'Ảnh hình trụ hố khoan trong báo cáo khảo sát – dán hoặc chọn file.' },
       { khoa: 'etabsMoHinh3D', nhom: 'mo-hinh', ten: 'Hình 3.1 Mô hình móng cẩu tháp', huongDan: 'View → Set Default 3D View; Display → Undeformed Shape; nếu muốn thấy lò xo: Display → Show Assigns → Joint → Springs.' },
-      { khoa: 'etabsMatBang', nhom: 'mo-hinh', ten: 'Hình 3.2 Mặt bằng đài trong mô hình', huongDan: 'View → Set Plan View, chọn tầng GIUA_DAI (mặt phẳng giữa đài móng). Không chụp thì dùng mặt bằng app vẽ.' },
+      { khoa: 'etabsMatBang', nhom: 'mo-hinh', ten: 'Hình 3.2 Mặt bằng đài trong mô hình', huongDan: 'View → Set Plan View, chọn tầng ' + TANG + ' (tấm đài móng). Không chụp thì dùng mặt bằng app vẽ.' },
       { khoa: 'etabsTai1', nhom: 'mo-hinh', ten: 'Hình 3.3 Lực Fx1, Fy1, Fz1 tác dụng lên móng', huongDan: 'Display → Show Load Assigns → Joint; chọn load pattern FX1, FY1, FZ1; hiện giá trị; nhìn 3D.' },
       { khoa: 'etabsTai2', nhom: 'mo-hinh', ten: 'Hình 3.4 Lực Mx1, My1' + (coMZ ? ', Mz1' : '') + ' tác dụng lên móng', huongDan: 'Display → Show Load Assigns → Joint; chọn MX1, MY1' + (coMZ ? ', MZ1' : '') + '.' },
       { khoa: 'etabsTai3', nhom: 'mo-hinh', ten: 'Hình 3.5 Lực Fx2, Fy2, Fz2 tác dụng lên móng', huongDan: 'Display → Show Load Assigns → Joint; chọn FX2, FY2, FZ2.' },
@@ -38,17 +39,118 @@
     ds.push({ khoa: 'etabsChuyenVi', nhom: 'mong', ten: 'Hình 6.2 Chuyển vị ngang, góc xoay đầu cọc', huongDan: 'Display → Deformed Shape, tổ hợp ' + toHopCv + '; nhìn 3D hoặc mặt bằng, hiện giá trị chuyển vị tại tâm đài.' });
     [['M11max', 'M11 – BAO Max'], ['M11min', 'M11 – BAO Min'], ['M22max', 'M22 – BAO Max'], ['M22min', 'M22 – BAO Min']].forEach(function (x) {
       ds.push({ khoa: 'etabsMomenDai_' + x[0], nhom: 'mong', ten: 'Hình 6.3 Mômen đài – ' + x[1], nhomHinh: 'etabsMomenDai', nhan: x[1],
-        huongDan: 'Display → Force/Stress Diagrams → Shell Stresses/Forces; Type: Forces; Component: ' + x[0].slice(0, 3) + '; BAO ' + (/max/.test(x[0]) ? 'Max' : 'Min') + '; mặt bằng tầng GIUA_DAI.' });
+        huongDan: 'Display → Force/Stress Diagrams → Shell Stresses/Forces; Type: Forces; Component: ' + x[0].slice(0, 3) + '; BAO ' + (/max/.test(x[0]) ? 'Max' : 'Min') + '; mặt bằng tầng ' + TANG + '.' });
     });
     [['V13', 'V13 – BAO'], ['V23', 'V23 – BAO']].forEach(function (x) {
       ds.push({ khoa: 'etabsCatDai_' + x[0], nhom: 'mong', ten: 'Hình 6.4 Lực cắt đài – ' + x[1], nhomHinh: 'etabsCatDai', nhan: x[1],
-        huongDan: 'Display → Force/Stress Diagrams → Shell Stresses/Forces; Type: Forces; Component: ' + x[0] + '; BAO Max (hoặc Min); mặt bằng tầng GIUA_DAI.' });
+        huongDan: 'Display → Force/Stress Diagrams → Shell Stresses/Forces; Type: Forces; Component: ' + x[0] + '; BAO Max (hoặc Min); mặt bằng tầng ' + TANG + '.' });
     });
     ((m && m.dam) || []).forEach(function (d, i) {
       ds.push({ khoa: 'dam_' + d.ten, nhom: 'mong', ten: 'Hình 6.' + (5 + i) + ' Nội lực dầm ' + d.ten, huongDan: LUC + 'Max/Min, Component: Moment 3-3 (và Shear 2-2); ' +
         'View → Set Elevation View qua dầm ' + d.ten + ' (' + d.tuCoc + ' – ' + d.denCoc + ', z = ' + d.z + ' m).' });
     });
     return ds;
+  }
+
+  // Tầng ETABS của tấm đài (tầng trên cùng của mô hình app dựng: MAT_DAI; mô hình dựng bằng bản cũ: GIUA_DAI)
+  function tangTam(m) {
+    var ds = m && m.tang && m.tang.ds;
+    return ds && ds.length ? ds[ds.length - 1].ten : 'MAT_DAI';
+  }
+
+  // ---------------- Tự chụp: kịch bản thao tác giao diện ETABS v23 (tiếng Anh) cho từng vị trí hình ----------------
+  // Cầu nối (lệnh tu-chup) bấm menu / chỉnh hộp thoại theo tên – so tên bỏ "&", "...", hoa thường; tên nào chưa đúng với ETABS
+  // trên máy người dùng thì nhật ký ghi lại các tên đang có để sửa ở đây.
+  var MENU_3D = { loai: 'menu', duong: ['View', 'Set Default 3D View'] };
+  var MENU_KHONG_BD = { loai: 'menu', duong: ['Display', 'Undeformed Shape'] };
+  function matBang(tang) {
+    return [{ loai: 'menu', duong: ['View', 'Set Plan View'] }, { loai: 'hop-thoai', dat: [{ danhSach: [tang] }], xong: 'OK' }];
+  }
+  function chonMaxMin(mm) { return mm === 'min' ? ['Min', 'Envelope Min', 'Minimum'] : ['Max', 'Envelope Max', 'Maximum']; }
+  function lucThanh(toHop, mm, tp) {
+    return [MENU_3D, { loai: 'menu', duong: ['Display', 'Force/Stress Diagrams', 'Frame/Pier/Spandrel/Link Forces'] },
+      { loai: 'hop-thoai', dat: [{ chon: [toHop] }, { radio: chonMaxMin(mm) }, { radio: [tp] },
+        { tick: ['Show Values on Diagram', 'Show Values'], gt: true }, { tick: ['Fill Diagram'], gt: true }], xong: 'OK' }];
+  }
+  function lucVo(tang, toHop, tp, mm) {
+    return matBang(tang).concat([{ loai: 'menu', duong: ['Display', 'Force/Stress Diagrams', 'Shell Stresses/Forces'] },
+      { loai: 'hop-thoai', dat: [{ chon: [toHop] }, { radio: ['Resultant Forces', 'Shell Forces', 'Forces'] }, { radio: [tp] }, { radio: chonMaxMin(mm) }],
+        xong: 'OK' }]);
+  }
+  function taiNut(mau) {
+    return [MENU_3D, { loai: 'menu', duong: ['Display', 'Load Assigns', 'Joint'] },
+      { loai: 'hop-thoai', dat: [{ chon: [mau[0]] }, { danhSach: mau }, { tick: ['Show Load Assign Values', 'Show Load Values', 'Show Values'], gt: true }],
+        xong: 'OK' }];
+  }
+  /** Danh sách thao tác cho vị trí khoa (null: vị trí ảnh ngoài ETABS, không tự chụp). */
+  function kichBan(khoa, E) {
+    var m = E && E.m && E.m.hopLe ? E.m : null, t = E && E.t, kE = E && E.kE;
+    var tang = tangTam(m), cv = kE && kE.chuyenVi, toHopCv = cv && cv.DeltaMax ? cv.DeltaMax.toHop : 'BAO';
+    var coMZ = t && t.hopLe && t.mauTai.some(function (p) { return p.ten === 'MZ1'; });
+    var x;
+    if (khoa === 'etabsMoHinh3D') return [MENU_3D, MENU_KHONG_BD];
+    if (khoa === 'etabsMatBang') return matBang(tang).concat([MENU_KHONG_BD]);
+    if (khoa === 'etabsTai1') return taiNut(['FX1', 'FY1', 'FZ1']);
+    if (khoa === 'etabsTai2') return taiNut(['MX1', 'MY1'].concat(coMZ ? ['MZ1'] : []));
+    if (khoa === 'etabsTai3') return taiNut(['FX2', 'FY2', 'FZ2']);
+    if (khoa === 'etabsTai4') return taiNut(['MX2', 'MY2']);
+    if ((x = /^etabsBao_(min|max)_(P|M2|M3|V2|V3)$/.exec(khoa))) {
+      return lucThanh('BAO', x[1], { P: 'Axial Force', M2: 'Moment 2-2', M3: 'Moment 3-3', V2: 'Shear 2-2', V3: 'Shear 3-3' }[x[2]]);
+    }
+    if (khoa === 'etabsChuyenVi') {
+      return [MENU_3D, { loai: 'menu', duong: ['Display', 'Deformed Shape'] }, { loai: 'hop-thoai', dat: [{ chon: [toHopCv] }], xong: 'OK' }];
+    }
+    if ((x = /^etabsMomenDai_(M11|M22)(max|min)$/.exec(khoa))) return lucVo(tang, 'BAO', x[1], x[2]);
+    if ((x = /^etabsCatDai_(V13|V23)$/.exec(khoa))) return lucVo(tang, 'BAO', x[1], 'max');
+    if (/^dam_/.test(khoa)) return lucThanh('BAO', 'max', 'Moment 3-3');
+    return null;
+  }
+
+  // ---------------- Nền trắng cho ảnh chụp ETABS (ETABS mặc định nền đen) ----------------
+  /**
+   * Ảnh (HTMLImageElement) → { data: Uint8Array PNG, w, h, doi: bool }. Màu nền lấy theo viền ảnh; nền tối thì: nền → trắng,
+   * màu xám (chữ, lưới, đường trắng) → đảo độ sáng, màu rực quá sáng (vàng, xanh nhạt) → sẫm lại để đọc được trên nền trắng.
+   */
+  function nenTrang(img) {
+    var k0 = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));   // ảnh quá lớn thu nhỏ như catAnh
+    var w = Math.max(1, Math.round(img.naturalWidth * k0)), h = Math.max(1, Math.round(img.naturalHeight * k0)), cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    var ctx = cv.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+    var anh = ctx.getImageData(0, 0, w, h), d = anh.data, dem = {};
+    function mau(i) { return ((d[i] >> 3) << 10) | ((d[i + 1] >> 3) << 5) | (d[i + 2] >> 3); }
+    for (var x = 0; x < w; x += 2) { [0, h - 1].forEach(function (y) { var k = mau((y * w + x) * 4); dem[k] = (dem[k] || 0) + 1; }); }
+    for (var y = 0; y < h; y += 2) { [0, w - 1].forEach(function (x2) { var k = mau((y * w + x2) * 4); dem[k] = (dem[k] || 0) + 1; }); }
+    var nen = Number(Object.keys(dem).sort(function (a, b) { return dem[b] - dem[a]; })[0] || 0);
+    var nr = ((nen >> 10) & 31) << 3, ng = ((nen >> 5) & 31) << 3, nb = (nen & 31) << 3;
+    var sangNen = 0.299 * nr + 0.587 * ng + 0.114 * nb, doi = sangNen < 90;
+    if (doi) {
+      for (var i = 0; i < d.length; i += 4) {
+        var r = d[i], g = d[i + 1], b = d[i + 2];
+        var lech = Math.abs(r - nr) + Math.abs(g - ng) + Math.abs(b - nb);
+        var lon = Math.max(r, g, b), nho = Math.min(r, g, b), sang = 0.299 * r + 0.587 * g + 0.114 * b;
+        if (lech < 36) { d[i] = d[i + 1] = d[i + 2] = 255; }
+        else if (lon - nho < 40) { var v = Math.max(0, 255 - sang); d[i] = d[i + 1] = d[i + 2] = v; }
+        else if (sang > 170) { var k2 = 150 / sang; d[i] = r * k2; d[i + 1] = g * k2; d[i + 2] = b * k2; }
+      }
+      ctx.putImageData(anh, 0, 0);
+    }
+    return new Promise(function (ok, loi) {
+      cv.toBlob(function (bl) {
+        if (!bl) { loi(new Error('Không tạo được ảnh PNG')); return; }
+        bl.arrayBuffer().then(function (ab) { ok({ data: new Uint8Array(ab), w: w, h: h, doi: doi }); }, loi);
+      }, 'image/png');
+    });
+  }
+  /** Ảnh nhỏ (JPEG data URL, cạnh dài ≤ cạnh) để ghi vào nhật ký tự chụp. */
+  function anhNho(img, canh) {
+    var k = Math.min(1, (canh || 360) / Math.max(img.naturalWidth, img.naturalHeight));
+    var cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(img.naturalWidth * k)); cv.height = Math.max(1, Math.round(img.naturalHeight * k));
+    var ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    try { return cv.toDataURL('image/jpeg', 0.7); } catch (e) { return ''; }
   }
 
   var NHOM = { ngoai: 'Mục 2 – ảnh ngoài ETABS (catalogue, hố khoan, mặt bằng)', 'mo-hinh': 'Mục 3 – mô hình và tải trọng',
@@ -188,7 +290,7 @@
   }
 
   MCT.hinhChup = {
-    viTri: viTri, NHOM: NHOM, chuanVung: chuanVung,
+    viTri: viTri, NHOM: NHOM, chuanVung: chuanVung, kichBan: kichBan, tangTam: tangTam, nenTrang: nenTrang, anhNho: anhNho,
     luuAnh: luuAnh, xoaAnh: xoaAnh, xoaHet: xoaHet, tatCaAnh: tatCaAnh,
     taiAnh: taiAnh, catAnh: catAnh, hopThoaiCat: hopThoaiCat
   };

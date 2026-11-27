@@ -25,5 +25,6 @@ tuyChon.frameworks = [
 ];
 tuyChon.rollForward = 'LatestMajor';
 fs.writeFileSync(fileCauHinh, JSON.stringify(cauHinh, null, 2) + '\n');
-for (const f of fs.readdirSync(ra)) if (!/^MctEtabs\.(dll|runtimeconfig\.json|coban\.runtimeconfig\.json|deps\.json)$/.test(f)) fs.rmSync(path.join(ra, f), { recursive: true, force: true });
+// giữ cầu nối và thư viện interop UI Automation (lệnh tu-chup)
+for (const f of fs.readdirSync(ra)) if (!/^(MctEtabs\.(dll|runtimeconfig\.json|coban\.runtimeconfig\.json|deps\.json)|Interop\.UIAutomationClient\.dll)$/.test(f)) fs.rmSync(path.join(ra, f), { recursive: true, force: true });
 console.log('Đã biên dịch cầu nối: ' + path.relative(process.cwd(), ra) + ' (' + fs.readdirSync(ra).join(', ') + ')');

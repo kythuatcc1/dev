@@ -2644,6 +2644,9 @@
       if (!kq) { datTrangThai('Đã huỷ, chưa lưu ảnh.'); return null; }
       if (laEtabsAnh && nguon === 'chup' && kq.vung.w < 0.999) { state.hinhChup.vung[cach || 'cua-so'] = kq.vung; luu(); }
       return HC.catAnh(img, kq.vung).then(function (c) {
+        if (!canNenTrang(khoa, nguon)) return c;
+        return HC.taiAnh(c.data).then(HC.nenTrang);
+      }).then(function (c) {
         var goc = duLieu instanceof Uint8Array ? duLieu : null;
         var luuGoc = goc ? Promise.resolve(goc) : new Blob([duLieu]).arrayBuffer().then(function (ab) { return new Uint8Array(ab); });
         return luuGoc.then(function (g) {
@@ -2657,6 +2660,133 @@
       });
     }).catch(function (e) { datTrangThai('Lỗi ảnh: ' + e.message); });
   }
+  function canNenTrang(khoa, nguon) {
+    return state.hinhChup.nenTrang !== 'khong' && /^(chup|tu-dong|f9)$/.test(nguon || '') &&
+      !/^(matBangCau|hinhCatalogue|matBangHoKhoan|hinhTruHoKhoan)$/.test(khoa);
+  }
+
+  // ---- Tự chụp: app điều khiển ETABS (cầu nối, lệnh tu-chup) – lần lượt từng hình; chụp bằng F9 làm dự phòng ----
+  var tuChup = { dangChay: false, dung: false, ketQua: {}, nhatKy: null, f9: false };
+  // Lưu ảnh tự chụp / F9 (cả khung nhìn, nền trắng nếu bật) → { nho: ảnh nhỏ cho nhật ký }
+  function luuAnhTuDong(khoa, png, nguon, tenNguon) {
+    var HC = MCT.hinhChup, img;
+    return HC.taiAnh(png).then(function (i) {
+      img = i;
+      return canNenTrang(khoa, nguon) ? HC.nenTrang(img) : HC.catAnh(img, null);
+    }).then(function (c) {
+      return HC.luuAnh({ khoa: khoa, data: c.data, w: c.w, h: c.h, goc: png, vung: { x: 0, y: 0, w: 1, h: 1 }, nguon: nguon,
+        ten: tenNguon + (c.doi ? ', đổi nền trắng' : ''), cach: nguon, thoiGian: new Date().toISOString() });
+    }).then(function () { return { nho: HC.anhNho(img, 480) }; });
+  }
+  function tomTatLoiTuChup(r) {
+    if (!r) return 'Không nhận được kết quả';
+    if (r.loi) return r.loi;
+    var kq = r.kq || {}, sai = (kq.buoc || []).filter(function (b) { return !b.ok; })[0];
+    return sai ? sai.ten + ': ' + sai.chiTiet : (kq.loi || (r.ok ? '' : 'Chưa chụp được'));
+  }
+  function moDauNhatKy() {
+    return { loai: 'nhat-ky-tu-chup-etabs', phienBan: 1, thoiGian: new Date().toISOString(), fileMoHinh: state.etabs.fileDung || '',
+      coKetQuaEtabs: !!etabsLuu, nenTrang: state.hinhChup.nenTrang !== 'khong', manHinh: { w: screen.width, h: screen.height, tiLe: window.devicePixelRatio }, hinh: [] };
+  }
+  function tuChupDs(dsKhoa, thamDo) {
+    var dt = window.mctDesktop, HC = MCT.hinhChup;
+    if (!dt || !dt.tuChupEtabs) { datTrangThai('Tự chụp chỉ có trong chương trình MongCauThap.exe (Windows, có ETABS v23).'); return; }
+    if (tuChup.dangChay) return;
+    var E = eTrangHinh();
+    var ds = HC.viTri(E).filter(function (v) { return dsKhoa.indexOf(v.khoa) >= 0 && HC.kichBan(v.khoa, E); });
+    if (!ds.length) { datTrangThai('Không có hình nào cần tự chụp.'); return; }
+    if (!etabsLuu && !window.confirm('Chưa có kết quả phân tích ETABS trong app: các hình nội lực, chuyển vị cần mô hình đã chạy phân tích trong ETABS. Vẫn tự chụp?')) return;
+    if (!window.confirm('App sẽ điều khiển ETABS để chụp ' + ds.length + ' hình (khoảng ' + Math.max(1, Math.round(ds.length * 7 / 60)) + ' phút).\n\n' +
+        '• Mở sẵn ETABS với mô hình móng đã phân tích, không thu nhỏ.\n• Trong lúc chạy KHÔNG dùng chuột, bàn phím.\n• Muốn dừng: nhấn F10.\n\nBắt đầu?')) return;
+    tuChup = { dangChay: true, dung: false, ketQua: {}, nhatKy: moDauNhatKy(), f9: false };
+    tuChup.nhatKy.cheDo = thamDo ? 'thu-tu-chup' : 'tu-chup';
+    veLaiTrangHinh();
+    if (dt.onF9) dt.onF9(function (lenh) { if (lenh === 'dung') tuChup.dung = true; });
+    var i = 0;
+    function tiep() {
+      if (tuChup.dung || i >= ds.length) return ketThuc();
+      var v = ds[i++], thaoTac = HC.kichBan(v.khoa, E);
+      datTrangThai('Tự chụp ' + i + ' / ' + ds.length + ': ' + v.ten);
+      var ghi = { khoa: v.khoa, ten: v.ten, thaoTac: thaoTac };
+      tuChup.nhatKy.hinh.push(ghi);
+      return dt.tuChupEtabs({ khoa: v.khoa, thaoTac: thaoTac, chuanBi: i === 1, thamDo: !!thamDo && i === 1, file: state.etabs.fileDung || '' })
+        .then(function (r) {
+          ghi.ok = !!(r && r.ok);
+          ghi.loi = ghi.ok ? null : tomTatLoiTuChup(r);
+          ghi.ketQuaCauNoi = r && r.kq ? r.kq : null;
+          tuChup.ketQua[v.khoa] = { ok: ghi.ok, loi: ghi.loi };
+          if (!r || !r.png) return null;
+          var png = new Uint8Array(r.png);
+          if (ghi.ok) return luuAnhTuDong(v.khoa, png, 'tu-dong', 'ETABS tự chụp').then(function (x) { ghi.anhNho = x.nho; });
+          return HC.taiAnh(png).then(function (img) { ghi.anhNho = HC.anhNho(img, 480); });   // ảnh lỗi chỉ ghi nhật ký, không lưu
+        }).catch(function (e) {
+          ghi.ok = false; ghi.loi = e.message;
+          tuChup.ketQua[v.khoa] = { ok: false, loi: e.message };
+        }).then(tiep);
+    }
+    function ketThuc() {
+      tuChup.dangChay = false;
+      if (dt.onF9) dt.onF9(function () { /* hết chế độ chụp */ });
+      dt.cuaSoApp({ thuNho: false });
+      var ok = ds.filter(function (v) { return tuChup.ketQua[v.khoa] && tuChup.ketQua[v.khoa].ok; }).length;
+      tuChup.nhatKy.ketThuc = new Date().toISOString();
+      tuChup.nhatKy.tomTat = ok + ' / ' + ds.length + ' hình' + (tuChup.dung ? ' (dừng giữa chừng)' : '');
+      napAnhChup().then(veLaiTrangHinh);
+      datTrangThai('Tự chụp xong ' + tuChup.nhatKy.tomTat + '. Hình chưa chụp được: dùng Chụp lần lượt bằng F9; bấm Lưu nhật ký để gửi kiểm tra.');
+    }
+    dt.cuaSoApp({ thuNho: true }).then(function () { setTimeout(tiep, 600); });
+  }
+  // Chụp lần lượt: cửa sổ hướng dẫn nổi; người dùng chỉnh ETABS rồi nhấn F9 – app chụp khung nhìn, chuyển hình tiếp
+  function chupF9(dsKhoa) {
+    var dt = window.mctDesktop, HC = MCT.hinhChup;
+    if (!dt || !dt.f9Bat) { datTrangThai('Chụp bằng F9 chỉ có trong chương trình MongCauThap.exe.'); return; }
+    if (tuChup.dangChay) return;
+    var E = eTrangHinh();
+    var ds = HC.viTri(E).filter(function (v) { return v.nhom !== 'ngoai' && dsKhoa.indexOf(v.khoa) >= 0; });
+    if (!ds.length) { datTrangThai('Không còn hình nào cần chụp.'); return; }
+    if (!tuChup.nhatKy) tuChup.nhatKy = moDauNhatKy();
+    tuChup.dangChay = true; tuChup.f9 = true;
+    var i = 0, dangChup = false;
+    function hien(trangThai) {
+      var v = ds[i];
+      return dt.f9Bat({ ten: v.ten, huongDan: 'ETABS: ' + v.huongDan, thuTu: i + 1, tong: ds.length, trangThai: trangThai || '' });
+    }
+    function xong() {
+      tuChup.dangChay = false; tuChup.f9 = false;
+      dt.f9Tat(); dt.onF9(function () { /* hết */ });
+      dt.cuaSoApp({ thuNho: false });
+      napAnhChup().then(veLaiTrangHinh);
+      datTrangThai('Đã dừng chụp bằng F9.');
+    }
+    function sau() { i++; if (i >= ds.length) return xong(); return hien(); }
+    dt.onF9(function (lenh) {
+      if (lenh === 'dung') return xong();
+      if (lenh === 'bo-qua') return dangChup ? null : sau();
+      if (lenh !== 'chup' || dangChup) return null;
+      dangChup = true;
+      var v = ds[i], ghi = { khoa: v.khoa, ten: v.ten, cheDo: 'f9' };
+      tuChup.nhatKy.hinh.push(ghi);
+      return dt.tuChupEtabs({ khoa: v.khoa, thaoTac: [], chup: true, file: state.etabs.fileDung || '' }).then(function (r) {
+        ghi.ok = !!(r && r.ok); ghi.loi = ghi.ok ? null : tomTatLoiTuChup(r); ghi.ketQuaCauNoi = r && r.kq ? r.kq : null;
+        if (!ghi.ok) { dangChup = false; return hien('Chưa chụp được: ' + ghi.loi + ' – chỉnh lại rồi nhấn F9.'); }
+        tuChup.ketQua[v.khoa] = { ok: true, loi: null };
+        return luuAnhTuDong(v.khoa, new Uint8Array(r.png), 'f9', 'Chụp F9').then(function (x) { ghi.anhNho = x.nho; dangChup = false; return sau(); });
+      }).catch(function (e) { dangChup = false; ghi.ok = false; ghi.loi = e.message; return hien('Lỗi: ' + e.message); });
+    });
+    dt.cuaSoApp({ thuNho: true }).then(function () { hien(); });
+  }
+  function luuNhatKyTuChup() {
+    if (!tuChup.nhatKy) { datTrangThai('Chưa có nhật ký – chạy Thử tự chụp trước.'); return; }
+    var d = new Date(), so2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    var ten = 'nhat-ky-tu-chup-ETABS-' + d.getFullYear() + so2(d.getMonth() + 1) + so2(d.getDate()) + '-' + so2(d.getHours()) + so2(d.getMinutes()) + '.json';
+    taiXuong(new Blob([JSON.stringify(tuChup.nhatKy)], { type: 'application/json' }), ten);
+    datTrangThai('Đã lưu ' + ten + ' – gửi file này để kiểm tra, chỉnh kịch bản tự chụp.');
+  }
+  function khoaEtabsTuChup(chiThieu) {
+    var E = eTrangHinh(), HC = MCT.hinhChup;
+    return HC.viTri(E).filter(function (v) { return HC.kichBan(v.khoa, E) && (!chiThieu || !anhChup[v.khoa]); }).map(function (v) { return v.khoa; });
+  }
+
   function anhTuClipboardSuKien(e) {
     var ds = (e.clipboardData && e.clipboardData.items) || [];
     for (var i = 0; i < ds.length; i++) if (ds[i].type && ds[i].type.indexOf('image/') === 0) return ds[i].getAsFile();
@@ -2696,6 +2826,24 @@
     } else if (hd === 'hinh-xoa-het') {
       if (!window.confirm('Xoá tất cả ' + Object.keys(anhChup).length + ' ảnh đã lưu cho thuyết minh?')) return;
       HC.xoaHet().then(napAnhChup).then(function () { veLaiTrangHinh(); datTrangThai('Đã xoá tất cả ảnh'); });
+    } else if (hd === 'hinh-tu-chup-thu') {
+      tuChupDs(khoaEtabsTuChup(false), state.hinhChup.thamDo !== 'khong');
+    } else if (hd === 'hinh-tu-chup-het') {
+      tuChupDs(khoaEtabsTuChup(false), false);
+    } else if (hd === 'hinh-tu-chup-thieu') {
+      tuChupDs(khoaEtabsTuChup(true), false);
+    } else if (hd === 'hinh-tu-chup') {
+      tuChupDs([khoa], false);
+    } else if (hd === 'hinh-f9-thieu') {
+      chupF9(khoaEtabsTuChup(true).concat(MCT.hinhChup.viTri(eTrangHinh()).filter(function (v) {
+        return v.nhom !== 'ngoai' && !anhChup[v.khoa] && !MCT.hinhChup.kichBan(v.khoa, eTrangHinh());
+      }).map(function (v) { return v.khoa; })));
+    } else if (hd === 'hinh-f9-loi') {
+      chupF9(Object.keys(tuChup.ketQua).filter(function (k) { return !tuChup.ketQua[k].ok; }));
+    } else if (hd === 'hinh-f9-mot') {
+      chupF9([khoa]);
+    } else if (hd === 'hinh-nhat-ky') {
+      luuNhatKyTuChup();
     } else if (hd === 'hinh-quen-vung') {
       state.hinhChup.vung = { 'cua-so': null, 'man-hinh': null };
       luu(); veLaiTrangHinh();
@@ -2710,7 +2858,7 @@
       if (!MCT.hinhChup) return '';
       var HC = MCT.hinhChup, ds = HC.viTri(eTrangHinh()), coExe = !!(window.mctDesktop && window.mctDesktop.chupEtabs);
       var vung = state.hinhChup.vung, coVung = vung['cua-so'] || vung['man-hinh'];
-      var dau = '<section class="card"><h2>Cách chụp</h2><ol class="buoc-chup">' +
+      var dau = '<section class="card"><h2>Chụp tay</h2><ol class="buoc-chup">' +
         '<li>Chạy phân tích trong ETABS (trang Kết quả ETABS), mở ETABS ở cửa sổ lớn.</li>' +
         '<li>Với mỗi vị trí bên dưới: chỉnh hiển thị trong ETABS theo dòng hướng dẫn (menu Display / View của ETABS), phóng to vừa khung nhìn.</li>' +
         '<li>Bấm <strong>Chụp cửa sổ ETABS</strong>: app chụp cửa sổ ETABS, hiện ảnh để kéo chọn vùng mô hình (bỏ menu, thanh công cụ). Vùng chọn được nhớ – các lần chụp sau chỉ cần bấm Dùng vùng đã chọn.</li>' +
@@ -2722,6 +2870,26 @@
         '<p class="hang-nut">' + (coVung ? '<span class="hint">Đang nhớ vùng cắt' + (vung['cua-so'] ? ' cửa sổ ' + Math.round(vung['cua-so'].w * 100) + '% × ' + Math.round(vung['cua-so'].h * 100) + '%' : '') +
           '.</span> <button type="button" class="btn btn-ghost btn-nho" data-action="hinh-quen-vung">Quên vùng cắt</button>' : '') +
         (Object.keys(anhChup).length ? '<button type="button" class="btn btn-ghost btn-nho" data-action="hinh-xoa-het">Xoá tất cả ảnh</button>' : '') + '</p></section>';
+      var E = eTrangHinh(), coTuChup = !!(window.mctDesktop && window.mctDesktop.tuChupEtabs);
+      var soTu = ds.filter(function (v) { return HC.kichBan(v.khoa, E); }).length, kqTu = tuChup.ketQua, soLoi = Object.keys(kqTu).filter(function (k) { return !kqTu[k].ok; }).length;
+      var nutTu = function (hd, chu, ghost, tat) { return '<button type="button" class="btn' + (ghost ? ' btn-ghost' : '') + '" data-action="' + hd + '"' + (tat || tuChup.dangChay ? ' disabled' : '') + '>' + chu + '</button>'; };
+      dau = '<section class="card"><h2>Tự chụp từ ETABS</h2>' +
+        '<p>App tự điều khiển ETABS v23 (giao diện tiếng Anh) như người dùng: mở menu View / Display, chọn tổ hợp, thành phần nội lực trong hộp thoại, bấm OK ' +
+        'rồi chụp đúng khung nhìn mô hình (không có menu, thanh công cụ) cho ' + soTu + ' hình. Mở sẵn ETABS với mô hình móng đã phân tích; trong lúc chạy không dùng chuột, ' +
+        'bàn phím; nhấn <strong>F10</strong> để dừng. Hình nào chưa tự chụp được thì chụp lần lượt bằng <strong>F9</strong>: cửa sổ hướng dẫn nhỏ hiện tên hình, ' +
+        'chỉnh ETABS theo hướng dẫn rồi nhấn F9 – app chụp khung nhìn và chuyển sang hình tiếp.</p>' +
+        (coTuChup ? '' : '<p class="alert alert-info">Tự chụp và chụp bằng F9 chỉ có trong chương trình MongCauThap.exe (Windows, có ETABS).</p>') +
+        '<div class="params">' + oChon('hinhChup.nenTrang', [{ v: 'co', t: 'Có – đổi nền đen của ETABS thành nền trắng' }, { v: 'khong', t: 'Không – giữ màu ETABS' }],
+          'Ảnh chụp ETABS nền trắng', '', '', false, true) +
+        oChon('hinhChup.thamDo', [{ v: 'co', t: 'Có – ghi tên menu, hộp thoại ETABS (để chỉnh kịch bản)' }, { v: 'khong', t: 'Không' }],
+          'Thử tự chụp: ghi nhật ký chi tiết', '', '', false, true) + '</div>' +
+        '<p class="hang-nut">' + nutTu('hinh-tu-chup-thu', 'Thử tự chụp (ghi nhật ký)', false, !coTuChup) + nutTu('hinh-tu-chup-thieu', 'Tự chụp hình chưa có', true, !coTuChup) +
+        nutTu('hinh-tu-chup-het', 'Tự chụp lại tất cả', true, !coTuChup) + nutTu('hinh-f9-thieu', 'Chụp lần lượt bằng F9 (hình chưa có)', true, !coTuChup) +
+        (soLoi ? nutTu('hinh-f9-loi', 'Chụp F9 ' + soLoi + ' hình tự chụp lỗi', true, !coTuChup) : '') +
+        nutTu('hinh-nhat-ky', 'Lưu nhật ký tự chụp', true, !tuChup.nhatKy) + '</p>' +
+        (tuChup.dangChay ? '<p class="alert alert-info">' + (tuChup.f9 ? 'Đang chụp bằng F9 – xem cửa sổ hướng dẫn nhỏ.' : 'Đang tự chụp… nhấn F10 để dừng.') + '</p>' : '') +
+        (tuChup.nhatKy && tuChup.nhatKy.tomTat ? '<p class="hint">Lần tự chụp gần nhất: ' + esc(tuChup.nhatKy.tomTat) + '. Bấm <strong>Lưu nhật ký tự chụp</strong> và gửi file .json để kiểm tra, ' +
+          'chỉnh kịch bản theo đúng giao diện ETABS trên máy.</p>' : '') + '</section>' + dau;
       var nhom = null, html = '';
       ds.forEach(function (v) {
         if (v.nhom !== nhom) { html += (nhom ? '</div></section>' : '') + '<section class="card"><h2>' + esc(HC.NHOM[v.nhom]) + '</h2><div class="ds-hinh">'; nhom = v.nhom; }
@@ -2731,10 +2899,12 @@
         var nut = function (hd, chu, ghost) { return '<button type="button" class="btn btn-nho' + (ghost ? ' btn-ghost' : '') + '" data-action="' + hd + '" data-khoa="' + v.khoa + '">' + chu + '</button>'; };
         html += '<div class="o-hinh' + (a ? ' co-anh' : '') + (choDan === v.khoa ? ' cho-dan' : '') + '" id="hinh-' + v.khoa + '"><div class="o-hinh-xem">' + xem + '</div>' +
           '<div class="o-hinh-tt"><b>' + esc(v.ten) + '</b><p class="hint">' + (laNgoai ? '' : 'ETABS: ') + esc(v.huongDan) + '</p>' +
-          (a ? '<p class="hint">' + ({ chup: 'Chụp', dan: 'Dán', file: 'File' })[a.nguon] + (a.ten ? ' (' + esc(a.ten) + ')' : '') + ', ' + a.w + ' × ' + a.h + ' px, ' +
+          (kqTu[v.khoa] && !kqTu[v.khoa].ok ? '<p class="alert alert-warn">Tự chụp chưa được: ' + esc(kqTu[v.khoa].loi || '') + '</p>' : '') +
+          (a ? '<p class="hint">' + ({ chup: 'Chụp', dan: 'Dán', file: 'File', 'tu-dong': 'Tự chụp', f9: 'Chụp F9' })[a.nguon] + (a.ten ? ' (' + esc(a.ten) + ')' : '') + ', ' + a.w + ' × ' + a.h + ' px, ' +
             esc(new Date(a.thoiGian).toLocaleString('vi-VN')) + '</p>' : '') +
           (choDan === v.khoa ? '<p class="alert alert-info">Nhấn Ctrl+V để dán ảnh vào vị trí này.</p>' : '') +
-          '<p class="hang-nut">' + (laNgoai ? '' : nut('hinh-chup', 'Chụp cửa sổ ETABS') + nut('hinh-chup-man-hinh', 'Chụp màn hình', true)) +
+          '<p class="hang-nut">' + (laNgoai ? '' : (HC.kichBan(v.khoa, E) && coTuChup ? nut('hinh-tu-chup', 'Tự chụp') : '') + nut('hinh-chup', 'Chụp cửa sổ ETABS', !!(HC.kichBan(v.khoa, E) && coTuChup)) +
+            (coTuChup ? nut('hinh-f9-mot', 'Chụp F9', true) : '') + nut('hinh-chup-man-hinh', 'Chụp màn hình', true)) +
           nut('hinh-dan', 'Dán ảnh', !laNgoai) + nut('hinh-file', 'Chọn file', true) +
           (a ? nut('hinh-cat-lai', 'Cắt lại', true) + '<button type="button" class="btn-x" data-action="hinh-xoa" data-khoa="' + v.khoa + '" aria-label="Xoá ảnh ' + esc(v.ten) + '">✕</button>' : '') +
           '</p></div></div>';

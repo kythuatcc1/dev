@@ -10,5 +10,15 @@ contextBridge.exposeInMainWorld('mctDesktop', {
   // Chụp cửa sổ ETABS / màn hình → Promise<{ ok, png: Uint8Array, w, h, ten } | { ok: false, loi }>
   chupEtabs: function (yc) { return ipcRenderer.invoke('chup-etabs', yc || {}); },
   // Ảnh đang có trong clipboard (ví dụ File → Capture Picture của ETABS, Snipping Tool)
-  anhClipboard: function () { return ipcRenderer.invoke('anh-clipboard'); }
+  anhClipboard: function () { return ipcRenderer.invoke('anh-clipboard'); },
+  // Tự chụp: cầu nối bấm menu / hộp thoại ETABS theo thaoTac rồi chụp khung nhìn → { ok, png, w, h, kq (nhật ký) }
+  tuChupEtabs: function (yc) { return ipcRenderer.invoke('tu-chup-etabs', yc || {}); },
+  cuaSoApp: function (yc) { return ipcRenderer.invoke('cua-so-app', yc || {}); },
+  // Chụp lần lượt bằng F9: cửa sổ hướng dẫn nổi; nhận 'chup' | 'bo-qua' | 'dung'
+  f9Bat: function (noiDung) { return ipcRenderer.invoke('f9-bat', noiDung || {}); },
+  f9Tat: function () { return ipcRenderer.invoke('f9-tat'); },
+  onF9: function (xuLy) {
+    ipcRenderer.removeAllListeners('f9');
+    ipcRenderer.on('f9', function (e, lenh) { xuLy(lenh); });
+  }
 });
