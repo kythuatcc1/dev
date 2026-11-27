@@ -7,7 +7,8 @@
     "dong-goi": "node dong-goi.js",
     "dong-goi-linux": "node dong-goi.js --linux",
     "build-cau-noi": "node etabs/build-cau-noi.js",
-    "thu-cau-noi": "node etabs/thu-cau-noi.js"
+    "thu-cau-noi": "node etabs/thu-cau-noi.js",
+    "thu-giay-phep": "xvfb-run -a node thu-giay-phep.js"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",

@@ -63,3 +63,21 @@ test('Hai bảng liền nhau luôn có đoạn ngăn (tránh Word gộp bảng)'
   const xml = docTrongZip(buf, 'word/document.xml');
   assert.equal((xml.match(/<\/w:tbl><w:tbl>/g) || []).length, 0);
 });
+
+test('Dấu tên giấy phép: khách ngoài / dùng thử có dòng ở chân trang; CC1 nội bộ hoặc không có giấy phép thì không đổi file', async () => {
+  const s = JSON.parse(JSON.stringify(MCT.macDinh));
+  const kq = MCT.calc.tinhTatCa(s);
+  const chan = async () => {
+    const buf = await globalThis.docx.Packer.toBuffer(MCT.baoCao.taoThuyetMinh(s, kq));
+    return [...Array(5).keys()].map((i) => docTrongZip(buf, `word/footer${i + 1}.xml`)).filter(Boolean).join('|').replace(/<[^>]+>/g, '');
+  };
+  const goc = await chan();
+  assert.ok(!/Lập bằng phần mềm/.test(goc));
+  MCT.giayPhep = { ten: 'Nguyễn Văn A', donVi: 'Công ty ABC', dauTen: true, dungThu: false };
+  assert.match(await chan(), /Lập bằng phần mềm Móng cẩu tháp CC1 – Nguyễn Văn A – Công ty ABC/);
+  MCT.giayPhep = { ten: 'Trần B', donVi: 'XYZ', dauTen: true, dungThu: true };
+  assert.match(await chan(), /BẢN DÙNG THỬ – Lập bằng phần mềm/);
+  MCT.giayPhep = { ten: 'Nội bộ', donVi: 'CC1', dauTen: false, dungThu: false };
+  assert.equal(await chan(), goc, 'nội bộ CC1: chân trang giống hệt');
+  MCT.giayPhep = null;
+});

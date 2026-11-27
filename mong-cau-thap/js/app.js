@@ -2997,7 +2997,23 @@
     });
   }
 
+  // Giấy phép (chỉ trong chương trình MongCauThap.exe, qua cầu nối Electron): hiện người dùng / đơn vị, khoá khi hết hạn
+  function nhanGiayPhep(gp) {
+    MCT.giayPhep = gp || null;
+    var el = document.getElementById('giay-phep'), nut = document.getElementById('nut-dang-xuat');
+    if (!el) return;
+    el.hidden = !gp; if (nut) nut.hidden = !gp;
+    if (gp) {
+      el.textContent = (gp.ten || gp.email || '') + (gp.donVi ? ' · ' + gp.donVi : '') + (gp.dungThu ? ' · DÙNG THỬ' : '') + (gp.khoaTinhToan ? ' · HẾT HẠN' : '');
+      el.title = el.textContent;
+      el.className = 'giay-phep' + (gp.khoaTinhToan ? ' het-han' : '');
+    }
+  }
   function khoiDong() {
+    if (window.mctDesktop && window.mctDesktop.giayPhep) {
+      if (window.mctDesktop.onGiayPhep) window.mctDesktop.onGiayPhep(nhanGiayPhep);
+      window.mctDesktop.giayPhep().then(nhanGiayPhep, function () { /* bỏ qua */ });
+    }
     var hash = (location.hash || '').replace('#', '');
     if (TRANG[hash]) trangHienTai = hash;
     var khoiPhuc = khoiPhucCauTuThem();
@@ -3344,6 +3360,10 @@
   }
 
   function xuatThuyetMinh() {
+    if (MCT.giayPhep && MCT.giayPhep.khoaTinhToan) {
+      datTrangThai('Giấy phép đã hết hạn: chỉ xem dự án, không xuất thuyết minh. Liên hệ CC1 để gia hạn.');
+      return;
+    }
     if (!ketQua || !ketQua.hopLe) {
       datTrangThai('Chưa xuất được: mục A còn lỗi.');
       return;

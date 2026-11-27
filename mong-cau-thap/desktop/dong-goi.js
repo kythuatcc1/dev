@@ -19,11 +19,24 @@ fs.mkdirSync(TAM, { recursive: true });
 for (const f of ['index.html', 'css', 'js', 'vendor']) {
   fs.cpSync(path.join(GOC, f), path.join(TAM, f), { recursive: true });
 }
-for (const f of ['main.js', 'preload.js', 'preload-huong-dan.js', 'huong-dan.html', 'icon.png']) fs.copyFileSync(path.join(__dirname, f), path.join(TAM, f));
+for (const f of ['main.js', 'preload.js', 'preload-huong-dan.js', 'huong-dan.html', 'giay-phep.js', 'dang-nhap.html', 'preload-dang-nhap.js', 'icon.png']) fs.copyFileSync(path.join(__dirname, f), path.join(TAM, f));
 fs.writeFileSync(path.join(TAM, 'package.json'), JSON.stringify({
   name: 'mong-cau-thap', productName: 'MongCauThap', version: pkg.version,
   description: pkg.description, main: 'main.js', private: true
 }, null, 2));
+
+// Giấy phép Supabase: cần supabase-config.json { url, anonKey } và giay-phep-khoa.json (khoá công khai, từ supabase/tao-khoa.js).
+// Không có hai file này thì không đóng gói (tránh phát hành nhầm bản không bảo mật); --khong-bao-mat chỉ để thử trong nội bộ.
+const khongBaoMat = process.argv.includes('--khong-bao-mat');
+for (const f of ['supabase-config.json', 'giay-phep-khoa.json']) {
+  const nguon = path.join(__dirname, f);
+  if (fs.existsSync(nguon)) fs.copyFileSync(nguon, path.join(TAM, f));
+  else if (!khongBaoMat) {
+    console.error('Thiếu desktop/' + f + ' – xem supabase/README.md. (Chỉ thử nội bộ: thêm --khong-bao-mat để đóng gói bản KHÔNG có đăng nhập.)');
+    process.exit(1);
+  }
+}
+if (khongBaoMat) console.warn('CẢNH BÁO: bản đóng gói KHÔNG có đăng nhập / giấy phép.');
 
 const CAU_NOI = path.join(__dirname, 'etabs', 'cau-noi-etabs');
 if (!fs.existsSync(path.join(CAU_NOI, 'MctEtabs.dll'))) {

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:">
+<title>Móng cẩu tháp – đăng nhập</title>
+<style>
+  :root { --accent:#106b3c; --ink:#1f2623; --muted:#5e6a63; --line:#e2e6e3; --fail:#c4300b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 "Segoe UI", system-ui, sans-serif; color:var(--ink); background:#f5f6f5; display:flex; align-items:center; justify-content:center; height:100vh; }
+  .khung { width:400px; background:#fff; border:1px solid var(--line); border-top:4px solid var(--accent); border-radius:8px; padding:22px 26px; }
+  h1 { margin:0 0 4px; font-size:20px; color:var(--accent); } p { margin:0 0 12px; color:var(--muted); font-size:13px; }
+  label { display:block; margin:10px 0 4px; font-weight:600; }
+  input { width:100%; padding:8px 10px; border:1px solid #4f8f70; background:#e9f3ec; border-radius:4px; font:inherit; }
+  button { margin-top:16px; width:100%; padding:9px; font:inherit; border:1px solid var(--accent); background:var(--accent); color:#fff; border-radius:4px; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; } #tb { margin-top:10px; color:var(--fail); min-height:20px; }
+  #trangThai { color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<div class="khung">
+  <h1>Móng cẩu tháp</h1>
+  <p id="trangThai">Đăng nhập tài khoản do CC1 cấp. Cần kết nối internet mỗi lần mở phần mềm.</p>
+  <form id="f">
+    <label for="email">Email</label><input id="email" type="email" required autocomplete="username">
+    <label for="mk">Mật khẩu</label><input id="mk" type="password" required autocomplete="current-password">
+    <button id="nut" type="submit">Đăng nhập</button>
+  </form>
+  <div id="tb" role="alert"></div>
+</div>
+<script>
+  var f = document.getElementById('f'), tb = document.getElementById('tb'), nut = document.getElementById('nut');
+  window.dangNhap.onTrangThai(function (t) { if (t.thongBao) tb.textContent = t.thongBao; if (t.nhan) document.getElementById('trangThai').textContent = t.nhan; if (t.email) document.getElementById('email').value = t.email; });
+  f.addEventListener('submit', async function (e) {
+    e.preventDefault(); tb.textContent = ''; nut.disabled = true; nut.textContent = 'Đang đăng nhập…';
+    var r = await window.dangNhap.gui(document.getElementById('email').value, document.getElementById('mk').value);
+    document.getElementById('mk').value = '';
+    nut.disabled = false; nut.textContent = 'Đăng nhập';
+    if (r && !r.ok) tb.textContent = r.thongBao || 'Không đăng nhập được.';
+  });
+</script>
+</body>
+</html>

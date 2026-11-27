@@ -250,14 +250,22 @@
     return new x.Header({ children: [t, p('', { spacing: { after: 0 }, size: 8 })] });
   }
 
+  // Dấu tên người lập / đơn vị (giấy phép khách ngoài hoặc dùng thử, chỉ trong chương trình .exe): chèn vào chân trang
+  function dongDauTen() {
+    var gp = MCT.giayPhep;
+    if (!gp || !(gp.dauTen || gp.dungThu)) return null;
+    return (gp.dungThu ? 'BẢN DÙNG THỬ – ' : '') + 'Lập bằng phần mềm Móng cẩu tháp CC1 – ' + (gp.ten || gp.email || '') + (gp.donVi ? ' – ' + gp.donVi : '');
+  }
   function chanTrang() {
-    var x = D();
-    return new x.Footer({
-      children: [new x.Paragraph({
-        alignment: x.AlignmentType.RIGHT,
-        children: [new x.TextRun({ children: [x.PageNumber.CURRENT], font: FONT, size: 24 })]
-      })]
-    });
+    var x = D(), dau = dongDauTen();
+    var ds = [];
+    if (dau) ds.push(new x.Paragraph({ alignment: x.AlignmentType.LEFT, spacing: { after: 0 },
+      children: [new x.TextRun({ text: dau, font: FONT, size: 16, color: '808080' })] }));
+    ds.push(new x.Paragraph({
+      alignment: x.AlignmentType.RIGHT,
+      children: [new x.TextRun({ children: [x.PageNumber.CURRENT], font: FONT, size: 24 })]
+    }));
+    return new x.Footer({ children: ds });
   }
 
   // ---------------- Các trang đầu ----------------
@@ -1994,7 +2002,8 @@
           }
         },
         headers: { default: dauTrang(s, hangMuc), first: new x.Header({ children: [p('', { spacing: { after: 0 } })] }) },
-        footers: { default: chanTrang(), first: new x.Footer({ children: [p('', { spacing: { after: 0 } })] }) },
+        footers: { default: chanTrang(), first: new x.Footer({ children: dongDauTen() ? [new x.Paragraph({ spacing: { after: 0 },
+          children: [new x.TextRun({ text: dongDauTen(), font: FONT, size: 16, color: '808080' })] })] : [p('', { spacing: { after: 0 } })] }) },
         children: dayDu
       }]
     });

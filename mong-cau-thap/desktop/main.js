@@ -6,8 +6,85 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { execFile } = require('child_process');
+const { GiayPhep } = require('./giay-phep.js');
 
 let cuaSo = null;
+let cuaSoDangNhap = null;
+let giayPhep = null;           // GiayPhep (null: bản không đóng gói bảo mật – chỉ dùng khi phát triển)
+let giayPhepGiaCauHinh = null; // chỉ kiểm thử: cấu hình lấy từ biến môi trường khi CHƯA đóng gói
+
+// ---------- Giấy phép (Supabase) ----------
+function docCauHinhGiayPhep() {
+  // Bản đóng gói: chỉ đọc supabase-config.json + giay-phep-khoa.json trong gói (không nhận biến môi trường – tránh bị vô hiệu hoá)
+  const doc = function (f) { try { return JSON.parse(fs.readFileSync(path.join(__dirname, f), 'utf8')); } catch (e) { return null; } };
+  const cfg = doc('supabase-config.json'), khoa = doc('giay-phep-khoa.json');
+  if (!app.isPackaged && process.env.MCT_GIAY_PHEP_THU) {       // kiểm thử: { url, anonKey, khoa: {kid: spki}, maMay }
+    try { return JSON.parse(fs.readFileSync(process.env.MCT_GIAY_PHEP_THU, 'utf8')); } catch (e) { return null; }
+  }
+  if (!cfg || !cfg.url || !cfg.anonKey) return null;
+  return { url: cfg.url, anonKey: cfg.anonKey, khoa: (khoa && khoa.khoa) || {} };
+}
+function khoiTaoGiayPhep() {
+  const c = docCauHinhGiayPhep();
+  if (!c) return null;
+  const tep = path.join(app.getPath('userData'), 'giay-phep.bin');
+  const { safeStorage } = require('electron');
+  const luu = {
+    doc: function () {
+      try {
+        const b = fs.readFileSync(tep);
+        return safeStorage.isEncryptionAvailable() ? safeStorage.decryptString(b) : b.toString('utf8');
+      } catch (e) { return null; }
+    },
+    ghi: function (s) {
+      try { fs.writeFileSync(tep, safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(s) : Buffer.from(s, 'utf8')); } catch (e) { /* bỏ qua */ }
+    }
+  };
+  return new GiayPhep({ url: c.url, anonKey: c.anonKey, khoaCongKhai: c.khoa, maMay: c.maMay, luu: luu });
+}
+function baoGiayPhep() {
+  const gp = giayPhep ? giayPhep.thongTin() : null;
+  if (cuaSo && !cuaSo.isDestroyed()) cuaSo.webContents.send('giay-phep-doi', gp);
+  return gp;
+}
+function hienDangNhap(thongBao) {
+  if (cuaSoDangNhap && !cuaSoDangNhap.isDestroyed()) { cuaSoDangNhap.focus(); if (thongBao) cuaSoDangNhap.webContents.send('dang-nhap-trang-thai', { thongBao: thongBao }); return; }
+  cuaSoDangNhap = new BrowserWindow({
+    width: 480, height: 460, resizable: false, minimizable: true, maximizable: false, autoHideMenuBar: true,
+    title: 'Móng cẩu tháp – đăng nhập', icon: path.join(__dirname, 'icon.png'), backgroundColor: '#f5f6f5',
+    webPreferences: { preload: path.join(__dirname, 'preload-dang-nhap.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }
+  });
+  cuaSoDangNhap.setMenu(null);
+  cuaSoDangNhap.loadFile(path.join(__dirname, 'dang-nhap.html'));
+  cuaSoDangNhap.webContents.once('did-finish-load', function () { if (thongBao) cuaSoDangNhap.webContents.send('dang-nhap-trang-thai', { thongBao: thongBao }); });
+  cuaSoDangNhap.on('closed', function () { cuaSoDangNhap = null; if (!cuaSo) app.quit(); });
+}
+// Mở app khi có giấy phép; không thì hiện đăng nhập. Mỗi lần mở bắt buộc làm mới trực tuyến.
+async function vaoPhanMem() {
+  if (!giayPhep) { taoCuaSo(); return; }          // bản phát triển
+  const r = await giayPhep.lamMoi();
+  if (r.ok) { dungKiemTraDinhKy(); batKiemTraDinhKy(); taoCuaSo(); return; }
+  hienDangNhap(r.loi === 'chua-dang-nhap' ? r.thongBao : r.thongBao);
+}
+let hanKiemTra = null;
+function batKiemTraDinhKy() {
+  dungKiemTraDinhKy();
+  hanKiemTra = setInterval(async function () {
+    if (!giayPhep) return;
+    const r = await giayPhep.lamMoi();
+    if (r.ok) { baoGiayPhep(); return; }
+    if (r.loi === 'mang') return;                  // mất mạng giữa phiên: cho làm tiếp, lần mở sau bắt buộc kết nối
+    khoaPhanMem(r.thongBao || 'Giấy phép không còn hiệu lực.');   // bị khoá / thu hồi / hết hạn token
+  }, Math.min(15, Number(process.env.MCT_KIEM_TRA_PHUT) || 15) * 60 * 1000);   // chỉ cho rút ngắn, không cho kéo dài
+}
+function dungKiemTraDinhKy() { if (hanKiemTra) { clearInterval(hanKiemTra); hanKiemTra = null; } }
+function khoaPhanMem(thongBao) {
+  dungKiemTraDinhKy();
+  if (giayPhep) giayPhep.dangXuat();
+  const cu = cuaSo; cuaSo = null;
+  hienDangNhap(thongBao);                              // mở cửa sổ đăng nhập trước khi đóng cửa sổ chính (tránh app tự thoát)
+  if (cu && !cu.isDestroyed()) cu.destroy();
+}
 
 function moNgoai(url) {
   if (/^https?:/i.test(url)) shell.openExternal(url);
@@ -273,7 +350,8 @@ function taoCuaSo() {
     }
   });
   cuaSo.once('ready-to-show', function () { cuaSo.maximize(); cuaSo.show(); });
-  cuaSo.on('closed', function () { cuaSo = null; f9Tat(); });
+  cuaSo.on('closed', function () { if (cuaSo && cuaSo.isDestroyed()) cuaSo = null; f9Tat(); });
+  cuaSo.webContents.on('did-finish-load', function () { baoGiayPhep(); });
   // Liên kết ra ngoài mở bằng trình duyệt mặc định, không mở trong cửa sổ app
   cuaSo.webContents.setWindowOpenHandler(function (d) { moNgoai(d.url); return { action: 'deny' }; });
   cuaSo.webContents.on('will-navigate', function (e, url) {
@@ -314,8 +392,22 @@ if (!app.requestSingleInstanceLock()) {
           : laJson ? [{ name: 'Cẩu tháp (JSON)', extensions: ['json'] }] : [{ name: 'Word', extensions: ['docx'] }]
       });
     });
-    taoCuaSo();
+    ipcMain.handle('dang-nhap', async function (e, email, matKhau) {
+      if (!giayPhep) return { ok: false, thongBao: 'Chưa cấu hình giấy phép.' };
+      const r = await giayPhep.dangNhap(email, matKhau);
+      if (r.ok) {
+        const ds = cuaSoDangNhap; cuaSoDangNhap = null;
+        batKiemTraDinhKy();
+        if (!cuaSo) taoCuaSo();
+        if (ds && !ds.isDestroyed()) ds.destroy();
+      }
+      return { ok: r.ok, thongBao: r.thongBao };
+    });
+    ipcMain.handle('giay-phep', function () { return giayPhep ? giayPhep.thongTin() : null; });
+    ipcMain.handle('dang-xuat', function () { if (giayPhep) khoaPhanMem(''); return true; });
+    giayPhep = khoiTaoGiayPhep();
+    vaoPhanMem();
   });
-  app.on('window-all-closed', function () { app.quit(); });
+  app.on('window-all-closed', function () { if (!cuaSoDangNhap) app.quit(); });
   app.on('will-quit', function () { globalShortcut.unregisterAll(); });
 }

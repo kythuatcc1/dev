@@ -167,6 +167,8 @@ table.tbl { border-collapse: collapse; width: 100%; font-variant-numeric: tabula
 .alert { border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
 .alert-fail { background: var(--fail-soft); color: var(--fail-ink); border: 1px solid var(--fail-line); border-left: 4px solid var(--fail); }
 .alert-info { background: #f1f6f3; color: #24473a; border: 1px solid #d4e4d9; }
+.giay-phep { font-size: 12px; color: var(--muted); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.giay-phep.het-han { color: var(--fail); font-weight: 600; }
 .alert-warn { background: var(--warn-soft); color: var(--warn-ink); border: 1px solid var(--warn-line); border-left: 4px solid var(--warn); }
 .badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
 .badge-ok { background: var(--ok-soft); color: var(--accent-ink); }

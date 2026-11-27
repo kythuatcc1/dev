@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld('mctDesktop', {
   // Tự chụp: cầu nối bấm menu / hộp thoại ETABS theo thaoTac rồi chụp khung nhìn → { ok, png, w, h, kq (nhật ký) }
   tuChupEtabs: function (yc) { return ipcRenderer.invoke('tu-chup-etabs', yc || {}); },
   cuaSoApp: function (yc) { return ipcRenderer.invoke('cua-so-app', yc || {}); },
+  // Giấy phép (Supabase): thông tin người dùng / đơn vị / gói; nút đăng xuất
+  giayPhep: function () { return ipcRenderer.invoke('giay-phep'); },
+  dangXuat: function () { return ipcRenderer.invoke('dang-xuat'); },
+  onGiayPhep: function (xuLy) { ipcRenderer.on('giay-phep-doi', function (e, gp) { xuLy(gp); }); },
   // Chụp lần lượt bằng F9: cửa sổ hướng dẫn nổi; nhận 'chup' | 'bo-qua' | 'dung'
   f9Bat: function (noiDung) { return ipcRenderer.invoke('f9-bat', noiDung || {}); },
   f9Tat: function () { return ipcRenderer.invoke('f9-tat'); },
