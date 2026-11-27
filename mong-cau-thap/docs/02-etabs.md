@@ -271,6 +271,14 @@ ETABS bằng **Windows UI Automation** (gói `Interop.UIAutomationClient`, chạ
 - Mỗi hình một lần gọi cầu nối: `duLieu.thaoTac` = danh sách `{ loai: 'menu', duong: [...] }`, `{ loai: 'hop-thoai', dat: [chon | radio | tick | danhSach | nhap], xong: 'OK' }`,
   `{ loai: 'phim' }`, `{ loai: 'doi' }`; so tên bỏ "&", "...", phím tắt, hoa thường (khớp đúng → bắt đầu bằng → chứa). Chạy trong luồng MTA; lệnh bấm
   (Invoke) chạy ở luồng phụ, không chờ – mục menu mở hộp thoại modal làm Invoke chưa trả về tới khi hộp thoại đóng.
+- Hộp thoại có thể cho nhiều `phuongAn` (mỗi phương án một danh sách `dat`): bấm `xong` mà ETABS hiện hộp thông báo (vd "Nothing is selected!")
+  thì đọc chữ thông báo vào nhật ký, bấm OK đóng thông báo rồi thử phương án sau; hết phương án thì đóng hộp thoại (Close / Cancel) và báo lỗi.
+  `danhSach` so cả tên và giá trị mục, bấm chuột vào mục; `dauTien` chọn mục đầu (sau khi lọc) hoặc phím Home trong khung danh sách;
+  `{ phim: [...], tu: [nhãn] }` đặt tiêu điểm vào ô sau nhãn rồi bấm phím. Thao tác có `boQuaNeu` được bỏ qua (cùng `boQuaTiep` thao tác sau)
+  khi tiêu đề cửa sổ ETABS chứa chuỗi đó – vd đang ở "Plan View - MAT_DAI" thì không mở lại View → Set Plan View.
+- Vòng 2 (theo ảnh người dùng, ETABS v23.2.0): menu View → Set Plan View mở hộp thoại "Select Plan View" nhưng chưa chọn được tầng trong danh
+  sách (ETABS báo "Nothing is selected!") → mặt bằng dùng 3 phương án: Filter + chọn mục; Filter + Tab, Tab, Home; "At Specified Global Z
+  Coordinate" + cao độ Z của tấm đài.
 - Hình đầu: `chuanBi` (đưa ETABS lên trước, phóng to, Options → Windows → One, phóng to khung nhìn) và `thamDo` (ghi cây menu File / View / Display /
   Options, cây cửa sổ chính). Mỗi hộp thoại được ghi cây điều khiển trước và sau khi đặt (`thongTin.hopThoai`).
 - Chụp: vùng client của khung nhìn mô hình (cửa sổ con MDI; không có MDI thì vùng Pane lớn) – GDI BitBlt từ màn hình, ghi PNG (bộ mã PNG tự viết,

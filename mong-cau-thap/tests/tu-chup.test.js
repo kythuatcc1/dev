@@ -22,7 +22,9 @@ function kiemTraThaoTac(ds, khoa) {
     if (tt.loai === 'menu') assert.ok(tt.duong.length >= 2 && tt.duong.every((x) => typeof x === 'string' && x), khoa);
     if (tt.loai === 'hop-thoai') {
       assert.equal(tt.xong, 'OK', khoa);
-      tt.dat.forEach((d) => assert.equal(Object.keys(d).filter((k) => ['chon', 'radio', 'tick', 'danhSach', 'nhap'].includes(k)).length, 1, khoa + ' ' + JSON.stringify(d)));
+      const dsDat = tt.phuongAn ? tt.phuongAn.map((p) => p.dat) : [tt.dat];
+      assert.ok(dsDat.length > 0 && dsDat.every((d) => Array.isArray(d) && d.length > 0), khoa);
+      dsDat.forEach((dat) => dat.forEach((d) => assert.equal(Object.keys(d).filter((k) => ['chon', 'radio', 'tick', 'danhSach', 'nhap', 'phim'].includes(k)).length, 1, khoa + ' ' + JSON.stringify(d))));
     }
   });
   // mỗi menu mở hộp thoại phải có thao tác hộp thoại theo sau (trừ View → Set Default 3D View, Display → Undeformed Shape)
@@ -46,14 +48,22 @@ test('Kịch bản dùng đúng tên trong mô hình: tầng tấm đài, tổ h
   const e = E();
   assert.equal(HC.tangTam(e.m), 'MAT_DAI');
   const mb = HC.kichBan('etabsMatBang', e);
-  assert.deepEqual(mb[1].dat[0].danhSach, ['MAT_DAI']);
+  // đang ở mặt bằng MAT_DAI thì bỏ qua menu + hộp thoại; hộp thoại: Filter + danh sách, Filter + Tab/Home, cao độ Z tấm đài
+  assert.equal(mb[0].boQuaNeu, 'Plan View - MAT_DAI '); assert.equal(mb[0].boQuaTiep, 1);
+  const pa = mb[1].phuongAn;
+  assert.equal(pa.length, 3);
+  assert.deepEqual(pa[0].dat.find((d) => d.nhap).gt, 'MAT_DAI');
+  assert.deepEqual(pa[0].dat.find((d) => d.danhSach).danhSach, ['MAT_DAI']);
+  assert.deepEqual(pa[1].dat.find((d) => d.phim).phim, ['TAB', 'TAB', 'HOME']);
+  assert.ok(pa[2].dat.some((d) => d.radio && d.radio[0] === 'At Specified Global Z Coordinate'));
+  assert.equal(pa[2].dat.find((d) => d.nhap).gt, String(e.m.thongSo.zTam), 'cao độ tấm đài');
   const p = HC.kichBan('etabsBao_min_P', e), hop = p[p.length - 1];
   assert.deepEqual(p[1].duong, ['Display', 'Force/Stress Diagrams', 'Frame/Pier/Spandrel/Link Forces']);
   assert.deepEqual(hop.dat[0].chon, ['BAO']);
   assert.ok(hop.dat.some((d) => d.radio && d.radio.includes('Min')));
   assert.ok(hop.dat.some((d) => d.radio && d.radio.includes('Axial Force')));
   const m22 = HC.kichBan('etabsMomenDai_M22max', e);
-  assert.deepEqual(m22[1].dat[0].danhSach, ['MAT_DAI'], 'mặt bằng tấm đài');
+  assert.deepEqual(m22[1].phuongAn[0].dat.find((d) => d.danhSach).danhSach, ['MAT_DAI'], 'mặt bằng tấm đài');
   assert.ok(m22[m22.length - 1].dat.some((d) => d.radio && d.radio.includes('M22')));
   const cv = HC.kichBan('etabsChuyenVi', e);
   assert.deepEqual(cv[cv.length - 1].dat[0].chon, ['KLV-KEO-327.31']);

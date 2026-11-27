@@ -63,8 +63,19 @@
   // trên máy người dùng thì nhật ký ghi lại các tên đang có để sửa ở đây.
   var MENU_3D = { loai: 'menu', duong: ['View', 'Set Default 3D View'] };
   var MENU_KHONG_BD = { loai: 'menu', duong: ['Display', 'Undeformed Shape'] };
-  function matBang(tang) {
-    return [{ loai: 'menu', duong: ['View', 'Set Plan View'] }, { loai: 'hop-thoai', dat: [{ danhSach: [tang] }], xong: 'OK' }];
+  // Mặt bằng tầng tấm đài. Hộp thoại "Select Plan View" của ETABS v23: Plan View Options (Default Plan from Story Level or Reference Plane /
+  // At Specified Global Z Coordinate), Filter + danh sách tầng, OK / Close / Apply. ETABS đang ở đúng mặt bằng thì bỏ qua cả hai bước.
+  // Phương án: (1) gõ tên tầng vào Filter, chọn mục trong danh sách (bấm chuột; không thấy mục thì phím Home); (2) Filter, Tab tới danh sách,
+  // Home; (3) chọn cao độ Z của tấm đài. Bấm OK mà ETABS báo lỗi (vd "Nothing is selected!") thì đóng thông báo, thử phương án sau.
+  function matBang(tang, z) {
+    var zs = typeof z === 'number' && isFinite(z) ? String(Math.round(z * 1000) / 1000) : null;
+    var pa = [
+      { dat: [{ radio: ['Default Plan from Story Level or Reference Plane'] }, { nhap: ['Filter'], gt: tang }, { danhSach: [tang], dauTien: true }] },
+      { dat: [{ nhap: ['Filter'], gt: tang }, { phim: ['TAB', 'TAB', 'HOME'], tu: ['Filter'] }] }
+    ];
+    if (zs !== null) pa.push({ dat: [{ radio: ['At Specified Global Z Coordinate'] }, { nhap: ['Global Z Coordinate', 'Z Coordinate', 'Z'], gt: zs }] });
+    return [{ loai: 'menu', duong: ['View', 'Set Plan View'], boQuaNeu: 'Plan View - ' + tang + ' ', boQuaTiep: 1 },
+      { loai: 'hop-thoai', phuongAn: pa, xong: 'OK' }];
   }
   function chonMaxMin(mm) { return mm === 'min' ? ['Min', 'Envelope Min', 'Minimum'] : ['Max', 'Envelope Max', 'Maximum']; }
   function lucThanh(toHop, mm, tp) {
@@ -72,8 +83,8 @@
       { loai: 'hop-thoai', dat: [{ chon: [toHop] }, { radio: chonMaxMin(mm) }, { radio: [tp] },
         { tick: ['Show Values on Diagram', 'Show Values'], gt: true }, { tick: ['Fill Diagram'], gt: true }], xong: 'OK' }];
   }
-  function lucVo(tang, toHop, tp, mm) {
-    return matBang(tang).concat([{ loai: 'menu', duong: ['Display', 'Force/Stress Diagrams', 'Shell Stresses/Forces'] },
+  function lucVo(tang, z, toHop, tp, mm) {
+    return matBang(tang, z).concat([{ loai: 'menu', duong: ['Display', 'Force/Stress Diagrams', 'Shell Stresses/Forces'] },
       { loai: 'hop-thoai', dat: [{ chon: [toHop] }, { radio: ['Resultant Forces', 'Shell Forces', 'Forces'] }, { radio: [tp] }, { radio: chonMaxMin(mm) }],
         xong: 'OK' }]);
   }
@@ -86,10 +97,11 @@
   function kichBan(khoa, E) {
     var m = E && E.m && E.m.hopLe ? E.m : null, t = E && E.t, kE = E && E.kE;
     var tang = tangTam(m), cv = kE && kE.chuyenVi, toHopCv = cv && cv.DeltaMax ? cv.DeltaMax.toHop : 'BAO';
+    var zTam = m && m.thongSo ? (m.thongSo.zTam !== undefined ? m.thongSo.zTam : m.thongSo.zGiua) : null;
     var coMZ = t && t.hopLe && t.mauTai.some(function (p) { return p.ten === 'MZ1'; });
     var x;
     if (khoa === 'etabsMoHinh3D') return [MENU_3D, MENU_KHONG_BD];
-    if (khoa === 'etabsMatBang') return matBang(tang).concat([MENU_KHONG_BD]);
+    if (khoa === 'etabsMatBang') return matBang(tang, zTam).concat([MENU_KHONG_BD]);
     if (khoa === 'etabsTai1') return taiNut(['FX1', 'FY1', 'FZ1']);
     if (khoa === 'etabsTai2') return taiNut(['MX1', 'MY1'].concat(coMZ ? ['MZ1'] : []));
     if (khoa === 'etabsTai3') return taiNut(['FX2', 'FY2', 'FZ2']);
@@ -100,8 +112,8 @@
     if (khoa === 'etabsChuyenVi') {
       return [MENU_3D, { loai: 'menu', duong: ['Display', 'Deformed Shape'] }, { loai: 'hop-thoai', dat: [{ chon: [toHopCv] }], xong: 'OK' }];
     }
-    if ((x = /^etabsMomenDai_(M11|M22)(max|min)$/.exec(khoa))) return lucVo(tang, 'BAO', x[1], x[2]);
-    if ((x = /^etabsCatDai_(V13|V23)$/.exec(khoa))) return lucVo(tang, 'BAO', x[1], 'max');
+    if ((x = /^etabsMomenDai_(M11|M22)(max|min)$/.exec(khoa))) return lucVo(tang, zTam, 'BAO', x[1], x[2]);
+    if ((x = /^etabsCatDai_(V13|V23)$/.exec(khoa))) return lucVo(tang, zTam, 'BAO', x[1], 'max');
     if (/^dam_/.test(khoa)) return lucThanh('BAO', 'max', 'Moment 3-3');
     return null;
   }

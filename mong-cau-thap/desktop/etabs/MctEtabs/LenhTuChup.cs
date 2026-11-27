@@ -93,13 +93,21 @@ namespace MctEtabs
             bool ok = true;
             if (d["thaoTac"] is JsonArray ds)
             {
-                int i = 0;
+                int i = 0, boQua = 0;
                 foreach (JsonNode n in ds)
                 {
                     i++;
                     if (n is not JsonObject tt) continue;
                     string loai = Chu(tt["loai"]);
                     string ten = "thao-tac-" + i + "-" + loai;
+                    if (boQua > 0) { boQua--; kq.GhiBuoc(ten, true, "bo qua (khung nhin da dung)"); continue; }
+                    string boQuaNeu = Chu(tt["boQuaNeu"]);
+                    if (!string.IsNullOrEmpty(boQuaNeu) && TieuDeEtabs().IndexOf(boQuaNeu, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        boQua = So(tt["boQuaTiep"], 0);
+                        kq.GhiBuoc(ten, true, "bo qua: ETABS dang o \"" + boQuaNeu + "\" (" + TieuDeEtabs() + ")");
+                        continue;
+                    }
                     try
                     {
                         string ct = loai switch
@@ -168,6 +176,7 @@ namespace MctEtabs
         }
 
         static IUIAutomationElement CuaSoChinh() => A.ElementFromHandle(HwndChinh);
+        static string TieuDeEtabs() => SafeStr(() => CuaSoChinh().CurrentName) ?? "";
 
         static void DuaLenTruoc()
         {
@@ -352,31 +361,82 @@ namespace MctEtabs
             var cay = new JsonObject { ["tieuDe"] = Ten(hop), ["lop"] = Lop(hop), ["cay"] = Cay(hop, 0, 9, new int[] { 0 }) };
             HopThoai.Add(cay);
             var ghi = new List<string> { "hop thoai \"" + Ten(hop) + "\"" };
-            if (tt["dat"] is JsonArray dsDat)
+            // các phương án đặt (thử lần lượt tới khi bấm "xong" mà hộp thoại đóng, ETABS không báo lỗi)
+            var dsPa = new List<JsonArray>();
+            if (tt["phuongAn"] is JsonArray pa) foreach (JsonNode p in pa) if (p is JsonObject po && po["dat"] is JsonArray d1) dsPa.Add(d1);
+            if (dsPa.Count == 0) dsPa.Add(tt["dat"] as JsonArray ?? new JsonArray());
+            string xong = Chu(tt["xong"]);
+            var thongBao = new JsonArray();
+            cay["thongBao"] = thongBao;
+            for (int k = 0; k < dsPa.Count; k++)
             {
-                foreach (JsonNode n in dsDat)
+                if (dsPa.Count > 1) ghi.Add("[phuong an " + (k + 1) + "]");
+                SetForegroundWindow(Hwnd(hop));
+                foreach (JsonNode n in dsPa[k])
                 {
                     if (n is not JsonObject dt) continue;
                     try { ghi.Add(DatMot(hop, dt)); }
                     catch (Exception ex) { ghi.Add("LOI " + dt.ToJsonString() + ": " + Api.GocLoi(ex).Message); cay["loi"] = (cay["loi"]?.ToString() ?? "") + Api.GocLoi(ex).Message + "; "; }
                 }
-            }
-            // trạng thái sau khi đặt (để so trong nhật ký)
-            cay["sauKhiDat"] = Cay(hop, 0, 9, new int[] { 0 });
-            string xong = Chu(tt["xong"]);
-            if (!string.IsNullOrEmpty(xong))
-            {
+                // trạng thái sau khi đặt (để so trong nhật ký)
+                cay[k == 0 ? "sauKhiDat" : "sauKhiDat" + (k + 1)] = Cay(hop, 0, 9, new int[] { 0 });
+                if (string.IsNullOrEmpty(xong)) return string.Join("; ", ghi);
                 var nut = Khop(TatCa(hop, TreeScope.TreeScope_Descendants, e => e.CurrentControlType == CT_Button, 200), xong);
-                if (nut == null) { BamPhim("ESC"); throw new InvalidOperationException("Khong thay nut \"" + xong + "\". " + string.Join("; ", ghi)); }
+                if (nut == null) { DongHop(hop); throw new InvalidOperationException("Khong thay nut \"" + xong + "\". " + string.Join("; ", ghi)); }
                 BamKhongCho(nut, 800);
-                // ETABS tính biểu đồ sau khi bấm OK: đợi hộp thoại đóng
-                var dh = Stopwatch.StartNew();
-                while (dh.ElapsedMilliseconds < 20000 && ConMo(hop)) Thread.Sleep(200);
-                ghi.Add("bam " + xong + (ConMo(hop) ? " (hop thoai chua dong)" : ""));
+                // ETABS tính biểu đồ sau khi bấm OK: đợi hộp thoại đóng, hoặc bắt hộp thông báo lỗi (vd "Nothing is selected!")
+                string tb = ChoDongHoacThongBao(hop, 20000, out bool dong);
+                if (dong) { ghi.Add("bam " + xong + " – hop thoai da dong"); return string.Join("; ", ghi); }
+                if (tb != null) { ghi.Add("ETABS bao: \"" + tb + "\" (da dong thong bao)"); thongBao.Add(tb); continue; }
+                ghi.Add("hop thoai chua dong sau 20 s");
+                break;
             }
-            bool coLoi = ghi.Any(g => g.StartsWith("LOI ", StringComparison.Ordinal));
-            if (coLoi && Bool(tt["batBuoc"])) throw new InvalidOperationException(string.Join("; ", ghi));
-            return string.Join("; ", ghi);
+            DongHop(hop);
+            throw new InvalidOperationException(string.Join("; ", ghi));
+        }
+
+        static IntPtr Hwnd(IUIAutomationElement e) { try { return e.CurrentNativeWindowHandle; } catch { return IntPtr.Zero; } }
+
+        /// <summary>Đợi hộp thoại đóng; nếu ETABS hiện hộp thông báo thì đọc chữ, bấm OK đóng thông báo và trả về chữ đó.</summary>
+        static string ChoDongHoacThongBao(IUIAutomationElement hop, int ms, out bool dong)
+        {
+            var dh = Stopwatch.StartNew();
+            dong = false;
+            while (dh.ElapsedMilliseconds < ms)
+            {
+                if (!ConMo(hop)) { dong = true; return null; }
+                var ds = new List<IUIAutomationElement>();
+                ds.AddRange(TatCa(A.GetRootElement(), TreeScope.TreeScope_Children, e => e.CurrentProcessId == Pid && e.CurrentControlType == CT_Window, 50));
+                ds.AddRange(TatCa(hop, TreeScope.TreeScope_Children, e => e.CurrentControlType == CT_Window, 20));
+                foreach (var w in ds)
+                {
+                    if (A.CompareElements(w, hop) != 0 || Hwnd(w) == HwndChinh) continue;
+                    var nut = TatCa(w, TreeScope.TreeScope_Descendants, e => e.CurrentControlType == CT_Button, 10);
+                    var chu = TatCa(w, TreeScope.TreeScope_Descendants, e => e.CurrentControlType == CT_Text, 20).Select(Ten).Where(x => x.Length > 0).ToList();
+                    if (nut.Count == 0 || nut.Count > 4 || chu.Count == 0) continue;   // không phải hộp thông báo
+                    string tb = string.Join(" ", chu);
+                    var ok = Khop(nut, new[] { "OK", "Yes", "Close" }) ?? nut[0];
+                    BamKhongCho(ok, 800);
+                    Thread.Sleep(300);
+                    if (ConMoPhanTu(w)) BamPhim("ENTER");
+                    return tb;
+                }
+                Thread.Sleep(200);
+            }
+            return null;
+        }
+
+        static bool ConMoPhanTu(IUIAutomationElement e)
+        {
+            try { var r = e.CurrentBoundingRectangle; return r.right > r.left; } catch { return false; }
+        }
+
+        static void DongHop(IUIAutomationElement hop)
+        {
+            if (!ConMo(hop)) return;
+            var huy = Khop(TatCa(hop, TreeScope.TreeScope_Descendants, e => e.CurrentControlType == CT_Button, 100), new[] { "Cancel", "Close" });
+            if (huy != null) BamKhongCho(huy, 800); else BamPhim("ESC");
+            Thread.Sleep(300);
         }
 
         static bool ConMo(IUIAutomationElement hop)
@@ -440,41 +500,105 @@ namespace MctEtabs
             }
             if (dt["danhSach"] != null)
             {
+                Thread.Sleep(300);   // danh sách lọc lại sau khi gõ ô Filter
                 var muc = Mang(dt["danhSach"]);
                 var item = TatCa(vung, TreeScope.TreeScope_Descendants, e => e.CurrentControlType == CT_ListItem || e.CurrentControlType == CT_DataItem || e.CurrentControlType == CT_TreeItem, 2000);
                 var daChon = new List<string>();
                 foreach (string m in muc)
                 {
-                    var it = Khop(item, m);
+                    var it = KhopTenGiaTri(item, m);
                     if (it == null) continue;
-                    if (it.GetCurrentPattern(P_SelectionItem) is IUIAutomationSelectionItemPattern si)
-                    {
-                        if (daChon.Count == 0) si.Select(); else si.AddToSelection();
-                    }
-                    else Bam(it);
-                    daChon.Add(Ten(it));
+                    ChonMuc(it, daChon.Count > 0);
+                    daChon.Add(TenGiaTri(it));
                 }
-                if (daChon.Count == 0) throw new InvalidOperationException("Khong thay muc " + string.Join("/", muc) + " trong danh sach. Co: " + string.Join(" | ", item.Select(Ten).Take(40)));
+                if (daChon.Count == 0 && Bool(dt["dauTien"]) && item.Count > 0) { ChonMuc(item[0], false); daChon.Add("muc dau tien: " + TenGiaTri(item[0])); }
+                if (daChon.Count == 0 && Bool(dt["dauTien"]))
+                {
+                    // danh sách không lộ mục qua UI Automation: đặt tiêu điểm vào khung danh sách, phím Home chọn mục đầu
+                    var khung = TatCa(vung, TreeScope.TreeScope_Descendants, e => { int ct = e.CurrentControlType; return ct == CT_List || ct == 50028 || ct == 50036 || ct == CT_Tree; }, 10);
+                    if (khung.Count > 0)
+                    {
+                        try { khung[0].SetFocus(); } catch { /* */ }
+                        Thread.Sleep(150); BamPhim("HOME");
+                        daChon.Add("phim Home tai " + MoTa(khung[0], false).ToJsonString());
+                    }
+                }
+                if (daChon.Count == 0) throw new InvalidOperationException("Khong thay muc " + string.Join("/", muc) + " trong danh sach. Co: " + string.Join(" | ", item.Select(TenGiaTri).Take(40)));
                 return "danh sach: " + string.Join(", ", daChon);
+            }
+            if (dt["phim"] != null)
+            {
+                // đặt tiêu điểm vào ô sau nhãn "tu" (vd Filter) rồi bấm lần lượt các phím
+                string tai = "";
+                if (dt["tu"] != null)
+                {
+                    var o = TimONhap(vung, Mang(dt["tu"]), out _);
+                    if (o == null) throw new InvalidOperationException("Khong thay o " + string.Join("/", Mang(dt["tu"])));
+                    try { o.SetFocus(); } catch { /* */ }
+                    Thread.Sleep(150);
+                    tai = " tai " + Ten(o);
+                }
+                foreach (string ph in Mang(dt["phim"])) BamPhim(ph);
+                return "phim " + string.Join(" ", Mang(dt["phim"])) + tai;
             }
             if (dt["nhap"] != null)
             {
                 string gt = Chu(dt["gt"]) ?? "";
-                var nhan = Khop(TatCa(vung, TreeScope.TreeScope_Descendants, e => e.CurrentControlType == CT_Text, 300), Mang(dt["nhap"]));
-                IUIAutomationElement o = null;
-                if (nhan != null)
-                {
-                    var w = A.ControlViewWalker;
-                    for (var s = w.GetNextSiblingElement(nhan); s != null && o == null; s = w.GetNextSiblingElement(s))
-                        if (s.CurrentControlType == CT_Edit) o = s;
-                }
-                o ??= Khop(TatCa(vung, TreeScope.TreeScope_Descendants, e => e.CurrentControlType == CT_Edit, 100), Mang(dt["nhap"]));
-                if (o == null || o.GetCurrentPattern(P_Value) is not IUIAutomationValuePattern vp) throw new InvalidOperationException("Khong thay o nhap " + string.Join("/", Mang(dt["nhap"])));
+                var o = TimONhap(vung, Mang(dt["nhap"]), out var nhan);
+                if (o == null || o.GetCurrentPattern(P_Value) is not IUIAutomationValuePattern vp)
+                    throw new InvalidOperationException("Khong thay o nhap " + string.Join("/", Mang(dt["nhap"])) + ". Co: " + DanhSachTen(vung, CT_Edit) + " / nhan: " + DanhSachTen(vung, CT_Text));
+                if (o.CurrentIsEnabled == 0) Thread.Sleep(300);
                 vp.SetValue(gt);
-                return "nhap \"" + Ten(nhan ?? o) + "\" = " + gt;
+                Thread.Sleep(200);
+                return "nhap \"" + Ten(nhan ?? o) + "\" = " + gt + " (doc lai: " + GiaTri(o) + ")";
             }
             throw new InvalidOperationException("Khong hieu yeu cau " + dt.ToJsonString());
         }
+
+        // Ô nhập đứng sau nhãn (Text) có tên khớp, hoặc ô nhập có tên khớp
+        static IUIAutomationElement TimONhap(IUIAutomationElement vung, string[] nhanTen, out IUIAutomationElement nhan)
+        {
+            nhan = Khop(TatCa(vung, TreeScope.TreeScope_Descendants, e => e.CurrentControlType == CT_Text, 300), nhanTen);
+            IUIAutomationElement o = null;
+            if (nhan != null)
+            {
+                var w = A.ControlViewWalker;
+                for (var s = w.GetNextSiblingElement(nhan); s != null && o == null; s = w.GetNextSiblingElement(s))
+                    if (s.CurrentControlType == CT_Edit || s.CurrentControlType == CT_ComboBox) o = s;
+            }
+            return o ?? Khop(TatCa(vung, TreeScope.TreeScope_Descendants, e => e.CurrentControlType == CT_Edit, 100), nhanTen);
+        }
+
+        // Chọn một mục danh sách: bấm chuột vào giữa mục (như người dùng – phát sự kiện chọn của ETABS), rồi kiểm tra / chọn bằng UIA
+        static void ChonMuc(IUIAutomationElement it, bool them)
+        {
+            var si = it.GetCurrentPattern(P_SelectionItem) as IUIAutomationSelectionItemPattern;
+            if (them) { if (si != null) si.AddToSelection(); else Bam(it); return; }
+            bool daBam = false;
+            try
+            {
+                var r = it.CurrentBoundingRectangle;
+                if (it.CurrentIsOffscreen == 0 && r.right - r.left > 2 && r.bottom - r.top > 2)
+                {
+                    SetCursorPos((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+                    mouse_event(0x0002, 0, 0, 0, UIntPtr.Zero); mouse_event(0x0004, 0, 0, 0, UIntPtr.Zero);
+                    daBam = true;
+                    Thread.Sleep(200);
+                }
+            }
+            catch { /* */ }
+            try { if (si != null && si.CurrentIsSelected == 0) si.Select(); } catch { /* */ }
+            if (!daBam && si == null) Bam(it);
+        }
+
+        static string TenGiaTri(IUIAutomationElement e)
+        {
+            string ten = Ten(e), gt = GiaTri(e);
+            return gt.Length > 0 && gt != ten ? ten + " = " + gt : ten;
+        }
+
+        static IUIAutomationElement KhopTenGiaTri(List<IUIAutomationElement> ds, string ten) =>
+            Khop(ds, ten) ?? ds.FirstOrDefault(e => ChuanTen(GiaTri(e)) == ChuanTen(ten)) ?? ds.FirstOrDefault(e => ChuanTen(GiaTri(e)).Contains(ChuanTen(ten), StringComparison.Ordinal));
 
         static string ChonTrongCombo(IUIAutomationElement vung, string[] gt)
         {
@@ -640,7 +764,8 @@ namespace MctEtabs
         {
             byte vk = (phim ?? "").ToUpperInvariant() switch
             {
-                "ESC" => 0x1B, "ENTER" => 0x0D, "TAB" => 0x09,
+                "ESC" => 0x1B, "ENTER" => 0x0D, "TAB" => 0x09, "SPACE" => 0x20, "HOME" => 0x24, "END" => 0x23,
+                "LEFT" => 0x25, "UP" => 0x26, "RIGHT" => 0x27, "DOWN" => 0x28,
                 "F1" => 0x70, "F2" => 0x71, "F3" => 0x72, "F4" => 0x73, "F5" => 0x74, "F6" => 0x75, "F7" => 0x76, "F8" => 0x77,
                 "F9" => 0x78, "F10" => 0x79, "F11" => 0x7A, "F12" => 0x7B,
                 _ => throw new InvalidOperationException("Phim chua ho tro: " + phim)
