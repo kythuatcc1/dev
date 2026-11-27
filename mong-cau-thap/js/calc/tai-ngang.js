@@ -61,6 +61,8 @@
     var nCoc = B.n, nHs = A.n;
     var H = Math.max(A.ngoaiLuc.lv.H, A.ngoaiLuc.klv.H) / nHs / nCoc;   // J9
     var M = Number(v.M) || 0, l0 = Number(v.l0) || 0;
+    var daiCao = v.loaiDai === 'cao';
+    if (daiCao) l0 = Number(S.coc.l0) || 0;      // đài cao: đoạn tự do từ đáy đài tới mặt đất (đáy hố đào), như phần sức chịu tải cọc
     var I = S.coc.I, E = S.vatLieu.E, K = S.vatLieu.k, ae = S.vatLieu.alphaE;
     var EI = E * 1e3 * I;
     var A0 = Number(v.A0), B0 = Number(v.B0), C0 = Number(v.C0);
@@ -70,13 +72,15 @@
     var dHM = B0 / (ae * ae * EI) * 1e5;
     var dMH = dHM;
     var dMM = C0 / (ae * EI) * 1e5;
+    // Đài cao: đầu cọc ngàm vào đài cứng, đài không xoay → mômen ngàm M sao cho góc xoay tại đáy đài ψ = 0
+    if (daiCao) M = -H * (dHM * 1e-5 + l0 * dMM * 1e-5 + l0 * l0 / (2 * EI)) / (dMM * 1e-5 + l0 / EI);
     var H0 = H, M0 = M + H * l0;
     var uy = H0 * dHH * 1e-5 + M0 * dHM * 1e-5;          // m
     var upsi = H0 * dMH * 1e-5 + M0 * dMM * 1e-5;        // rad
     var y0 = uy * 100, psi0 = deg(upsi);
     var Delta = (uy + upsi * l0 + H * Math.pow(l0, 3) / (3 * EI) + M * l0 * l0 / (2 * EI)) * 100;
     var psi = deg(upsi + H * l0 * l0 / (2 * EI) + M * l0 / EI);
-    var gDelta = Number(v.gioiHanChuyenVi), gPsi = Number(v.gioiHanGocXoay);
+    var gDelta = daiCao ? Number(v.gioiHanChuyenViCao) : Number(v.gioiHanChuyenVi), gPsi = Number(v.gioiHanGocXoay);
 
     // C, D, E. Nội lực dọc thân cọc
     var y0m = y0 / 100, psi0r = rad(psi0);
@@ -152,7 +156,7 @@
 
     return {
       hopLe: loi2.length === 0, loi: loi2,
-      H: H, M: M, l0: l0, I: I, E: E, K: K, alphaE: ae, A0: A0, B0: B0, C0: C0, nCoc: nCoc, nHs: nHs,
+      loaiDai: daiCao ? 'cao' : 'thap', H: H, M: M, l0: l0, I: I, E: E, K: K, alphaE: ae, A0: A0, B0: B0, C0: C0, nCoc: nCoc, nHs: nHs,
       dHH: dHH, dHM: dHM, dMH: dMH, dMM: dMM, H0: H0, M0: M0, y0: y0, psi0: psi0, Delta: Delta, psi: psi,
       gioiHanChuyenVi: gDelta, gioiHanGocXoay: gPsi, okDelta: Delta <= gDelta, okPsi: psi <= gPsi,
       bang: bang, Mmax: Mx.gt, zM: Mx.z, Qmax: Qx.gt, zQ: Qx.z,

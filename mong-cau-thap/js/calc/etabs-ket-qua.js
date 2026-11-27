@@ -317,7 +317,8 @@
 
     // ---------------- Chuyển vị ----------------
     var tn = s.taiNgang || {};
-    var gDelta = Number(tn.gioiHanChuyenVi) * 10, gPsi = Number(tn.gioiHanGocXoay);   // mm, độ
+    // đài cao: [Δ] riêng (mặc định 3,8 cm = 38 mm); đài thấp: [Δ] chung
+    var gDelta = Number(tn.loaiDai === 'cao' ? tn.gioiHanChuyenViCao : tn.gioiHanChuyenVi) * 10, gPsi = Number(tn.gioiHanGocXoay);   // mm, độ
     var DeltaMax = null, psiMax = null;
     tt.chuyenVi.nut.forEach(function (n) {
       if (n.Delta && hon(DeltaMax && DeltaMax.gt, n.Delta.gt)) DeltaMax = Object.assign({ nut: n.nhan }, n.Delta);

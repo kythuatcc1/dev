@@ -45,3 +45,20 @@ test('Khả năng chịu cắt và ổn định đất quanh cọc khớp Excel'
 test('Hàm ApLucDat: cao độ trên mực nước ngầm chỉ dùng γ tự nhiên', () => {
   gan(MCT.calc.apLucDat(-0.5, -1, [0, -2.3, -60], [20, 14.5, 0]), 10, 'P');
 });
+
+test('Đài cao: l0 theo sức chịu tải cọc, đầu cọc ngàm (ψ tại đáy đài = 0), [Δ] = 3,8 cm', () => {
+  const s = JSON.parse(JSON.stringify(MCT.macDinh));
+  const thap = MCT.calc.tinhTatCa(s).TN;
+  assert.equal(thap.loaiDai, 'thap'); assert.equal(thap.gioiHanChuyenVi, 1); assert.equal(thap.l0, 0);
+  s.taiNgang.loaiDai = 'cao';
+  const kq = MCT.calc.tinhTatCa(s), cao = kq.TN;
+  assert.equal(cao.loaiDai, 'cao');
+  assert.ok(Math.abs(cao.l0 - kq.SCT.coc.l0) < 1e-9, 'l0 = ' + cao.l0);
+  assert.equal(cao.gioiHanChuyenVi, 3.8);
+  assert.ok(Math.abs(cao.psi) < 1e-6, 'ψ đáy đài = ' + cao.psi);
+  assert.ok(cao.M < 0 && Math.abs(cao.Delta - 1.72) < 0.02, 'Δ ' + cao.Delta + ', M ' + cao.M);
+  assert.equal(cao.okDelta, true);
+  // [Δ] ETABS theo loại đài
+  s.taiNgang.gioiHanChuyenViCao = 1.5;
+  assert.equal(MCT.calc.tinhTatCa(s).TN.okDelta, false, 'Δ 1,72 > 1,5 cm');
+});

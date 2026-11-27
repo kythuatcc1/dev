@@ -1377,13 +1377,20 @@
     tieuDe: 'Kiểm tra cọc chịu tải ngang',
     moTa: 'TCVN 10304 phụ lục A – sheet Kiem tra tai ngang. Tải trọng ngang lấy từ mục A, đặc trưng cọc và hệ số k, αε lấy từ phần sức chịu tải cọc.',
     nhap: function () {
+      var cao = state.taiNgang.loaiDai === 'cao';
       return '<section class="card"><h2>A. Thông số đầu vào</h2><div class="grid-2"><div class="params">' +
-        oNhapSo('taiNgang.M', 'Mômen tác dụng vào đầu cọc', '<i>M</i> =', 'kNm') +
-        oNhapSo('taiNgang.l0', 'Chiều dài cọc từ đáy đài tới cao độ san nền', '<i>l</i><sub>0</sub> =', 'm') +
+        oChon('taiNgang.loaiDai', [{ v: 'thap', t: 'Đài thấp – như Excel (l0, M nhập tay)' }, { v: 'cao', t: 'Đài cao – l0 theo phần sức chịu tải cọc, đầu cọc ngàm vào đài' }],
+          'Loại đài móng', '', '', false, true) +
+        (cao ? '<p class="hint">Đài cao: đoạn cọc tự do l<sub>0</sub> = ' + (tatCa && tatCa.TN && tatCa.TN.l0 !== undefined ? so(tatCa.TN.l0, 2) : '–') +
+          ' m (đáy đài → đáy hố đào, lấy từ phần sức chịu tải cọc); đầu cọc ngàm vào đài cứng nên mômen đầu cọc M tự tính (ψ tại đáy đài = 0); ' +
+          '[Δ] lấy theo ô bên dưới (mặc định 38 mm).</p>' +
+          oNhapSo('taiNgang.gioiHanChuyenViCao', 'Giới hạn chuyển vị đầu cọc – đài cao', '[Δ]<sub>đài cao</sub> =', 'cm') : '') +
+        (cao ? '' : oNhapSo('taiNgang.M', 'Mômen tác dụng vào đầu cọc', '<i>M</i> =', 'kNm') +
+          oNhapSo('taiNgang.l0', 'Chiều dài cọc từ đáy đài tới cao độ san nền', '<i>l</i><sub>0</sub> =', 'm')) +
         oNhapSo('taiNgang.A0', 'Hệ số A<sub>0</sub>', '<i>A</i><sub>0</sub> =', '') +
         oNhapSo('taiNgang.B0', 'Hệ số B<sub>0</sub>', '<i>B</i><sub>0</sub> =', '') +
         oNhapSo('taiNgang.C0', 'Hệ số C<sub>0</sub>', '<i>C</i><sub>0</sub> =', '') +
-        oNhapSo('taiNgang.gioiHanChuyenVi', 'Giới hạn chuyển vị đầu cọc', '[Δ] =', 'cm') +
+        (cao ? '' : oNhapSo('taiNgang.gioiHanChuyenVi', 'Giới hạn chuyển vị đầu cọc', '[Δ] =', 'cm')) +
         oNhapSo('taiNgang.gioiHanGocXoay', 'Giới hạn góc xoay đầu cọc', '[ψ] =', 'độ') +
         '</div><div class="params">' +
         oNhapSo('taiNgang.phiB3', 'Hệ số φ<sub>b3</sub> (khả năng chịu cắt bê tông)', 'φ<sub>b3</sub> =', '') +
