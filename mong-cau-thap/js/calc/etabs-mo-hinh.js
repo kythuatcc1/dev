@@ -76,25 +76,31 @@
     if (loi.length) return { hopLe: false, loi: loi };
 
     var X = A.dai.X, Y = A.dai.Y, H = A.dai.H;
+    // Đài vát (móng 3 cọc, js/calc/hinh-dai.js): đa giác bao theo cọc, có thể lệch tâm cẩu; còn lại: chữ nhật X × Y giữa gốc toạ độ
+    var hd = A.dai.hinh && A.dai.hinh.kieu === 'vat' && A.dai.hinh.hopLe ? A.dai.hinh : null;
+    var bx0 = hd ? hd.x0 : -X / 2, bx1 = hd ? hd.x1 : X / 2, by0 = hd ? hd.y0 : -Y / 2, by1 = hd ? hd.y1 : Y / 2;
+    var mepDai = function (x, y) { return MCT.calc.hinhDai.khoangCachMep(hd, x, y); };
     var c = S.coc, D = c.D, bp = S.vatLieu.bp;
     var zDay = c.dayDai, zMat = tron(zDay + H), zGiua = tron(zDay + H / 2), zMui = c.muiCoc;
     var zBatDau = batDau === 'day-ho' ? Math.min(c.dauCocTinhToan, zDay) : zDay;
     var coc = B.coc.map(function (p, i) { return { ten: 'C' + (i + 1), x: tron(p.x), y: tron(p.y) }; });
     coc.forEach(function (p) {
-      if (Math.abs(p.x) + D / 2 > X / 2 + SAI_SO || Math.abs(p.y) + D / 2 > Y / 2 + SAI_SO) {
-        loi.push('Cọc ' + p.ten + ' (' + p.x + '; ' + p.y + ') nằm ngoài đài ' + X + ' × ' + Y + ' m.');
+      if (hd ? mepDai(p.x, p.y) < D / 2 - SAI_SO : (Math.abs(p.x) + D / 2 > X / 2 + SAI_SO || Math.abs(p.y) + D / 2 > Y / 2 + SAI_SO)) {
+        loi.push('Cọc ' + p.ten + ' (' + p.x + '; ' + p.y + ') nằm ngoài đài ' + (hd ? 'vát' : X + ' × ' + Y + ' m') + '.');
       }
     });
     if (!(zMui < zDay)) loi.push('Mũi cọc phải thấp hơn đáy đài.');
     // Điểm đặt lực: tâm cẩu (xc, yc) và 4 chân cẩu (xc ± Ht/2, yc ± Ht/2) phải nằm trong đài
     var Ht = Number(A.Ht) || 0, chan = [];
-    if (Math.abs(xc) > X / 2 - SAI_SO || Math.abs(yc) > Y / 2 - SAI_SO) loi.push('Tâm cẩu (' + xc + '; ' + yc + ') nằm ngoài đài ' + X + ' × ' + Y + ' m.');
+    if (hd ? mepDai(xc, yc) < SAI_SO : (Math.abs(xc) > X / 2 - SAI_SO || Math.abs(yc) > Y / 2 - SAI_SO)) {
+      loi.push('Tâm cẩu (' + xc + '; ' + yc + ') nằm ngoài đài ' + (hd ? 'vát' : X + ' × ' + Y + ' m') + '.');
+    }
     if (kieuDat === 'chan') {
       if (!(Ht > 0)) loi.push('Cẩu chưa có khoảng cách chân (bề rộng thân Ht) để chia lực về 4 chân.');
       else {
         chan = [[1, 1], [-1, 1], [-1, -1], [1, -1]].map(function (d, i) { return { ten: 'CH' + (i + 1), x: tron(xc + d[0] * Ht / 2), y: tron(yc + d[1] * Ht / 2) }; });
-        if (chan.some(function (c) { return Math.abs(c.x) > X / 2 + SAI_SO || Math.abs(c.y) > Y / 2 + SAI_SO; })) {
-          loi.push('Chân cẩu (cách nhau ' + Ht + ' m quanh tâm cẩu ' + xc + '; ' + yc + ') nằm ngoài đài ' + X + ' × ' + Y + ' m.');
+        if (chan.some(function (c) { return hd ? mepDai(c.x, c.y) < -SAI_SO : Math.abs(c.x) > X / 2 + SAI_SO || Math.abs(c.y) > Y / 2 + SAI_SO; })) {
+          loi.push('Chân cẩu (cách nhau ' + Ht + ' m quanh tâm cẩu ' + xc + '; ' + yc + ') nằm ngoài đài ' + (hd ? 'vát' : X + ' × ' + Y + ' m') + '.');
         }
       }
     }
@@ -122,29 +128,62 @@
 
     // ---- Lưới tấm đài (mặt phẳng giữa đài), đường lưới qua tâm đài (điểm đặt tải) và tâm các cọc ----
     var buocLuoi = chiaDai === 'deu' ? luoi : Infinity;   // tối thiểu: mỗi đoạn giữa hai đường bắt buộc là một ô
-    var xs = chiaDai === 'khong' ? [tron(-X / 2), tron(X / 2)]
-      : chiaDoan(-X / 2, X / 2, buocLuoi, [0, xc].concat(coc.map(function (p) { return p.x; }), chan.map(function (c) { return c.x; })));
-    var ys = chiaDai === 'khong' ? [tron(-Y / 2), tron(Y / 2)]
-      : chiaDoan(-Y / 2, Y / 2, buocLuoi, [0, yc].concat(coc.map(function (p) { return p.y; }), chan.map(function (c) { return c.y; })));
+    // đài vát: thêm đường lưới qua các đỉnh đa giác và trọng tâm đài (nút "tâm đài" lấy chuyển vị)
+    var tamDai = hd ? [tron(hd.trongTam[0]), tron(hd.trongTam[1])] : [0, 0];
+    var themX = hd ? hd.dinh.map(function (q) { return q[0]; }).concat([tamDai[0]]) : [];
+    var themY = hd ? hd.dinh.map(function (q) { return q[1]; }).concat([tamDai[1]]) : [];
+    var xs = chiaDai === 'khong' ? [tron(bx0), tron(bx1)]
+      : chiaDoan(bx0, bx1, buocLuoi, [0, xc].concat(coc.map(function (p) { return p.x; }), chan.map(function (c) { return c.x; }), themX));
+    var ys = chiaDai === 'khong' ? [tron(by0), tron(by1)]
+      : chiaDoan(by0, by1, buocLuoi, [0, yc].concat(coc.map(function (p) { return p.y; }), chan.map(function (c) { return c.y; }), themY));
     function tenNutDai(i, k) { return 'D' + (i + 1) + '_' + (k + 1); }
-    var diem = [], thanh = [], vo = [], diemRieng = [], nutTrong = {};
+    var diem = [], thanh = [], vo = [], diemRieng = [], nutTrong = {}, soD0 = 0, daCoNut = {};
+    // đài vát: chỉ tạo nút lưới nằm trong đài (khi ô vỏ hoặc cọc / điểm đặt lực dùng tới)
+    function nutLuoi(i, k) {
+      var ten = tenNutDai(i, k);
+      if (hd && !daCoNut[ten]) { daCoNut[ten] = true; diem.push({ ten: ten, x: xs[i], y: ys[k], z: zGiua }); }
+      return ten;
+    }
     // Nút của tấm tại (x, y); không chia: điểm nằm trong tấm (tạo khi cần, tên D0_<k>, đánh dấu điểm riêng để ETABS giữ và chia lưới qua)
     function timNutDai(x, y) {
       var i = xs.indexOf(tron(x)), k = ys.indexOf(tron(y));
-      if (i >= 0 && k >= 0) return tenNutDai(i, k);
+      if (i >= 0 && k >= 0) return nutLuoi(i, k);
       if (chiaDai !== 'khong') return null;
       var khoa = tron(x) + '|' + tron(y);
       if (!nutTrong[khoa]) {
-        nutTrong[khoa] = 'D0_' + (diemRieng.length + 1);
+        nutTrong[khoa] = 'D0_' + (++soD0);
         diem.push({ ten: nutTrong[khoa], x: tron(x), y: tron(y), z: zGiua });
         diemRieng.push(nutTrong[khoa]);
       }
       return nutTrong[khoa];
     }
-    xs.forEach(function (x, i) { ys.forEach(function (y, k) { diem.push({ ten: tenNutDai(i, k), x: x, y: y, z: zGiua }); }); });
-    for (var i = 0; i < xs.length - 1; i++) {
-      for (var k = 0; k < ys.length - 1; k++) {
-        vo.push({ ten: 'V' + (i + 1) + '_' + (k + 1), tietDien: 'DAI', diem: [tenNutDai(i, k), tenNutDai(i + 1, k), tenNutDai(i + 1, k + 1), tenNutDai(i, k + 1)] });
+    if (!hd) {
+      xs.forEach(function (x, i) { ys.forEach(function (y, k) { diem.push({ ten: tenNutDai(i, k), x: x, y: y, z: zGiua }); }); });
+      for (var i = 0; i < xs.length - 1; i++) {
+        for (var k = 0; k < ys.length - 1; k++) {
+          vo.push({ ten: 'V' + (i + 1) + '_' + (k + 1), tietDien: 'DAI', diem: [tenNutDai(i, k), tenNutDai(i + 1, k), tenNutDai(i + 1, k + 1), tenNutDai(i, k + 1)] });
+        }
+      }
+    } else {
+      // Đài vát: mỗi ô lưới cắt theo đa giác đài (ô ngoài đài bỏ, ô có cạnh vát thành tam giác / ngũ giác); đỉnh nằm trên
+      // cạnh vát không trùng nút lưới đặt tên D0_<k> (dùng chung giữa các ô kề nhau); mảnh vụn < 2 % ô bỏ qua
+      var chiSoX = {}, chiSoY = {}, nutCat = {};
+      xs.forEach(function (x, i) { chiSoX[tron(x)] = i; }); ys.forEach(function (y, k) { chiSoY[tron(y)] = k; });
+      var tenDinh = function (x, y) {
+        x = tron(x); y = tron(y);
+        if (chiSoX[x] !== undefined && chiSoY[y] !== undefined) return nutLuoi(chiSoX[x], chiSoY[y]);
+        var khoa = x + '|' + y;
+        if (!nutCat[khoa]) { nutCat[khoa] = 'D0_' + (++soD0); diem.push({ ten: nutCat[khoa], x: x, y: y, z: zGiua }); }
+        return nutCat[khoa];
+      };
+      for (var i2 = 0; i2 < xs.length - 1; i2++) {
+        for (var k2 = 0; k2 < ys.length - 1; k2++) {
+          var o = [[xs[i2], ys[k2]], [xs[i2 + 1], ys[k2]], [xs[i2 + 1], ys[k2 + 1]], [xs[i2], ys[k2 + 1]]];
+          var manh = MCT.calc.hinhDai.catDaGiac(o, hd.dinh);
+          if (manh.length < 3 || MCT.calc.hinhDai.dienTich(manh) < 0.02 * (xs[i2 + 1] - xs[i2]) * (ys[k2 + 1] - ys[k2])) continue;
+          var ten = manh.map(function (q) { return tenDinh(q[0], q[1]); }).filter(function (t, j, ds) { return t !== ds[(j + ds.length - 1) % ds.length]; });
+          if (ten.length >= 3) vo.push({ ten: 'V' + (i2 + 1) + '_' + (k2 + 1), tietDien: 'DAI', diem: ten });
+        }
       }
     }
 
@@ -198,7 +237,7 @@
     });
 
     // ---- Điểm đặt tải: nút tâm cẩu trên tấm vỏ (4 chân cẩu khi chia lực về chân); tâm đài để lấy chuyển vị ----
-    var nutTai = timNutDai(xc, yc), nutTamDai = timNutDai(0, 0);
+    var nutTai = timNutDai(xc, yc), nutTamDai = timNutDai(tamDai[0], tamDai[1]);
     chan.forEach(function (c) { c.nut = timNutDai(c.x, c.y); });
 
     // ---- Tầng ETABS: mỗi cao độ nút là một tầng; đáy công trình (base) ở mũi cọc ----
@@ -228,7 +267,11 @@
       thongSo: {
         X: X, Y: Y, H: H, zMat: zMat, zGiua: zGiua, zDay: zDay, zMui: zMui, D: D, bp: bp, soCoc: coc.length,
         batDauLoXo: batDau, zBatDau: zBatDau, luoi: luoi, chiaDai: chiaDai, buocCoc: buocCoc, nx: xs.length, ny: ys.length,
-        diemDatLuc: kieuDat, xc: xc, yc: yc, Ht: Ht
+        diemDatLuc: kieuDat, xc: xc, yc: yc, Ht: Ht,
+        // hình đài trên mặt bằng: chữ nhật giữa gốc toạ độ hoặc đa giác vát (móng 3 cọc)
+        kieuDai: hd ? 'vat' : 'chu-nhat', x0: tron(bx0), x1: tron(bx1), y0: tron(by0), y1: tron(by1), tamDai: tamDai,
+        dinhDai: hd ? hd.dinh : [[tron(bx0), tron(by0)], [tron(bx1), tron(by0)], [tron(bx1), tron(by1)], [tron(bx0), tron(by1)]],
+        dienTichDai: hd ? hd.dienTich : X * Y
       },
       tang: { caoDoDay: tron(mocTang[0]), ds: tang },
       vatLieu: vatLieu,

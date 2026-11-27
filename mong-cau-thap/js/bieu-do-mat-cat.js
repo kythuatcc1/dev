@@ -109,7 +109,9 @@
       lop: DC.lop.map(function (l) {
         return { ten: l.ten, loai: l.loai, tinhChat: l.tinhChat, IL: l.IL, dinh: l.dinh, day: l.day, spt: l.spt, k: l.k };
       }),
-      dai: { X: Number(A.dai.X), Y: Number(A.dai.Y), H: H, zDay: c.dayDai, zMat: c.dayDai + H },
+      dai: A.dai.hinh && A.dai.hinh.kieu === 'vat' && A.dai.hinh.hopLe
+        ? { X: Number(A.dai.X), Y: Number(A.dai.Y), H: H, zDay: c.dayDai, zMat: c.dayDai + H, x0: A.dai.hinh.x0, x1: A.dai.hinh.x1, vat: true }
+        : { X: Number(A.dai.X), Y: Number(A.dai.Y), H: H, zDay: c.dayDai, zMat: c.dayDai + H },
       cocTs: { D: c.D, L: c.L, dau: c.dauCocThucTe, mui: c.muiCoc, dayHo: c.dayHo, dauTinhToan: c.dauCocTinhToan },
       coc: coc, dam: dam,
       cau: { ten: A.cau && A.cau.ten ? A.cau.ten : (s && s.cau ? s.cau.ten : ''), Ht: Number(A.Ht) || 0 },
@@ -132,7 +134,9 @@
     // Mặt cắt theo phương X: đài và cọc ở vùng giữa trái; bên phải ghi chú lớp đất
     var x0 = 96, x1 = W - 12, xMongTrai = x0 + 56, xMongPhai = Math.min(xMongTrai + 230, W * 0.5), xGhi = W - 240;
     var kx = (xMongPhai - xMongTrai) / Math.max(dai.X, 1e-6), xTam = (xMongTrai + xMongPhai) / 2;
-    var X = function (x) { return xTam + x * kx; };
+    // đài vát (móng 3 cọc): hình chiếu đài theo phương X từ x0 tới x1 (có thể lệch tâm cẩu)
+    var X = dai.vat ? function (x) { return xTam + (x - (dai.x0 + dai.x1) / 2) * kx; } : function (x) { return xTam + x * kx; };
+    var daiTrai = dai.vat ? dai.x0 : -dai.X / 2, daiPhai = dai.vat ? dai.x1 : dai.X / 2;
     var g = '<defs>' +
       '<pattern id="mc-cham" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="0.8" fill="#9a7b3c" fill-opacity="0.55"/><circle cx="6" cy="6" r="0.8" fill="#9a7b3c" fill-opacity="0.55"/></pattern>' +
       '<pattern id="mc-gach" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="9" stroke="#7c5f3d" stroke-opacity="0.35" stroke-width="1"/></pattern>' +
@@ -203,15 +207,15 @@
 
     // ---- Đài ----
     var yMat = Y(dai.zMat), yDay = Y(dai.zDay);
-    g += '<rect x="' + f1(X(-dai.X / 2)) + '" y="' + f1(yMat) + '" width="' + f1(dai.X * kx) + '" height="' + f1(yDay - yMat) + '" fill="#d1d5db" stroke="#111827" stroke-width="1.4"/>' +
-      '<rect x="' + f1(X(-dai.X / 2)) + '" y="' + f1(yMat) + '" width="' + f1(dai.X * kx) + '" height="' + f1(yDay - yMat) + '" fill="url(#mc-bt)"/>';
-    g += chu(xTam, (yMat + yDay) / 2 + 4, 'ĐÀI ' + so(dai.X, 2) + ' × ' + so(dai.Y, 2) + ' × ' + so(dai.H, 2) + ' m', { giua: true, co: 12, dam: true, vien: true });
+    g += '<rect x="' + f1(X(daiTrai)) + '" y="' + f1(yMat) + '" width="' + f1(dai.X * kx) + '" height="' + f1(yDay - yMat) + '" fill="#d1d5db" stroke="#111827" stroke-width="1.4"/>' +
+      '<rect x="' + f1(X(daiTrai)) + '" y="' + f1(yMat) + '" width="' + f1(dai.X * kx) + '" height="' + f1(yDay - yMat) + '" fill="url(#mc-bt)"/>';
+    g += chu(xTam, (yMat + yDay) / 2 + 4, (dai.vat ? 'ĐÀI VÁT (bao) ' : 'ĐÀI ') + so(dai.X, 2) + ' × ' + so(dai.Y, 2) + ' × ' + so(dai.H, 2) + ' m', { giua: true, co: 12, dam: true, vien: true });
     nhanTrai.push([dai.zMat, 'mặt đài'], [dai.zDay, 'đáy đài']);
     // kích thước chiều cao đài, chiều dài cọc
-    var xKt = X(dai.X / 2) + 16;
+    var xKt = X(daiPhai) + 16;
     g += duong(xKt, yMat, xKt, yDay, '#374151', 0.8) + duong(xKt - 4, yMat, xKt + 4, yMat, '#374151', 0.8) + duong(xKt - 4, yDay, xKt + 4, yDay, '#374151', 0.8) +
       chu(xKt + 6, (yMat + yDay) / 2 + 4, 'H = ' + so(dai.H, 2) + ' m', { co: 11, vien: true });
-    var xL = X(dai.X / 2) + 16, yL1 = Y(ts.dau), yL2 = Y(ts.mui);
+    var xL = X(daiPhai) + 16, yL1 = Y(ts.dau), yL2 = Y(ts.mui);
     g += duong(xL, yL1, xL, yL2, '#1d4ed8', 0.8) + duong(xL - 4, yL1, xL + 4, yL1, '#1d4ed8', 0.8) + duong(xL - 4, yL2, xL + 4, yL2, '#1d4ed8', 0.8) +
       chu(xL + 6, (yL1 + yL2) / 2, 'Cọc D' + so(ts.D * 1000, 0) + ', L = ' + so(ts.L, 2) + ' m', { co: 11, mau: '#1d4ed8', dam: true, vien: true }) +
       chu(xL + 6, (yL1 + yL2) / 2 + 13, 'mũi cọc ' + caoDo(ts.mui), { co: 11, mau: '#1d4ed8', vien: true });
@@ -283,7 +287,39 @@
       '</svg>';
   }
 
+  /**
+   * Mặt bằng đài móng 3 cọc vát góc (SVG, kiểu nét tự đủ để chuyển PNG chèn thuyết minh).
+   * @param {object} hd  kết quả MCT.calc.hinhDai (kieu 'vat');  coc: [{x, y}];  D: đường kính cọc;  Ht: bề rộng chân cẩu
+   */
+  function matBangDaiVat(hd, coc, D, Ht, kichThuoc) {
+    var W = (kichThuoc && kichThuoc.w) || 480, H = (kichThuoc && kichThuoc.h) || 440, le = 64;
+    var s = Math.min((W - 2 * le) / hd.X, (H - 2 * le - 24) / hd.Y);
+    var ox = (W - hd.X * s) / 2, oy = le;
+    var X = function (x) { return ox + (x - hd.x0) * s; }, Y = function (y) { return oy + (hd.y1 - y) * s; };
+    var g = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '"><rect width="100%" height="100%" fill="#fff"/>';
+    g += '<rect x="' + f1(X(hd.x0)) + '" y="' + f1(Y(hd.y1)) + '" width="' + f1(hd.X * s) + '" height="' + f1(hd.Y * s) + '" fill="none" stroke="#9ca3af" stroke-dasharray="5 4"/>';
+    g += '<polygon points="' + hd.dinh.map(function (q) { return f1(X(q[0])) + ',' + f1(Y(q[1])); }).join(' ') + '" fill="#eef2f7" stroke="#111827" stroke-width="1.8"/>';
+    // trục qua tâm cẩu
+    g += duong(X(hd.x0) - 14, Y(0), X(hd.x1) + 14, Y(0), '#6b7280', 0.8, '8 3 2 3') + duong(X(0), Y(hd.y1) - 14, X(0), Y(hd.y0) + 14, '#6b7280', 0.8, '8 3 2 3');
+    if (Ht > 0) g += '<rect x="' + f1(X(-Ht / 2)) + '" y="' + f1(Y(Ht / 2)) + '" width="' + f1(Ht * s) + '" height="' + f1(Ht * s) + '" fill="none" stroke="#c0392b" stroke-width="1.4" stroke-dasharray="6 4"/>';
+    coc.forEach(function (c, i) {
+      g += '<circle cx="' + f1(X(c.x)) + '" cy="' + f1(Y(c.y)) + '" r="' + f1(D / 2 * s) + '" fill="#fff" stroke="#111827" stroke-width="1.3"/>' +
+        chu(X(c.x), Y(c.y) + 4, 'C' + (i + 1), { giua: true, co: 12, dam: true });
+    });
+    // kích thước bao
+    var yK = Y(hd.y1) - 22, xK = X(hd.x1) + 22;
+    g += duong(X(hd.x0), yK, X(hd.x1), yK, '#374151', 0.9) + duong(X(hd.x0), yK - 5, X(hd.x0), yK + 5, '#374151', 0.9) + duong(X(hd.x1), yK - 5, X(hd.x1), yK + 5, '#374151', 0.9) +
+      chu((X(hd.x0) + X(hd.x1)) / 2, yK - 5, 'X = ' + so(hd.X, 3) + ' m', { giua: true, co: 12 });
+    g += duong(xK, Y(hd.y1), xK, Y(hd.y0), '#374151', 0.9) + duong(xK - 5, Y(hd.y1), xK + 5, Y(hd.y1), '#374151', 0.9) + duong(xK - 5, Y(hd.y0), xK + 5, Y(hd.y0), '#374151', 0.9) +
+      '<text x="' + f1(xK + 14) + '" y="' + f1((Y(hd.y1) + Y(hd.y0)) / 2) + '" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#111827" text-anchor="middle" transform="rotate(90 ' +
+      f1(xK + 14) + ' ' + f1((Y(hd.y1) + Y(hd.y0)) / 2) + ')">Y = ' + so(hd.Y, 3) + ' m</text>';
+    g += chu(W / 2, H - 30, 'Vát 2 góc phía cọc đơn a × b = ' + so(hd.vat[0].a, 3) + ' × ' + so(hd.vat[0].b, 3) + ' m (a dọc cạnh phía cọc đơn, b dọc cạnh bên)', { giua: true, co: 11, mau: '#374151' }) +
+      chu(W / 2, H - 14, 'c = ' + so(hd.c, 2) + ' m (tim cọc tới mép đài); diện tích đài A = ' + so(hd.dienTich, 3) + ' m²; nét đứt đỏ: chân cẩu', { giua: true, co: 11, mau: '#374151' });
+    return g + '</svg>';
+  }
+
   MCT.bieuDo = MCT.bieuDo || {};
+  MCT.bieuDo.matBangDaiVat = matBangDaiVat;
   MCT.bieuDo.matCat = matCat;
   MCT.bieuDo.duLieuMatCat = duLieuMatCat;
 })(globalThis.MCT = globalThis.MCT || {});

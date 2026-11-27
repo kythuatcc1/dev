@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 
 ['cau-thap', 'vat-lieu', 'bang-tra', 'mau-dia-chat', 'he-so-tai-ngang'].forEach((f) => require(`../js/data/${f}.js`));
 require('../js/mac-dinh.js');
-['dia-chat', 'sct-coc', 'phan-a-tai-trong', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong',
+globalThis.MCT.macDinh.dai.hinh3 = 'chu-nhat';   // test đối chiếu Excel: đài chữ nhật X × Y (đài vát 3 cọc thử ở hinh-dai.test.js)
+['dia-chat', 'sct-coc', 'hinh-dai', 'phan-a-tai-trong', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong',
   'phan-f-ket-luan', 'tai-ngang', 'tuong-tac', 'lun', 'tinh-tat-ca', 'etabs-mo-hinh', 'etabs-tai-trong'].forEach((f) => require(`../js/calc/${f}.js`));
 const MCT = globalThis.MCT;
 
@@ -259,4 +260,106 @@ test('Không chia tấm đài: một ô vỏ, đầu cọc và điểm đặt l�
   assert.deepEqual(MCT.calc.duLieuGuiEtabs(m, t).diemRieng, m.diemRieng);
   // không cần kích thước lưới
   assert.equal(tao((s) => { s.etabs.chiaDai = 'khong'; s.etabs.luoi = 0; }).hopLe, true);
+});
+
+// ---------------- Đài vát móng 3 cọc (js/calc/hinh-dai.js) ----------------
+// Cạnh của các ô vỏ: dùng tối đa 2 lần; cạnh dùng 1 lần nằm trên chu vi đài (hoặc sát chu vi, chỗ bỏ mảnh vụn < 2 % ô)
+// và không có điểm lưới nào nằm giữa cạnh (lưới liền, không nút treo)
+function kiemTraLuoiVat(m) {
+  const toaDo = new Map(m.diem.map((d) => [d.ten, d]));
+  const hd = { dinh: m.thongSo.dinhDai };
+  let tong = 0;
+  const canh = new Map(), nutVo = [...new Set([].concat(...m.vo.map((v) => v.diem)))].map((t) => toaDo.get(t));
+  m.vo.forEach((v) => {
+    assert.ok(v.diem.length >= 3, 'vỏ ' + v.ten + ' ít hơn 3 điểm');
+    assert.equal(new Set(v.diem).size, v.diem.length, 'vỏ ' + v.ten + ' có điểm lặp');
+    const p = v.diem.map((t) => { const d = toaDo.get(t); assert.ok(d, 'vỏ ' + v.ten + ' nối điểm không có ' + t); return [d.x, d.y]; });
+    p.forEach(([x, y]) => assert.ok(MCT.calc.hinhDai.khoangCachMep(hd, x, y) > -1e-4, 'điểm vỏ ' + v.ten + ' ra ngoài đài'));
+    tong += MCT.calc.hinhDai.dienTich(p);
+    v.diem.forEach((a, j) => { const b = v.diem[(j + 1) % v.diem.length], k = a < b ? a + '|' + b : b + '|' + a; canh.set(k, (canh.get(k) || 0) + 1); });
+  });
+  canh.forEach((n, k) => {
+    assert.ok(n <= 2, 'cạnh ' + k + ' dùng ' + n + ' lần');
+    if (n === 1) {
+      const [a, b] = k.split('|').map((t) => toaDo.get(t)), L = Math.hypot(b.x - a.x, b.y - a.y);
+      assert.ok(Math.abs(MCT.calc.hinhDai.khoangCachMep(hd, (a.x + b.x) / 2, (a.y + b.y) / 2)) < 0.03, 'cạnh hở trong đài ' + k);
+      nutVo.forEach((p) => {
+        const t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / (L * L);
+        const d = Math.abs((b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)) / L;
+        assert.ok(!(t > 1e-6 && t < 1 - 1e-6 && d < 1e-6), 'nút treo ' + p.ten + ' trên cạnh ' + k);
+      });
+    }
+  });
+  // mọi điểm tấm đài đều được dùng (không có nút lưới thừa ngoài đài)
+  const dung = new Set([].concat(...m.vo.map((v) => v.diem), m.diemRieng));
+  m.diem.filter((d) => d.z === m.thongSo.zGiua).forEach((d) => assert.ok(dung.has(d.ten), 'điểm thừa ' + d.ten));
+  assert.equal(new Set(m.diem.map((d) => d.ten)).size, m.diem.length, 'tên điểm trùng');
+  return tong;
+}
+const vat = (sua) => (s) => { s.dai.hinh3 = 'vat'; if (sua) sua(s); };
+
+test('Đài vát: lưới cắt theo đa giác đài, tổng diện tích ô vỏ = diện tích đài, thông số hình đài', () => {
+  for (const chia of ['deu', 'toi-thieu']) {
+    const m = tao(vat((s) => { s.etabs.chiaDai = chia; }));
+    assert.equal(m.hopLe, true, (m.loi || []).join('; '));
+    const t = m.thongSo;
+    assert.equal(t.kieuDai, 'vat');
+    assert.deepEqual([t.x0, t.x1, t.y0, t.y1], [-2, 2, -1.57, 2.11]);
+    assert.ok(Math.abs(t.dienTichDai - 10.62) < 1e-3, 'diện tích đài ' + t.dienTichDai);
+    assert.equal(t.dinhDai.length, 6);
+    // đường lưới qua mép bao, đỉnh vát, tâm cọc, tâm cẩu và trọng tâm đài
+    t.dinhDai.forEach(([x, y]) => { assert.ok(m.xs.includes(Math.round(x * 1e4) / 1e4), chia + ' thiếu x = ' + x); assert.ok(m.ys.includes(Math.round(y * 1e4) / 1e4), chia + ' thiếu y = ' + y); });
+    [0, t.tamDai[0], -1.2, 1.2].forEach((x) => assert.ok(m.xs.includes(x), chia + ' thiếu x = ' + x));
+    [0, t.tamDai[1], -0.77, 1.31].forEach((y) => assert.ok(m.ys.includes(y), chia + ' thiếu y = ' + y));
+    const A = kiemTraLuoiVat(m);
+    assert.ok(Math.abs(A - t.dienTichDai) / t.dienTichDai < 0.005, chia + ': Σ ô vỏ ' + A + ' ≠ ' + t.dienTichDai);
+    // có ô tam giác / ngũ giác ở cạnh vát; ô ngoài đài bị bỏ
+    assert.ok(m.vo.some((v) => v.diem.length !== 4), chia + ': không có ô cắt theo cạnh vát');
+    assert.ok(m.vo.length < (m.xs.length - 1) * (m.ys.length - 1));
+    // đầu cọc là nút tấm; nút tâm đài ở trọng tâm hình đài, tải ở tâm cẩu
+    const toaDo = new Map(m.diem.map((d) => [d.ten, d]));
+    m.coc.forEach((c) => { const d = toaDo.get(c.nutDinh); assert.ok(d && d.x === c.x && d.y === c.y && d.z === t.zGiua, c.ten); });
+    const tam = toaDo.get(m.nutTamDai), tai = toaDo.get(m.nutTai);
+    assert.deepEqual([tam.x, tam.y], t.tamDai);
+    assert.deepEqual([tai.x, tai.y], [0, 0]);
+    gan(t.tamDai[1], -0.0973, 'trọng tâm đài: phần vát bỏ đi ở phía cọc đơn nên lệch về phía hàng 2 cọc');
+  }
+});
+
+test('Đài vát nhập tay, cọc đơn phía −x, chia lực về 4 chân: lưới vẫn liền, chân cẩu là nút tấm', () => {
+  const { m, t } = taiTheo(vat((s) => {
+    s.coc.toaDo = MCT.calc.hinhDai.boTri3Coc(2.4, '-x');
+    s.dai.cachVat = 'nhap'; s.dai.vatA = 1.2; s.dai.vatB = 1.5;
+    s.etabs.diemDatLuc = 'chan';
+  }));
+  assert.equal(m.hopLe, true, (m.loi || []).join('; '));
+  assert.equal(m.thongSo.kieuDai, 'vat');
+  const A = kiemTraLuoiVat(m);
+  gan(m.thongSo.dienTichDai, (m.thongSo.x1 - m.thongSo.x0) * (m.thongSo.y1 - m.thongSo.y0) - 1.2 * 1.5);
+  assert.ok(Math.abs(A - m.thongSo.dienTichDai) / m.thongSo.dienTichDai < 0.005);
+  const toaDo = new Map(m.diem.map((d) => [d.ten, d]));
+  m.chan.forEach((c) => { const d = toaDo.get(c.nut); assert.ok(d && d.x === c.x && d.y === c.y, c.ten); });
+  t.mauTai.slice(1).forEach((p) => p.diemLuc.forEach((l) => assert.ok(toaDo.has(l.diem))));
+});
+
+test('Đài vát không chia: một ô vỏ đa giác 6 đỉnh, đầu cọc là điểm riêng trong tấm', () => {
+  const m = tao(vat((s) => { s.etabs.chiaDai = 'khong'; }));
+  assert.equal(m.hopLe, true, (m.loi || []).join('; '));
+  assert.equal(m.vo.length, 1);
+  assert.equal(m.vo[0].diem.length, 6);
+  kiemTraLuoiVat(m);
+  const toaDo = new Map(m.diem.map((d) => [d.ten, d]));
+  m.vo[0].diem.forEach((t, j) => assert.deepEqual([toaDo.get(t).x, toaDo.get(t).y], m.thongSo.dinhDai[j].map((v) => Math.round(v * 1e4) / 1e4)));
+  m.coc.forEach((c) => assert.ok(m.diemRieng.includes(c.nutDinh), c.ten));
+  assert.ok(m.diemRieng.includes(m.nutTamDai) && m.diemRieng.includes(m.nutTai));
+});
+
+test('Đài vát: báo lỗi cọc, tâm cẩu, chân cẩu ra ngoài đa giác (dù vẫn trong chữ nhật bao)', () => {
+  // góc vát trên – phải: (1,7; 1,9) nằm trong chữ nhật bao nhưng ngoài đài vát
+  assert.match(tao(vat((s) => { s.etabs.tamCauX = 1.7; s.etabs.tamCauY = 1.9; })).loi.join(' '), /Tâm cẩu .* ngoài đài vát/);
+  assert.match(tao(vat((s) => { s.etabs.diemDatLuc = 'chan'; s.etabs.tamCauY = 0.6; })).loi.join(' '), /Chân cẩu .* ngoài đài vát/);
+  // vát nhập quá lớn → hình đài không hợp lệ, mục A báo lỗi, không dựng mô hình
+  const m = tao(vat((s) => { s.dai.cachVat = 'nhap'; s.dai.vatA = 2.5; }));
+  assert.equal(m.hopLe, false);
+  assert.match(m.loi.join(' '), /Mục A/);
 });

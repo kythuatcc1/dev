@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 
 ['cau-thap', 'vat-lieu', 'bang-tra', 'mau-dia-chat', 'he-so-tai-ngang'].forEach((f) => require(`../js/data/${f}.js`));
 require('../js/mac-dinh.js');
-['dia-chat', 'sct-coc', 'phan-a-tai-trong', 'cau-tu-them', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong',
+globalThis.MCT.macDinh.dai.hinh3 = 'chu-nhat';   // test đối chiếu Excel: đài chữ nhật X × Y (đài vát 3 cọc thử ở hinh-dai.test.js)
+['dia-chat', 'sct-coc', 'hinh-dai', 'phan-a-tai-trong', 'cau-tu-them', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong',
   'phan-f-ket-luan', 'tai-ngang', 'tuong-tac', 'lun', 'tinh-tat-ca', 'etabs-mo-hinh', 'etabs-tai-trong'].forEach((f) => require(`../js/calc/${f}.js`));
 const MCT = globalThis.MCT;
 const C = MCT.calc;

@@ -66,14 +66,27 @@
       return canh.reduce(function (s, c) { return s + c[phia] * c[luc]; }, 0);
     }
 
-    var Mduoi = {
-      X: Math.max(tong('xDuong', 'Pimax'), tong('xAm', 'Pimax')) / Y,
-      Y: Math.max(tong('yDuong', 'Pimax'), tong('yAm', 'Pimax')) / X
-    };
-    var Mtren = {
-      X: Math.min(tong('xDuong', 'PiminAm'), tong('xAm', 'PiminAm')) / Y,
-      Y: Math.min(tong('yDuong', 'PiminAm'), tong('yAm', 'PiminAm')) / X
-    };
+    var Mduoi, Mtren, beRong = null;
+    var hinh = phanA.dai.hinh && phanA.dai.hinh.kieu === 'vat' && phanA.dai.hinh.hopLe ? phanA.dai.hinh : null;
+    if (!hinh) {
+      Mduoi = {
+        X: Math.max(tong('xDuong', 'Pimax'), tong('xAm', 'Pimax')) / Y,
+        Y: Math.max(tong('yDuong', 'Pimax'), tong('yAm', 'Pimax')) / X
+      };
+      Mtren = {
+        X: Math.min(tong('xDuong', 'PiminAm'), tong('xAm', 'PiminAm')) / Y,
+        Y: Math.min(tong('yDuong', 'PiminAm'), tong('yAm', 'PiminAm')) / X
+      };
+    } else {
+      // Đài vát (móng 3 cọc): mômen mỗi phía chia cho bề rộng thật của đài tại mặt cắt mép chân cẩu
+      beRong = {
+        xDuong: MCT.calc.hinhDai.doanCat(hinh, 'x', Ht / 2).dai, xAm: MCT.calc.hinhDai.doanCat(hinh, 'x', -Ht / 2).dai,
+        yDuong: MCT.calc.hinhDai.doanCat(hinh, 'y', Ht / 2).dai, yAm: MCT.calc.hinhDai.doanCat(hinh, 'y', -Ht / 2).dai
+      };
+      var chia = function (phia, luc) { return beRong[phia] > 0 ? tong(phia, luc) / beRong[phia] : 0; };
+      Mduoi = { X: Math.max(chia('xDuong', 'Pimax'), chia('xAm', 'Pimax')), Y: Math.max(chia('yDuong', 'Pimax'), chia('yAm', 'Pimax')) };
+      Mtren = { X: Math.min(chia('xDuong', 'PiminAm'), chia('xAm', 'PiminAm')), Y: Math.min(chia('yDuong', 'PiminAm'), chia('yAm', 'PiminAm')) };
+    }
 
     function lop(M, key, h0Alpha, h0As) {
       var t = tinhThep(M, Rb, Rs, h0Alpha, h0As);
@@ -107,6 +120,7 @@
     ketQua.hopLe = true;
     ketQua.loi = [];
     ketQua.canh = canh;
+    ketQua.beRong = beRong;   // đài vát: bề rộng đài tại mặt cắt mép chân cẩu mỗi phía (m)
     ketQua.h0 = h0;
     ketQua.h0Tren = h0Tren;
     ketQua.Rb = Rb;

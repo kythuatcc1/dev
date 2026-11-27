@@ -4,6 +4,7 @@
   'use strict';
 
   var FONT = 'font-family="Arial, Helvetica, sans-serif"';
+  var SO_CAT = 0;   // đánh số clipPath của đài vát (mỗi panel một id)
   function chu(x, y, text, o) {
     o = o || {};
     return '<text x="' + f1(x) + '" y="' + f1(y) + '" ' + FONT + ' font-size="' + (o.co || 11) + '" fill="' + (o.mau || '#374151') + '"' +
@@ -44,15 +45,23 @@
     var W = (kichThuoc && kichThuoc.w) || 560, H = (kichThuoc && kichThuoc.h) || 560, t = m.thongSo;
     var cao = t.zGiua - t.zMui, rong = (t.X + t.Y) * Math.cos(Math.PI / 6);
     var s = Math.min((W - 160) / rong, 70), kz = Math.min((H - 130 - (t.X + t.Y) * 0.5 * s) / cao, s);
-    var P = truc(s, kz, W / 2 - 20, 92 + (t.Y / 2) * 0.5 * s + t.zGiua * kz);
+    var vat = t.kieuDai === 'vat' && t.dinhDai, ccx = vat ? (t.x0 + t.x1) / 2 : 0, ccy = vat ? (t.y0 + t.y1) / 2 : 0;
+    var P = vat ? truc(s, kz, W / 2 - 20 - (ccx + ccy) * Math.cos(Math.PI / 6) * s, 92 + (t.Y / 2) * 0.5 * s + t.zGiua * kz - (ccx - ccy) * 0.5 * s)
+      : truc(s, kz, W / 2 - 20, 92 + (t.Y / 2) * 0.5 * s + t.zGiua * kz);
     var g = '', i;
     function L(a, b, mau, w, net) { var p = P(a[0], a[1], a[2]), q = P(b[0], b[1], b[2]); return '<line x1="' + f1(p[0]) + '" y1="' + f1(p[1]) + '" x2="' + f1(q[0]) + '" y2="' + f1(q[1]) + '" stroke="' + mau + '" stroke-width="' + (w || 1) + '"' + (net ? ' stroke-dasharray="' + net + '"' : '') + '/>'; }
     // đài: mặt tấm + lưới
     var z = t.zGiua, X = t.X / 2, Y = t.Y / 2;
-    var goc = [[-X, -Y], [X, -Y], [X, Y], [-X, Y]].map(function (p) { return P(p[0], p[1], z); });
+    var goc = (vat ? t.dinhDai : [[-X, -Y], [X, -Y], [X, Y], [-X, Y]]).map(function (p) { return P(p[0], p[1], z); });
     g += '<polygon points="' + goc.map(function (p) { return f1(p[0]) + ',' + f1(p[1]); }).join(' ') + '" fill="#9ae6a8" fill-opacity="0.55" stroke="#2f855a" stroke-width="1.5"/>';
-    for (i = 0; i < m.xs.length; i++) g += L([m.xs[i], -Y, z], [m.xs[i], Y, z], '#2f855a', 0.4);
-    for (i = 0; i < m.ys.length; i++) g += L([-X, m.ys[i], z], [X, m.ys[i], z], '#2f855a', 0.4);
+    if (vat) {   // đài vát: đường lưới chỉ trong đài
+      var hdv = { dinh: t.dinhDai };
+      m.xs.forEach(function (x) { var c = MCT.calc.hinhDai.doanCat(hdv, 'x', x); if (c.dai > 0) g += L([x, c.tu, z], [x, c.den, z], '#2f855a', 0.4); });
+      m.ys.forEach(function (y) { var c = MCT.calc.hinhDai.doanCat(hdv, 'y', y); if (c.dai > 0) g += L([c.tu, y, z], [c.den, y, z], '#2f855a', 0.4); });
+    } else {
+      for (i = 0; i < m.xs.length; i++) g += L([m.xs[i], -Y, z], [m.xs[i], Y, z], '#2f855a', 0.4);
+      for (i = 0; i < m.ys.length; i++) g += L([-X, m.ys[i], z], [X, m.ys[i], z], '#2f855a', 0.4);
+    }
     // cọc, lò xo, gối
     var loXoCao = {};
     (m.bangLoXo || []).forEach(function (r) { if (r.K > 0) loXoCao[r.caoDo] = true; });
@@ -78,7 +87,7 @@
     (m.chan || []).forEach(function (c) { var q = P(c.x, c.y, t.zGiua); g += '<rect x="' + f1(q[0] - 3.5) + '" y="' + f1(q[1] - 3.5) + '" width="7" height="7" fill="#dc2626"/>'; });
     g += '<circle cx="' + f1(tam[0]) + '" cy="' + f1(tam[1]) + '" r="' + ((m.chan || []).length ? 3 : 4.5) + '" fill="#dc2626"/>';
     // thước cao độ
-    var x0 = 34, yTop = P(-X, Y, t.zGiua)[1], yDay = P(-X, Y, t.zMui)[1], yChu = -Infinity;
+    var x0 = 34, yTop = (vat ? P(t.x0, t.y1, t.zGiua) : P(-X, Y, t.zGiua))[1], yDay = (vat ? P(t.x0, t.y1, t.zMui) : P(-X, Y, t.zMui))[1], yChu = -Infinity;
     var dsZ = [[t.zGiua, 'giữa đài'], [t.zDay, 'đáy đài']].concat(t.zBatDau !== t.zDay ? [[t.zBatDau, 'đầu cọc']] : []), theoZ = {};
     (m.dam || []).forEach(function (d) {   // các dầm cùng cao độ ghi chung một nhãn
       var k = Number(d.z).toFixed(3);
@@ -104,7 +113,7 @@
     var s = Math.min((W - 220) / ((t.X + t.Y) * Math.cos(Math.PI / 6)), 60);
     var P = truc(s, s, W / 2 - 40, H / 2 + 40);
     var X = t.X / 2, Y = t.Y / 2, z = 0, g = '';
-    var goc = [[-X, -Y], [X, -Y], [X, Y], [-X, Y]].map(function (p) { return P(p[0], p[1], z); });
+    var goc = (t.kieuDai === 'vat' && t.dinhDai ? t.dinhDai : [[-X, -Y], [X, -Y], [X, Y], [-X, Y]]).map(function (p) { return P(p[0], p[1], z); });
     g += '<polygon points="' + goc.map(function (p) { return f1(p[0]) + ',' + f1(p[1]); }).join(' ') + '" fill="#9ae6a8" fill-opacity="0.6" stroke="#2f855a" stroke-width="1.5"/>';
     var O = P(0, 0, 0), dai = 70;
     var huong = { X: P(1, 0, 0), Y: P(0, 1, 0), Z: P(0, 0, 1) };
@@ -202,8 +211,9 @@
   /** Bản đồ một thành phần nội lực tấm đài (giá trị bao tại nút) trên mặt bằng, kèm cọc, giá trị lớn nhất / nhỏ nhất. */
   function panelDai(m, nutBao, thanhPhan, chiSo, ox, oy, w, h, tieuDe) {
     var t = m.thongSo, s = Math.min((w - 8) / t.X, (h - 46) / t.Y), g = '';
-    var x0 = ox + (w - t.X * s) / 2, y0 = oy + 18;
-    var X = function (x) { return x0 + (x + t.X / 2) * s; }, Y = function (y) { return y0 + (t.Y / 2 - y) * s; };
+    var x0 = ox + (w - t.X * s) / 2, y0 = oy + 18, vat = t.kieuDai === 'vat' && t.dinhDai;
+    var X = vat ? function (x) { return x0 + (x - t.x0) * s; } : function (x) { return x0 + (x + t.X / 2) * s; };
+    var Y = vat ? function (y) { return y0 + (t.y1 - y) * s; } : function (y) { return y0 + (t.Y / 2 - y) * s; };
     var tim = {};
     nutBao.forEach(function (n) { tim[n.x.toFixed(4) + '|' + n.y.toFixed(4)] = n; });
     function gt(x, y) { var n = tim[x.toFixed(4) + '|' + y.toFixed(4)]; return n ? (chiSo === 'abs' ? (Math.abs(n[thanhPhan][0]) > Math.abs(n[thanhPhan][1]) ? n[thanhPhan][0] : n[thanhPhan][1]) : n[thanhPhan][chiSo]) : null; }
@@ -217,6 +227,14 @@
     // lưới ô màu theo toạ độ nút có kết quả (lưới app chia, hoặc lưới ETABS tự chia khi không chia tấm đài)
     function cacGiaTri(ds) { return ds.map(function (v) { return Number(v.toFixed(4)); }).filter(function (v, i, a) { return a.indexOf(v) === i; }).sort(function (a, b) { return a - b; }); }
     var gx = cacGiaTri(nutBao.map(function (n) { return n.x; })), gy = cacGiaTri(nutBao.map(function (n) { return n.y; }));
+    if (vat) {
+      // đài vát: nút trên cạnh vát (D0_<k>) mỗi nút một toạ độ riêng – bỏ các đường chỉ có 1 nút để ô màu không bị khuyết thành sọc
+      var dem = function (truc, v) { return nutBao.filter(function (n) { return Math.abs(n[truc] - v) < 5e-5; }).length; };
+      gx = gx.filter(function (v) { return dem('x', v) >= 2; });
+      gy = gy.filter(function (v) { return dem('y', v) >= 2; });
+    }
+    var dsDinh = vat ? t.dinhDai.map(function (q) { return f1(X(q[0])) + ',' + f1(Y(q[1])); }).join(' ') : '';
+    if (vat) { var idCat = 'cat-dai-' + (++SO_CAT); g += '<clipPath id="' + idCat + '"><polygon points="' + dsDinh + '"/></clipPath><g clip-path="url(#' + idCat + ')">'; }
     for (var i = 0; i < gx.length - 1; i++) {
       for (var k = 0; k < gy.length - 1; k++) {
         var v = [gt(gx[i], gy[k]), gt(gx[i + 1], gy[k]), gt(gx[i + 1], gy[k + 1]), gt(gx[i], gy[k + 1])].filter(function (a) { return a !== null; });
@@ -226,7 +244,8 @@
           '" fill="' + mauGiaTri(tb, lon) + '"/>';
       }
     }
-    g += '<rect x="' + f1(X(-t.X / 2)) + '" y="' + f1(Y(t.Y / 2)) + '" width="' + f1(t.X * s) + '" height="' + f1(t.Y * s) + '" fill="none" stroke="#111827" stroke-width="1.2"/>';
+    if (vat) g += '</g><polygon points="' + dsDinh + '" fill="none" stroke="#111827" stroke-width="1.2"/>';
+    else g += '<rect x="' + f1(X(-t.X / 2)) + '" y="' + f1(Y(t.Y / 2)) + '" width="' + f1(t.X * s) + '" height="' + f1(t.Y * s) + '" fill="none" stroke="#111827" stroke-width="1.2"/>';
     m.coc.forEach(function (c) { g += '<circle cx="' + f1(X(c.x)) + '" cy="' + f1(Y(c.y)) + '" r="' + f1(t.D / 2 * s) + '" fill="none" stroke="#111827" stroke-dasharray="3 2"/>'; });
     [vMax, vMin].forEach(function (p, j) {
       if (!p) return;
@@ -237,7 +256,7 @@
         (phai ? ' text-anchor="end"' : '') + ' stroke="#ffffff" stroke-width="2.6" stroke-linejoin="round" paint-order="stroke">' + esc(so(p.v, 1)) + '</text>';
     });
     g += chu(ox + w / 2, oy + 12, tieuDe, { giua: true, dam: true, co: 11, mau: '#1f2937' });
-    g += chu(ox + w / 2, Y(-t.Y / 2) + 13, 'lớn nhất ' + so(vMax.v, 1) + '; nhỏ nhất ' + so(vMin.v, 1), { giua: true, co: 10, mau: '#4b5563' });
+    g += chu(ox + w / 2, (vat ? Y(t.y0) : Y(-t.Y / 2)) + 13, 'lớn nhất ' + so(vMax.v, 1) + '; nhỏ nhất ' + so(vMin.v, 1), { giua: true, co: 10, mau: '#4b5563' });
     return g;
   }
 
@@ -260,14 +279,17 @@
   function chuyenViDai(m, cv, kichThuoc) {
     var W = (kichThuoc && kichThuoc.w) || 480, H = (kichThuoc && kichThuoc.h) || 400, t = m.thongSo;
     var s = Math.min((W - 120) / t.X, (H - 120) / t.Y), g = '';
-    var X = function (x) { return W / 2 + x * s; }, Y = function (y) { return H / 2 + 10 - y * s; };
-    g += '<rect x="' + f1(X(-t.X / 2)) + '" y="' + f1(Y(t.Y / 2)) + '" width="' + f1(t.X * s) + '" height="' + f1(t.Y * s) + '" fill="#ecfdf5" stroke="#2f855a" stroke-width="1.5"/>';
+    var vat = t.kieuDai === 'vat' && t.dinhDai, ccx = vat ? (t.x0 + t.x1) / 2 : 0, ccy = vat ? (t.y0 + t.y1) / 2 : 0;
+    var X = vat ? function (x) { return W / 2 + (x - ccx) * s; } : function (x) { return W / 2 + x * s; };
+    var Y = vat ? function (y) { return H / 2 + 10 - (y - ccy) * s; } : function (y) { return H / 2 + 10 - y * s; };
+    if (vat) g += '<polygon points="' + t.dinhDai.map(function (q) { return f1(X(q[0])) + ',' + f1(Y(q[1])); }).join(' ') + '" fill="#ecfdf5" stroke="#2f855a" stroke-width="1.5"/>';
+    else g += '<rect x="' + f1(X(-t.X / 2)) + '" y="' + f1(Y(t.Y / 2)) + '" width="' + f1(t.X * s) + '" height="' + f1(t.Y * s) + '" fill="#ecfdf5" stroke="#2f855a" stroke-width="1.5"/>';
     m.coc.forEach(function (c) { g += '<circle cx="' + f1(X(c.x)) + '" cy="' + f1(Y(c.y)) + '" r="' + f1(t.D / 2 * s) + '" fill="#dbeafe" stroke="#1d4ed8"/>' + chu(X(c.x), Y(c.y) + 4, c.ten, { giua: true, co: 10, mau: '#1d4ed8' }); });
     var lon = 0;
     cv.nut.forEach(function (n) { if (n.Delta) lon = Math.max(lon, n.Delta.gt); });
     cv.nut.forEach(function (n, i) {
       if (!n.Delta) return;
-      var vt = i === 0 ? { x: 0, y: 0 } : m.coc[i - 1], ux = n.Delta.U1 || 0, uy = n.Delta.U2 || 0, d = Math.hypot(ux, uy) || 1;
+      var vt = i === 0 ? (vat && t.tamDai ? { x: t.tamDai[0], y: t.tamDai[1] } : { x: 0, y: 0 }) : m.coc[i - 1], ux = n.Delta.U1 || 0, uy = n.Delta.U2 || 0, d = Math.hypot(ux, uy) || 1;
       var l = 30 + 40 * (lon ? n.Delta.gt / lon : 0);
       var x1 = X(vt.x), y1 = Y(vt.y), x2 = x1 + ux / d * l, y2 = y1 - uy / d * l;
       g += muiTen(x1, y1, x2, y2, '#dc2626', 2);

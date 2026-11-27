@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 
 ['cau-thap', 'vat-lieu', 'bang-tra', 'mau-dia-chat', 'he-so-tai-ngang'].forEach((f) => require(`../js/data/${f}.js`));
 require('../js/mac-dinh.js');
-['dia-chat', 'sct-coc', 'phan-a-tai-trong', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong',
+globalThis.MCT.macDinh.dai.hinh3 = 'chu-nhat';   // test đối chiếu Excel: đài chữ nhật X × Y (đài vát 3 cọc thử ở hinh-dai.test.js)
+['dia-chat', 'sct-coc', 'hinh-dai', 'phan-a-tai-trong', 'phan-b-tai-coc', 'phan-c-xuyen-thung', 'phan-d-thep-dai', 'phan-e-bulong',
   'phan-f-ket-luan', 'tai-ngang', 'tuong-tac', 'lun', 'tinh-tat-ca', 'etabs-mo-hinh', 'etabs-tai-trong', 'etabs-ket-qua'].forEach((f) => require(`../js/calc/${f}.js`));
 const MCT = globalThis.MCT;
 
@@ -188,4 +189,44 @@ test('Kết quả lưu theo cách tóm tắt cũ (chưa bỏ đoạn cọc trong
   assert.equal(kq2.hopLe, false);
   assert.match(kq2.loi[0], /chạy lại phân tích/);
   assert.equal(MCT.calc.kiemTraEtabs(tt, s, kq).hopLe, true);
+});
+
+test('Đài vát 3 cọc: mặt cắt lấy suốt bề rộng thật của đài tại vị trí cắt (cả chỗ có cạnh vát)', () => {
+  const sv = JSON.parse(JSON.stringify(MCT.macDinh));
+  sv.dai.hinh3 = 'vat';
+  const kqv = MCT.calc.tinhTatCa(sv), mv = MCT.calc.taoMoHinhEtabs(sv, kqv);
+  assert.equal(mv.hopLe, true, (mv.loi || []).join('; '));
+  const tv = MCT.calc.taiTrongEtabs(sv, kqv, mv), gv = MCT.calc.duLieuPhanTich(mv, tv);
+  const dv = new Map(mv.diem.map((d) => [d.ten, d]));
+  // cầu nối trả nội lực tại mọi nút của các ô vỏ (kể cả nút trên cạnh vát)
+  const nutVo = [...new Set([].concat(...mv.vo.map((v) => v.diem)))].map((ten) => [dv.get(ten).x, dv.get(ten).y]);
+  const rawV = {
+    toHop: gv.toHop,
+    coc: mv.coc.map((c) => ({
+      ten: c.ten,
+      dong: [].concat(...mv.thanh.filter((f) => c.thanh.includes(f.ten)).map((f) => {
+        const zI = dv.get(f.dau).z;
+        return gv.toHop.map((ten, j) => [zI, j, -1000, 10, 0, 0, 100, j]);
+      }))
+    })),
+    chuyenVi: { nut: gv.nutChuyenVi, dong: [] },
+    dai: { nut: nutVo, dong: [].concat(...nutVo.map((p, ni) => gv.toHop.map((ten, j) => [ni, j, 10, 5, 0, 2, 1]))) }
+  };
+  const rv = MCT.calc.ketQuaEtabs(rawV, mv, tv, sv, kqv);
+  assert.equal(rv.hopLe, true, (rv.loi || []).join('; '));
+  const hd = { dinh: mv.thongSo.dinhDai };
+  for (const [truc, cs, M] of [['X', 'x', 10], ['Y', 'y', 5]]) {
+    const cat = rv.dai[truc].cat;
+    assert.ok(cat.length >= 5, truc + ': ít mặt cắt');
+    cat.forEach((d) => {
+      const b = MCT.calc.hinhDai.doanCat(hd, cs, d.viTri).dai;
+      assert.ok(Math.abs(d.b - b) < 1e-3, truc + ' tại ' + d.viTri + ': b = ' + d.b + ' ≠ bề rộng đài ' + b);
+      gan(d.Mmax.gt, M * d.b, truc + ' tại ' + d.viTri + ': M = ∫M dt');
+    });
+  }
+  // có mặt cắt đi qua phần vát (bề rộng nhỏ hơn chữ nhật bao) – bản chữ nhật X × Y sẽ bỏ các mặt cắt này
+  assert.ok(rv.dai.X.cat.some((d) => d.b < 0.9 * (mv.thongSo.y1 - mv.thongSo.y0)), 'không có mặt cắt X qua phần vát');
+  assert.ok(rv.dai.Y.cat.some((d) => d.b < 0.9 * (mv.thongSo.x1 - mv.thongSo.x0)), 'không có mặt cắt Y qua phần vát');
+  // mômen lớn nhất ở mặt cắt rộng nhất
+  gan(rv.dai.X.Mduong.gt, 10 * Math.max(...rv.dai.X.cat.map((d) => d.b)), 'M lớn nhất theo X');
 });

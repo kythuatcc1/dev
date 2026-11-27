@@ -773,6 +773,7 @@
 
   // ---------------- Chương II – Phần 5: ổn định – lún ----------------
   function phan5Lun(s, kq) {
+    var vatLun = !!(kq.A && kq.A.dai && kq.A.dai.hinh && kq.A.dai.hinh.kieu === 'vat' && kq.A.dai.hinh.hopLe);
     var x = D();
     var r = kq.LUN;
     var out = [phan('PHẦN 5. KIỂM TRA ỔN ĐỊNH ĐẤT NỀN VÀ KIỂM TRA LÚN', true)];
@@ -790,9 +791,9 @@
     ]));
     out.push(muc('B. XÁC ĐỊNH TRỌNG LƯỢNG CỦA MÓNG KHỐI QUY ƯỚC'));
     out.push(bangThongSo([
-      { nhan: 'Trọng lượng đài móng nằm dưới mặt đất tự nhiên:', ky: 'Q_{đài}=', gt: f(r.Qdai, 2), dv: 'kN' },
+      { nhan: 'Trọng lượng đài móng nằm dưới mặt đất tự nhiên' + (vatLun ? ' (đài vát, diện tích A = ' + f(kq.A.dai.dienTich, 3) + ' m2)' : '') + ':', ky: 'Q_{đài}=', gt: f(r.Qdai, 2), dv: 'kN' },
       { nhan: 'Trọng lượng cọc nằm dưới mặt đất tự nhiên:', ky: 'Q_{cọc}=', gt: f(r.Qcoc, 2), dv: 'kN' },
-      { nhan: 'Trọng lượng đất đài chiếm chỗ:', ky: 'Q*_{đài}=', gt: f(r.QdaiCho, 2), dv: 'kN' },
+      { nhan: 'Trọng lượng đất đài chiếm chỗ' + (vatLun ? ' (theo diện tích đài vát)' : '') + ':', ky: 'Q*_{đài}=', gt: f(r.QdaiCho, 2), dv: 'kN' },
       { nhan: 'Trọng lượng đất cọc chiếm chỗ:', ky: 'Q*_{cọc}=', gt: f(r.QcocCho, 2), dv: 'kN' },
       { nhan: 'Trọng lượng đất trong khối móng quy ước:', ky: 'Q_{đất}=', gt: f(r.Qdat, 2), dv: 'kN' },
       { nhan: 'Trọng lượng khối móng quy ước:', ky: 'Q_{qu}=', gt: f(r.Qqu, 2), dv: 'kN' }
@@ -847,7 +848,7 @@
   }
 
   // ---------------- Chương II – Phần 2, mục A ----------------
-  function phan2MucA(s, kq) {
+  function phan2MucA(s, kq, hinh) {
     var x = D();
     var A = kq.A;
     var out = [phan('PHẦN 2. TÍNH TOÁN MÓNG CẨU THÁP', true), muc('A. THÔNG SỐ ĐẦU VÀO')];
@@ -909,7 +910,18 @@
     // A.4
     var nl = A.ngoaiLuc;
     out.push(tieuMuc('A.4. Kích thước đài cọc'));
-    out.push(bangThongSo([
+    var hdv = A.dai.hinh && A.dai.hinh.kieu === 'vat' && A.dai.hinh.hopLe ? A.dai.hinh : null;
+    out.push(bangThongSo(hdv ? [   // móng 3 cọc: đài vát 2 góc phía cọc đơn, bao theo cọc
+      { nhan: 'Hình dạng đài: móng 3 cọc, đài vát 2 góc phía cọc đơn, bao theo cọc' },
+      { nhan: 'Khoảng cách tim cọc tới mép đài:', ky: 'c=', gt: g(hdv.c), dv: 'm', nhap: hdv.cNhap },
+      { nhan: 'Chiều dài bao đài móng:', ky: 'X=', gt: g(A.dai.X), dv: 'm', nhap: !hdv.tuTinhXY },
+      { nhan: 'Chiều rộng bao đài móng:', ky: 'Y=', gt: g(A.dai.Y), dv: 'm', nhap: !hdv.tuTinhXY },
+      { nhan: 'Vát 2 góc (a dọc cạnh phía cọc đơn, b dọc cạnh bên):', ky: 'a×b=', gt: f(hdv.vat[0].a, 3) + '×' + f(hdv.vat[0].b, 3), dv: 'm', nhap: !hdv.tuTinhVat },
+      { nhan: 'Diện tích đài móng:', ky: 'A=', gt: f(hdv.dienTich, 3), dv: 'm2' },
+      { nhan: 'Chiều cao đài móng:', ky: 'H=', gt: g(A.dai.H), dv: 'm', nhap: true },
+      { nhan: 'Trọng lượng tính toán đài móng (P = 25·A·H·1,1):', ky: 'P=', gt: f(A.dai.P, 2), dv: 'kN' },
+      { nhan: 'Tổng ngoại lực tính toán tác dụng lên móng qui tại trọng tâm đáy đài:' }
+    ] : [
       { nhan: 'Chiều dài đài móng:', ky: 'X=', gt: g(A.dai.X), dv: 'm', nhap: true },
       { nhan: 'Chiều rộng đài móng:', ky: 'Y=', gt: g(A.dai.Y), dv: 'm', nhap: true },
       { nhan: 'Chiều cao đài móng:', ky: 'H=', gt: g(A.dai.H), dv: 'm', nhap: true },
@@ -924,6 +936,7 @@
       ]
     }));
     out.push(p('M_{tt} = M_{qđ} + H_{qđ}·H ;   P_{tt} = N_{qđ} + P ;   H_{tt} = H_{qđ}', { italics: true, size: 22, indent: { left: 360 }, spacing: { before: 60 } }));
+    if (hdv) out = out.concat(hinhAnh(hinh && hinh.matBangDai, 380, 'Mặt bằng đài móng vát', 'Mặt bằng đài móng 3 cọc vát góc'));
     return out;
   }
 
@@ -1100,6 +1113,11 @@
       { italics: true, size: 22, indent: { left: 360 } }));
     out.push(tieuMuc('Với thép lớp dưới:'));
     out.push(p('M = ΣQ_{tti}×l_{i}  =  ΣP_{imax}×l_{o}', { bold: true, align: x.AlignmentType.CENTER, keepNext: true }));
+    if (Dd.beRong) {   // đài vát (móng 3 cọc): mômen mỗi phía chia cho bề rộng đài tại mặt cắt mép chân cẩu
+      out.push(p('Đài vát: mômen mỗi phía chia cho bề rộng đài tại mặt cắt mép chân cẩu – phương X: phía x dương b = ' + g(Number(Dd.beRong.xDuong.toFixed(3))) +
+        ' m, phía x âm b = ' + g(Number(Dd.beRong.xAm.toFixed(3))) + ' m; phương Y: phía y dương b = ' + g(Number(Dd.beRong.yDuong.toFixed(3))) +
+        ' m, phía y âm b = ' + g(Number(Dd.beRong.yAm.toFixed(3))) + ' m.', { italics: true, size: 22, indent: { left: 360 } }));
+    }
     out.push(bangThepBC(Dd, ['duoiX', 'duoiY']));
     out.push(tieuMuc('Với thép lớp trên:'));
     out.push(p('M = ΣQ_{tti}×l_{i}  =  ΣP_{imin}×l_{o}', { bold: true, align: x.AlignmentType.CENTER, keepNext: true }));
@@ -1340,7 +1358,10 @@
     out.push(cham('Cốt thép đài móng ' + s.dai.cotThep + ': R_{s} = ' + g(vl.Rs) + ' MPa; R_{sc} = ' + g(vl.Rsc) + ' MPa; E_{s} = ' +
       g(vl.cotThep && vl.cotThep.Es) + ' MPa. Khoảng cách từ mép bê tông tới trọng tâm cốt thép a = ' + g(vl.a_cm) + ' cm.'));
     if (S && S.hopLe) out.push(cham('Cốt thép cọc ' + S.vatLieu.cotThep + ': R_{s} = ' + g(S.vatLieu.Rs) + ' MPa; R_{sc} = ' + g(S.vatLieu.Rsc) + ' MPa.'));
-    out.push(cham('Đài móng: X × Y × H = ' + g(A.dai.X) + ' × ' + g(A.dai.Y) + ' × ' + g(A.dai.H) + ' m; ' + E.m.thongSo.soCoc +
+    var hdE = A.dai.hinh && A.dai.hinh.kieu === 'vat' && A.dai.hinh.hopLe ? A.dai.hinh : null;
+    out.push(cham((hdE ? 'Đài móng vát 2 góc phía cọc đơn (móng 3 cọc): bao X × Y × H = ' + g(A.dai.X) + ' × ' + g(A.dai.Y) + ' × ' + g(A.dai.H) +
+      ' m, vát a × b = ' + g(hdE.vat[0].a) + ' × ' + g(hdE.vat[0].b) + ' m, diện tích ' + f(hdE.dienTich, 3) + ' m2; '
+      : 'Đài móng: X × Y × H = ' + g(A.dai.X) + ' × ' + g(A.dai.Y) + ' × ' + g(A.dai.H) + ' m; ') + E.m.thongSo.soCoc +
       ' cọc khoan nhồi D' + g(E.m.thongSo.D * 1000) + ' mm, mũi cọc cao độ ' + f(E.m.thongSo.zMui, 2) + ' m.'));
 
     out.push(tieuDe('2.2. Thông số cẩu tháp', 3));
@@ -1421,7 +1442,9 @@
     var m = E.m, t = E.t, ts = m.thongSo;
     var out = [tieuDe('3. MÔ HÌNH TÍNH TOÁN', 2, true)];
     out.push(doan('Sử dụng phần mềm ETABS kết hợp với các thông số đầu vào để kiểm tra khả năng chịu lực của móng cẩu tháp. Mô hình gồm:'));
-    out.push(gach('Đài móng: mô hình bằng phần tử shell dày (thick shell), kích thước ' + g(ts.X) + ' × ' + g(ts.Y) + ' m, dày H = ' + g(ts.H) +
+    out.push(gach('Đài móng: mô hình bằng phần tử shell dày (thick shell), ' + (ts.kieuDai === 'vat'
+      ? 'đài vát 2 góc phía cọc đơn (bao ' + g(ts.X) + ' × ' + g(ts.Y) + ' m, diện tích ' + f(ts.dienTichDai, 3) + ' m2; ô lưới cắt theo cạnh vát)'
+      : 'kích thước ' + g(ts.X) + ' × ' + g(ts.Y) + ' m') + ', dày H = ' + g(ts.H) +
       ' m, đặt tại mặt phẳng giữa đài (cao độ ' + f(ts.zGiua, 2) + ' m); ' + (ts.chiaDai === 'khong'
         ? 'cả đài móng là một phần tử, ETABS tự chia lưới khi phân tích (đi qua đầu cọc và điểm đặt lực).'
         : 'lưới chia ' + (ts.nx - 1) + ' × ' + (ts.ny - 1) + ' ô' + (ts.chiaDai === 'toi-thieu' ? ' tại các đường qua cọc, tâm đài, điểm đặt lực.' : ' (≤ ' + g(ts.luoi) + ' m).'))));
@@ -1905,7 +1928,7 @@
     return chuongI(s, kq, tenTM)
       .concat(chuong('CHƯƠNG II. TÍNH TOÁN MÓNG CẨU THÁP ' + tenTM))
       .concat(phan1SCT(s, kq, hinh))
-      .concat(phan2MucA(s, kq))
+      .concat(phan2MucA(s, kq, hinh))
       .concat(phan2MucB(s, kq))
       .concat(phan2MucC(s, kq))
       .concat(phan2MucD(s, kq))

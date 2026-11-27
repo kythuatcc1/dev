@@ -86,6 +86,8 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
   (Analyze → Automatic Mesh Settings for Floors). Nội lực đài đọc tại các nút ETABS chia (`AreaForceShell` + `PointElm.GetCoordCartesian`);
   mặt cắt đài chỉ lấy đường có nút suốt ≥ 90 % bề rộng đài; hình mômen / lực cắt đài vẽ theo toạ độ nút có kết quả. Chưa thử trên ETABS thật:
   nếu ETABS không nối điểm đặt lực / đầu cọc với tấm, dùng `toi-thieu`.
+- **Đài vát móng 3 cọc:** ô lưới cắt theo đa giác đài (tam giác / ngũ giác ở cạnh vát, nút trên cạnh vát `D0_<k>`), tâm đài ở trọng tâm hình đài,
+  mặt cắt nội lực theo bề rộng thật – xem [04-dai-vat-3-coc.md](04-dai-vat-3-coc.md).
 - **Cọc:** thanh tròn D (`COC`), nút ở đáy đài rồi mỗi 1 m (chỉnh được) tới mũi; đoạn từ giữa đài tới đáy đài là
   thanh cứng `COC_TRONG_DAI` (hệ số độ cứng ×100, khối lượng và trọng lượng = 0 vì đã tính trong đài).
 - **Lò xo đất ngang:** K = k·z·b<sub>p</sub>·l tại mỗi nút cọc dưới cao độ bắt đầu, gán cả U1 và U2; k theo lớp (bảng A.1),

@@ -59,9 +59,11 @@
     var Xqu = X - D + 2 * aMr, Yqu = Y - D + 2 * aMr;
 
     // C. Trọng lượng
-    var Qdai = 25 * X * Y * (Math.min(0, mat) - Math.min(0, day));
+    // Đài vát (móng 3 cọc): trọng lượng đài và đất bị đài chiếm chỗ theo diện tích thật; khối quy ước vẫn theo X, Y bao
+    var dtDai = A.dai.hinh && A.dai.hinh.kieu === 'vat' && A.dai.hinh.hopLe ? A.dai.dienTich : null;
+    var Qdai = dtDai !== null ? 25 * dtDai * (Math.min(0, mat) - Math.min(0, day)) : 25 * X * Y * (Math.min(0, mat) - Math.min(0, day));
     var Qcoc = 25 * Math.PI * D * D / 4 * (Math.min(0, day) - Math.min(0, mui)) * n;
-    var QdaiCho = X * Y * (P(Math.min(0, day)) - P(Math.min(0, mat)));
+    var QdaiCho = (dtDai !== null ? dtDai : X * Y) * (P(Math.min(0, day)) - P(Math.min(0, mat)));
     var QcocCho = Math.PI * D * D / 4 * (P(Math.min(0, mui)) - P(Math.min(0, day))) * n;
     var Qdat = Xqu * Yqu * P(mui);
     var Qqu = Qdat + Qdai + Qcoc - QdaiCho - QcocCho;

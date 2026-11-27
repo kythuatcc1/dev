@@ -5,10 +5,12 @@
 
   MCT.calc.tinhTatCa = function (s) {
     var DC = s.diaChat ? MCT.calc.tinhDiaChat(s.diaChat) : { hopLe: false, loi: ['Chưa có số liệu địa chất.'] };
+    // Hình đài trên mặt bằng: chữ nhật X × Y (như Excel) hoặc móng 3 cọc vát góc bao theo cọc
+    var HD = MCT.calc.hinhDai ? MCT.calc.hinhDai({ dai: s.dai, toaDo: s.coc.toaDo, D: s.sct.D }) : null;
     var A = MCT.calc.tinhPhanA({
       cau: s.cau.ten, chieuCao: s.cau.chieuCao,
       beTong: s.dai.beTong, cotThep: s.dai.cotThep, a_cm: s.dai.a_cm,
-      X: s.dai.X, Y: s.dai.Y, H: s.dai.H
+      X: HD && HD.kieu === 'vat' ? HD.X : s.dai.X, Y: HD && HD.kieu === 'vat' ? HD.Y : s.dai.Y, H: s.dai.H, hinh: HD
     });
     var SCT = MCT.calc.tinhSCT(s.sct, DC);
     // Qa, Qa' của mục B: tự lấy từ sức chịu tải cọc (giống ô L48, L49 sheet Cau thap) hoặc nhập tay

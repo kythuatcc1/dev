@@ -28,7 +28,14 @@
       hang: [{ h: '', lv: { N: '', M: '', H: '', CR: '', T: '', F1: '', F2: '' }, klv: { N: '', M: '', H: '', CR: '', F1: '', F2: '' } }],
       canhBao: []
     },
-    dai: { beTong: 'B35', cotThep: 'CB500-V', a_cm: 15, X: 4, Y: 3.678, H: 1.6 },
+    dai: {
+      beTong: 'B35', cotThep: 'CB500-V', a_cm: 15, X: 4, Y: 3.678, H: 1.6,
+      // Móng 3 cọc (js/calc/hinh-dai.js): 'vat' – đài vát 2 góc phía cọc đơn, bao theo cọc | 'chu-nhat' – X × Y giữa tâm cẩu như Excel
+      hinh3: 'vat',
+      cTheo: 'D', c: 0.8,            // khoảng cách tim cọc tới mép đài: 'D' – bằng đường kính cọc | 'nhap' – nhập c (m)
+      cachXY: 'tu-tinh',             // 'tu-tinh': X, Y = khoảng bao các cọc + 2c | 'nhap': X, Y nhập (đặt giữa khoảng bao cọc)
+      cachVat: 'tu-tinh', vatA: 1.355, vatB: 1.701   // vát tự tính theo c | 'nhap': a (dọc cạnh phía cọc đơn) × b (dọc cạnh bên), m
+    },
     // Sức chịu tải cọc (sheet SCT Coc nhoi)
     sct: {
       D: 0.8,
@@ -53,7 +60,8 @@
       nguonQa: 'tu-dong',   // 'tu-dong': lấy Nc,d, Nt,d từ phần sức chịu tải cọc; 'nhap': nhập tay
       Qa: 4243.15,
       QaKeo: 2534.12,       // độ lớn sức chịu kéo Qa' (app tự mang dấu âm khi kiểm tra)
-      toaDo: [{ x: -1.2, y: -0.77 }, { x: 1.2, y: -0.77 }, { x: 0, y: 1.31 }]
+      toaDo: [{ x: -1.2, y: -0.77 }, { x: 1.2, y: -0.77 }, { x: 0, y: 1.31 }],
+      boTri: { s: 2.4, phia: '+y' }   // bố trí nhanh 3 cọc tam giác đều: cạnh s (m), hướng cọc đơn
     },
     // Thép chọn cho đài (mm): đường kính d, khoảng cách a
     thep: {

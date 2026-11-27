@@ -560,6 +560,39 @@
       '</details></section>';
   }
 
+  // A.4: đài chữ nhật X × Y (như Excel) – móng 3 cọc thêm lựa chọn đài vát 2 góc phía cọc đơn, bao theo cọc (js/calc/hinh-dai.js)
+  function nhapKichThuocDai() {
+    var ba = state.coc.toaDo.length === 3, vat = ba && state.dai.hinh3 !== 'chu-nhat';
+    var hd = ketQua && ketQua.dai && ketQua.dai.hinh && ketQua.dai.hinh.kieu === 'vat' ? ketQua.dai.hinh : null;
+    var D = Number(state.sct.D) || 0;
+    var h = '<section class="card"><h2>A.4. Kích thước đài cọc</h2><div class="params">';
+    if (ba) {
+      h += oChon('dai.hinh3', [{ v: 'vat', t: 'Vát 2 góc phía cọc đơn – tối ưu, bao theo cọc' },
+        { v: 'chu-nhat', t: 'Chữ nhật X × Y đặt giữa tâm cẩu (như Excel)' }], 'Hình dạng đài (móng 3 cọc)', '', '', false, true);
+    }
+    if (!vat) {
+      h += oNhapSo('dai.X', 'Chiều dài đài móng', '<i>X</i> =', 'm') + oNhapSo('dai.Y', 'Chiều rộng đài móng', '<i>Y</i> =', 'm');
+    } else {
+      var cNhap = state.dai.cTheo === 'nhap', xyNhap = state.dai.cachXY === 'nhap', vatNhap = state.dai.cachVat === 'nhap';
+      h += oChon('dai.cTheo', [{ v: 'D', t: 'Bằng đường kính cọc D' }, { v: 'nhap', t: 'Nhập' }], 'Cách lấy khoảng cách tim cọc tới mép đài', '', '', false, true) +
+        (cNhap ? oNhapSo('dai.c', 'Khoảng cách tim cọc tới mép đài', '<i>c</i> =', 'm') : dong('Khoảng cách tim cọc tới mép đài', '<i>c</i> = <i>D</i> =', so(D, 2), 'm')) +
+        oChon('dai.cachXY', [{ v: 'tu-tinh', t: 'Tự tính: khoảng bao các cọc + 2c' }, { v: 'nhap', t: 'Nhập' }], 'Cách lấy kích thước bao X × Y', '', '', false, true) +
+        (xyNhap ? oNhapSo('dai.X', 'Chiều dài bao đài móng', '<i>X</i> =', 'm') + oNhapSo('dai.Y', 'Chiều rộng bao đài móng', '<i>Y</i> =', 'm')
+          : dong('Kích thước bao đài (tự tính)', '<i>X</i> × <i>Y</i> =', hd ? so(hd.X, 3) + ' × ' + so(hd.Y, 3) : '–', 'm')) +
+        oChon('dai.cachVat', [{ v: 'tu-tinh', t: 'Tự tính: cạnh vát song song đường nối cọc, cách tim cọc c' }, { v: 'nhap', t: 'Nhập a × b' }],
+          'Cách lấy kích thước vát 2 góc phía cọc đơn', '', '', false, true) +
+        (vatNhap ? oNhapSo('dai.vatA', 'Vát dọc cạnh phía cọc đơn (tính từ góc)', '<i>a</i> =', 'm') + oNhapSo('dai.vatB', 'Vát dọc cạnh bên (tính từ góc)', '<i>b</i> =', 'm')
+          : dong('Kích thước vát (tự tính)', '<i>a</i> × <i>b</i> =', hd && hd.vat ? so(hd.vat[0].a, 3) + ' × ' + so(hd.vat[0].b, 3) : '–', 'm'));
+    }
+    h += oNhapSo('dai.H', 'Chiều cao đài móng', '<i>H</i> =', 'm') + '</div>';
+    if (vat) {
+      h += '<p class="hint">Đài vát: chữ nhật bao các cọc (mỗi phía cách tim cọc c), hai góc phía cọc đơn vát; <i>a</i> đo dọc cạnh phía cọc đơn, ' +
+        '<i>b</i> dọc cạnh bên, tính từ góc chữ nhật bao. Tâm cẩu theo toạ độ cọc ở mục B nên có thể lệch tâm đài. ' +
+        'Mọi phép tính dùng hình thật: trọng lượng đài theo diện tích, thép đài chia cho bề rộng đài tại mặt cắt mép chân cẩu.</p>';
+    }
+    return h + '</section>';
+  }
+
   TRANG.dai = {
     tieuDe: 'A.3 – A.4. Vật liệu và kích thước đài cọc',
     moTa: 'Vật liệu và kích thước đài; trọng lượng đài và tổng ngoại lực quy về trọng tâm đáy đài.',
@@ -571,11 +604,7 @@
         oChon('dai.cotThep', dsCT, 'Cốt thép') +
         oNhapSo('dai.a_cm', 'Khoảng bê tông bảo vệ tính tới trọng tâm cốt thép', '<i>a</i> =', 'cm') +
         '</div></section>' +
-        '<section class="card"><h2>A.4. Kích thước đài cọc</h2><div class="params">' +
-        oNhapSo('dai.X', 'Chiều dài đài móng', '<i>X</i> =', 'm') +
-        oNhapSo('dai.Y', 'Chiều rộng đài móng', '<i>Y</i> =', 'm') +
-        oNhapSo('dai.H', 'Chiều cao đài móng', '<i>H</i> =', 'm') +
-        '</div></section>';
+        nhapKichThuocDai();
     },
     ketQua: function () {
       var r = ketQua;
@@ -595,8 +624,12 @@
         dong('Cốt thép ' + esc(state.dai.cotThep) + ' – cường độ chịu kéo tính toán', '<i>R</i><sub>s</sub> =', so(vl.Rs, 0), 'MPa') +
         dong('Cường độ chịu nén tính toán', '<i>R</i><sub>sc</sub> =', so(vl.Rsc, 0), 'MPa') +
         '</div></section>' +
+        theHinhDai(r) +
         '<section class="card"><h2>Trọng lượng đài và tổng ngoại lực</h2>' +
-        '<div class="formula"><i>P</i> = 25 × <i>X</i> × <i>Y</i> × <i>H</i> × 1,1</div><div class="params">' +
+        (r.dai && r.dai.hinh && r.dai.hinh.kieu === 'vat' && r.dai.hinh.hopLe
+          ? '<div class="formula"><i>P</i> = 25 × <i>A</i> × <i>H</i> × 1,1   (<i>A</i>: diện tích đài vát)</div><div class="params">' +
+            dong('Diện tích đài', '<i>A</i> =', so(r.dai.dienTich, 3), 'm²')
+          : '<div class="formula"><i>P</i> = 25 × <i>X</i> × <i>Y</i> × <i>H</i> × 1,1</div><div class="params">') +
         dong('Trọng lượng tính toán đài móng', '<i>P</i> =', so(r.dai.P), 'kN') +
         '</div><h3>Tổng ngoại lực tính toán tác dụng lên móng quy tại trọng tâm đáy đài</h3>' +
         '<div class="formula"><i>M</i><sub>tt</sub> = <i>M</i><sub>qđ</sub> + <i>H</i><sub>qđ</sub> × <i>H</i>;   ' +
@@ -604,6 +637,21 @@
         bang + '</section>';
     }
   };
+
+  // Thẻ hình đài vát (móng 3 cọc) ở trang A.3 – A.4: kích thước, diện tích, cảnh báo, sơ đồ
+  function theHinhDai(r) {
+    var hd = r && r.dai && r.dai.hinh;
+    if (!hd || hd.kieu !== 'vat' || !hd.hopLe) return '';
+    var bao = hd.X * hd.Y;
+    return '<section class="card"><h2>Hình dạng đài (móng 3 cọc vát góc)</h2><div class="params">' +
+      dong('Kích thước bao', '<i>X</i> × <i>Y</i> =', so(hd.X, 3) + ' × ' + so(hd.Y, 3), 'm') +
+      dong('Vát 2 góc phía cọc đơn ' + (hd.tuTinhVat ? '(tự tính)' : '(nhập)'), '<i>a</i> × <i>b</i> =', so(hd.vat[0].a, 3) + ' × ' + so(hd.vat[0].b, 3), 'm') +
+      dong('Khoảng cách tim cọc tới mép đài', '<i>c</i> =', so(hd.c, 3), 'm') +
+      dong('Diện tích đài', '<i>A</i> =', so(hd.dienTich, 3) + ' (ít hơn chữ nhật bao ' + so(100 * (1 - hd.dienTich / bao), 0) + ' %)', 'm²') +
+      dong('Tâm đài so với tâm cẩu', '', '(' + so(hd.trongTam[0], 3) + '; ' + so(hd.trongTam[1], 3) + ')', 'm') +
+      '</div>' + (hd.canhBao && hd.canhBao.length ? '<div class="alert alert-fail">' + hd.canhBao.map(esc).join('<br>') + '</div>' : '') +
+      '<div style="max-width:440px">' + soDoCoc() + '</div></section>';
+  }
 
   // ---------------- B. Tải trọng lên cọc ----------------
   function oSoBang(path, nhan) {
@@ -615,11 +663,13 @@
   // xt: kết quả phần C – nếu có thì vẽ thêm đáy tháp xuyên và đường bao tính toán.
   function soDoCoc(xt) {
     var X = Number(state.dai.X) || 0, Y = Number(state.dai.Y) || 0;
+    var hd = ketQua && ketQua.dai && ketQua.dai.hinh && ketQua.dai.hinh.kieu === 'vat' && ketQua.dai.hinh.hopLe ? ketQua.dai.hinh : null;
+    if (hd) { X = hd.X; Y = hd.Y; }
     var Ht = ketQua && ketQua.Ht ? ketQua.Ht : 0;
     var D = Number(state.sct.D) || 0.8;
     var dsCoc = kqB && kqB.hopLe ? kqB.coc : [];
     var pad = 0.7;
-    var maxX = X / 2, maxY = Y / 2;
+    var maxX = hd ? Math.max(-hd.x0, hd.x1) : X / 2, maxY = hd ? Math.max(-hd.y0, hd.y1) : Y / 2;
     if (xt) { maxX = Math.max(maxX, xt.Bxt / 2); maxY = Math.max(maxY, xt.Bxt / 2); }
     dsCoc.forEach(function (c) {
       maxX = Math.max(maxX, Math.abs(c.x) + D / 2);
@@ -630,8 +680,8 @@
     var nk = ' vector-effect="non-scaling-stroke"';
     var svg = '<svg class="so-do" viewBox="' + vb.join(' ') + '" role="img" aria-label="Sơ đồ bố trí cọc trong đài">';
     // đài
-    svg += '<rect x="' + (-X / 2) + '" y="' + (-Y / 2) + '" width="' + X + '" height="' + Y +
-      '" class="sd-dai"' + nk + '/>';
+    if (hd) svg += '<polygon points="' + hd.dinh.map(function (q) { return q[0] + ',' + (-q[1]); }).join(' ') + '" class="sd-dai"' + nk + '/>';
+    else svg += '<rect x="' + (-X / 2) + '" y="' + (-Y / 2) + '" width="' + X + '" height="' + Y + '" class="sd-dai"' + nk + '/>';
     // trục
     var ax = maxX + pad * 0.55, ay = maxY + pad * 0.55;
     svg += '<line x1="' + (-ax) + '" y1="0" x2="' + ax + '" y2="0" class="sd-truc"' + nk + '/>' +
@@ -659,10 +709,11 @@
         c.stt + '</text>';
     });
     // kích thước
-    svg += '<text x="0" y="' + (Y / 2 + fs * 1.4) + '" font-size="' + fs * 0.9 + '" class="sd-chu sd-dim" text-anchor="middle">X = ' +
+    var kx0 = hd ? hd.x0 : -X / 2, kx1 = hd ? hd.x1 : X / 2, ky0 = hd ? hd.y0 : -Y / 2, ky1 = hd ? hd.y1 : Y / 2;
+    svg += '<text x="' + ((kx0 + kx1) / 2) + '" y="' + (-ky0 + fs * 1.4) + '" font-size="' + fs * 0.9 + '" class="sd-chu sd-dim" text-anchor="middle">X = ' +
       so(X, 3) + ' m</text>' +
-      '<text x="' + (-X / 2 - fs * 0.6) + '" y="0" font-size="' + fs * 0.9 + '" class="sd-chu sd-dim" text-anchor="middle" transform="rotate(-90 ' +
-      (-X / 2 - fs * 0.6) + ' 0)">Y = ' + so(Y, 3) + ' m</text>';
+      '<text x="' + (kx0 - fs * 0.6) + '" y="' + (-(ky0 + ky1) / 2) + '" font-size="' + fs * 0.9 + '" class="sd-chu sd-dim" text-anchor="middle" transform="rotate(-90 ' +
+      (kx0 - fs * 0.6) + ' ' + (-(ky0 + ky1) / 2) + ')">Y = ' + so(Y, 3) + ' m</text>';
     svg += '</svg>';
     var chuThich = xt
       ? 'Nét đứt xanh: chân cẩu H<sub>t</sub> = ' + so(Ht, 2) + ' m. Nét chấm: đường bao tính toán (cách mép chân cẩu h<sub>0</sub>/2). ' +
@@ -704,7 +755,14 @@
         '<tbody>' + dong1 + '</tbody></table></div>' +
         '<p><button type="button" class="btn btn-ghost" data-action="them-coc"' +
         (toaDo.length >= MCT.calc.SO_COC_TOI_DA ? ' disabled' : '') + '>+ Thêm cọc</button></p>' +
-        '<p class="hint">Số cọc n lấy theo số dòng tọa độ (tối đa ' + MCT.calc.SO_COC_TOI_DA + ' cọc như Excel).</p></section>';
+        '<p class="hint">Số cọc n lấy theo số dòng tọa độ (tối đa ' + MCT.calc.SO_COC_TOI_DA + ' cọc như Excel).</p></section>' +
+        '<section class="card"><h2>Bố trí nhanh 3 cọc tam giác đều</h2><div class="params">' +
+        oNhapSo('coc.boTri.s', 'Khoảng cách giữa các cọc (thường 3D)', '<i>s</i> =', 'm') +
+        oChon('coc.boTri.phia', [{ v: '+y', t: 'Cọc đơn phía +y (trên)' }, { v: '-y', t: 'Cọc đơn phía −y (dưới)' },
+          { v: '+x', t: 'Cọc đơn phía +x (phải)' }, { v: '-x', t: 'Cọc đơn phía −x (trái)' }], 'Hướng cọc đơn') +
+        '</div><p><button type="button" class="btn btn-ghost" data-action="bo-tri-3-coc">Bố trí 3 cọc</button></p>' +
+        '<p class="hint">Thay toạ độ hiện có bằng 3 cọc tam giác đều cạnh s, trọng tâm nhóm cọc tại tâm cẩu (hàng 2 cọc và 1 cọc đơn). ' +
+        'Sửa tay toạ độ sau khi bố trí nếu cần. Móng 3 cọc dùng đài vát góc (chọn ở trang A.3 – A.4).</p></section>';
     },
     ketQua: function () {
       var r = kqB;
@@ -896,7 +954,10 @@
         congThuc + '<div class="params">' +
         dong('Bê tông / cốt thép', '', '<i>R</i><sub>b</sub> = ' + so(r.Rb) + ' MPa; <i>R</i><sub>s</sub> = ' + so(r.Rs, 0) + ' MPa', '') +
         '</div>' + bangThep(r, ['duoiX', 'duoiY'], false) +
-        '<p class="hint">Phương X: mômen chia cho bề rộng Y của đài; phương Y: chia cho chiều dài X.</p></section>' +
+        (r.beRong ? '<p class="hint">Đài vát (móng 3 cọc): mômen mỗi phía chia cho bề rộng đài tại mặt cắt mép chân cẩu – phương X: ' +
+          'phía x dương ' + so(r.beRong.xDuong, 3) + ' m, phía x âm ' + so(r.beRong.xAm, 3) + ' m; phương Y: phía y dương ' + so(r.beRong.yDuong, 3) +
+          ' m, phía y âm ' + so(r.beRong.yAm, 3) + ' m.</p>'
+          : '<p class="hint">Phương X: mômen chia cho bề rộng Y của đài; phương Y: chia cho chiều dài X.</p>') + '</section>' +
         '<section class="card"><h2>Với thép lớp trên</h2>' +
         '<div class="formula"><i>M</i> = Σ<i>Q</i><sub>tt,i</sub>·<i>l</i><sub>i</sub> = Σ<i>P</i><sub>imin</sub>·<i>l</i><sub>0</sub> / bề rộng đài</div>' +
         '<div class="ke-ben"><div>' + bangThep(r, ['trenX', 'trenY'], true) + '</div>' + ghiChuThepTren(r) + '</div></section>' +
@@ -1751,14 +1812,23 @@
 
   function svgMatBangEtabsChi(m) {
     var t = m.thongSo, W = 560, Hh = 420, le = 46;
-    var sc = Math.min((W - 2 * le) / t.X, (Hh - 2 * le) / t.Y);
-    function px(x) { return le + (x + t.X / 2) * sc + ((W - 2 * le) - t.X * sc) / 2; }
-    function py(y) { return le + (t.Y / 2 - y) * sc + ((Hh - 2 * le) - t.Y * sc) / 2; }
+    var sc = Math.min((W - 2 * le) / t.X, (Hh - 2 * le) / t.Y), vat = t.kieuDai === 'vat' && t.dinhDai;
+    var px = vat ? function (x) { return le + (x - t.x0) * sc + ((W - 2 * le) - t.X * sc) / 2; } : function (x) { return le + (x + t.X / 2) * sc + ((W - 2 * le) - t.X * sc) / 2; };
+    var py = vat ? function (y) { return le + (t.y1 - y) * sc + ((Hh - 2 * le) - t.Y * sc) / 2; } : function (y) { return le + (t.Y / 2 - y) * sc + ((Hh - 2 * le) - t.Y * sc) / 2; };
     function f(v) { return Math.round(v * 10) / 10; }
     var g = [];
-    m.xs.forEach(function (x) { g.push('<line x1="' + f(px(x)) + '" y1="' + f(py(t.Y / 2)) + '" x2="' + f(px(x)) + '" y2="' + f(py(-t.Y / 2)) + '" stroke="#d6dde6" stroke-width="0.7"/>'); });
-    m.ys.forEach(function (y) { g.push('<line x1="' + f(px(-t.X / 2)) + '" y1="' + f(py(y)) + '" x2="' + f(px(t.X / 2)) + '" y2="' + f(py(y)) + '" stroke="#d6dde6" stroke-width="0.7"/>'); });
-    g.push('<rect x="' + f(px(-t.X / 2)) + '" y="' + f(py(t.Y / 2)) + '" width="' + f(t.X * sc) + '" height="' + f(t.Y * sc) + '" fill="none" stroke="#1f4e79" stroke-width="2"/>');
+    if (vat) {   // đài vát (móng 3 cọc): vẽ từng ô vỏ đã cắt theo đa giác và đường bao đài
+      var toaDo = {};
+      m.diem.forEach(function (d) { toaDo[d.ten] = d; });
+      m.vo.forEach(function (v) {
+        g.push('<polygon points="' + v.diem.map(function (ten) { var d = toaDo[ten]; return f(px(d.x)) + ',' + f(py(d.y)); }).join(' ') + '" fill="none" stroke="#d6dde6" stroke-width="0.7"/>');
+      });
+      g.push('<polygon points="' + t.dinhDai.map(function (q) { return f(px(q[0])) + ',' + f(py(q[1])); }).join(' ') + '" fill="none" stroke="#1f4e79" stroke-width="2"/>');
+    } else {
+      m.xs.forEach(function (x) { g.push('<line x1="' + f(px(x)) + '" y1="' + f(py(t.Y / 2)) + '" x2="' + f(px(x)) + '" y2="' + f(py(-t.Y / 2)) + '" stroke="#d6dde6" stroke-width="0.7"/>'); });
+      m.ys.forEach(function (y) { g.push('<line x1="' + f(px(-t.X / 2)) + '" y1="' + f(py(y)) + '" x2="' + f(px(t.X / 2)) + '" y2="' + f(py(y)) + '" stroke="#d6dde6" stroke-width="0.7"/>'); });
+      g.push('<rect x="' + f(px(-t.X / 2)) + '" y="' + f(py(t.Y / 2)) + '" width="' + f(t.X * sc) + '" height="' + f(t.Y * sc) + '" fill="none" stroke="#1f4e79" stroke-width="2"/>');
+    }
     m.coc.forEach(function (c) {
       g.push('<circle cx="' + f(px(c.x)) + '" cy="' + f(py(c.y)) + '" r="' + f(t.D / 2 * sc) + '" fill="#dbe8f5" stroke="#1f4e79" stroke-width="1.4"/>' +
         '<text x="' + f(px(c.x)) + '" y="' + f(py(c.y) + 4) + '" text-anchor="middle" font-size="12" fill="#1f4e79">' + c.ten + '</text>');
@@ -1778,15 +1848,22 @@
       g.push('<rect x="' + f(px(xc - t.Ht / 2)) + '" y="' + f(py(yc + t.Ht / 2)) + '" width="' + f(t.Ht * sc) + '" height="' + f(t.Ht * sc) +
         '" fill="none" stroke="#c0504d" stroke-dasharray="4 3"/>');
     }
-    if (Math.abs(xc) > 1e-9 || Math.abs(yc) > 1e-9) {
-      g.push('<path d="M' + f(px(0) - 5) + ' ' + f(py(0)) + ' h10 M' + f(px(0)) + ' ' + f(py(0) - 5) + ' v10" stroke="#555" stroke-width="1.2"/>' +
-        '<text x="' + f(px(0) + 6) + '" y="' + f(py(0) + 14) + '" font-size="11" fill="#555">tâm đài</text>');
+    var tdx = vat ? t.tamDai[0] : 0, tdy = vat ? t.tamDai[1] : 0;
+    if (Math.abs(xc - tdx) > 1e-9 || Math.abs(yc - tdy) > 1e-9) {
+      g.push('<path d="M' + f(px(tdx) - 5) + ' ' + f(py(tdy)) + ' h10 M' + f(px(tdx)) + ' ' + f(py(tdy) - 5) + ' v10" stroke="#555" stroke-width="1.2"/>' +
+        '<text x="' + f(px(tdx) + 6) + '" y="' + f(py(tdy) + 14) + '" font-size="11" fill="#555">tâm đài</text>');
     }
     g.push('<circle cx="' + f(px(xc)) + '" cy="' + f(py(yc)) + '" r="6" fill="#c0504d"/>' +
       '<text x="' + f(px(xc) + 10) + '" y="' + f(py(yc) - 8) + '" font-size="12" fill="#c0504d">' +
       ((m.chan || []).length ? 'Tâm cẩu' : 'Điểm đặt lực (tâm cẩu)') + '</text>');
-    g.push('<text x="' + f(px(0)) + '" y="' + f(py(t.Y / 2) - 10) + '" text-anchor="middle" font-size="12" fill="#333">X = ' + so(t.X, 3) + ' m</text>');
-    g.push('<text x="' + f(px(t.X / 2) + 10) + '" y="' + f(py(0)) + '" font-size="12" fill="#333" transform="rotate(90 ' + f(px(t.X / 2) + 10) + ' ' + f(py(0)) + ')" text-anchor="middle">Y = ' + so(t.Y, 3) + ' m</text>');
+    if (vat) {
+      var cxv = (t.x0 + t.x1) / 2, cyv = (t.y0 + t.y1) / 2;
+      g.push('<text x="' + f(px(cxv)) + '" y="' + f(py(t.y1) - 10) + '" text-anchor="middle" font-size="12" fill="#333">X = ' + so(t.X, 3) + ' m (bao)</text>');
+      g.push('<text x="' + f(px(t.x1) + 10) + '" y="' + f(py(cyv)) + '" font-size="12" fill="#333" transform="rotate(90 ' + f(px(t.x1) + 10) + ' ' + f(py(cyv)) + ')" text-anchor="middle">Y = ' + so(t.Y, 3) + ' m (bao)</text>');
+    } else {
+      g.push('<text x="' + f(px(0)) + '" y="' + f(py(t.Y / 2) - 10) + '" text-anchor="middle" font-size="12" fill="#333">X = ' + so(t.X, 3) + ' m</text>');
+      g.push('<text x="' + f(px(t.X / 2) + 10) + '" y="' + f(py(0)) + '" font-size="12" fill="#333" transform="rotate(90 ' + f(px(t.X / 2) + 10) + ' ' + f(py(0)) + ')" text-anchor="middle">Y = ' + so(t.Y, 3) + ' m</text>');
+    }
     return '<svg xmlns="http://www.w3.org/2000/svg" width="' + W + '" height="' + Hh + '" viewBox="0 0 ' + W + ' ' + Hh + '" font-family="Arial, Helvetica, sans-serif" role="img" aria-label="Mặt bằng đài trong mô hình ETABS">' +
       '<rect width="' + W + '" height="' + Hh + '" fill="#fff"/>' + g.join('') + '</svg>';
   }
@@ -1942,9 +2019,13 @@
       var t = m.thongSo, tk = m.thongKe;
       var chiaLuoi = t.chiaDai === 'khong' ? 'không chia – ETABS tự chia khi phân tích'
         : (t.nx - 1) + ' × ' + (t.ny - 1) + ' ô' + (t.chiaDai === 'toi-thieu' ? ' (chỉ tại cọc, tâm đài, điểm đặt lực)' : ' (≤ ' + so(t.luoi, 2) + ' m)');
+      if (t.kieuDai === 'vat') chiaLuoi += t.chiaDai === 'khong' ? ' (1 ô ' + t.dinhDai.length + ' đỉnh theo đài vát)' : ', cắt theo đài vát còn ' + m.vo.length + ' ô';
       var thongSo = '<section class="card"><h2>Mô hình sẽ dựng</h2><div class="grid-mo-ta">' +
         '<div><h3>Đài móng và cọc</h3><div class="params params-mo-ta">' +
-        dong('Kích thước đài móng (dài × rộng × cao)', '', so(t.X, 3) + ' × ' + so(t.Y, 3) + ' × ' + so(t.H, 2), 'm') +
+        (t.kieuDai === 'vat'
+          ? dong('Đài vát 3 cọc: bao X × Y × cao', '', so(t.x1 - t.x0, 3) + ' × ' + so(t.y1 - t.y0, 3) + ' × ' + so(t.H, 2), 'm') +
+            dong('Diện tích đài vát', '<i>A</i> =', so(t.dienTichDai, 3), 'm²')
+          : dong('Kích thước đài móng (dài × rộng × cao)', '', so(t.X, 3) + ' × ' + so(t.Y, 3) + ' × ' + so(t.H, 2), 'm')) +
         dong('Cao độ mặt / giữa / đáy đài', '', so(t.zMat, 2) + ' / ' + so(t.zGiua, 2) + ' / ' + so(t.zDay, 2), 'm') +
         dong('Phần tử đài móng', '', 'shell dày, đặt ở mặt phẳng giữa đài', '') +
         dong('Chia lưới đài móng', '', chiaLuoi, '') +
@@ -2816,6 +2897,18 @@
       if (nutDam && !nutDam.disabled) xuLyDam(nutDam.getAttribute('data-action'));
       var nutCau = e.target.closest('[data-action$="-cau"]');
       if (nutCau && !nutCau.disabled) xuLyCau(nutCau.getAttribute('data-action'), nutCau.getAttribute('data-ten'));
+      var boTri = e.target.closest('[data-action="bo-tri-3-coc"]');
+      if (boTri) {
+        var sBt = Number(state.coc.boTri && state.coc.boTri.s), phia = (state.coc.boTri && state.coc.boTri.phia) || '+y';
+        if (!(sBt > 0)) { datTrangThai('Khoảng cách cọc s phải lớn hơn 0'); return; }
+        if (!window.confirm('Thay toạ độ ' + state.coc.toaDo.length + ' cọc hiện có bằng 3 cọc tam giác đều cạnh ' + so(sBt, 2) + ' m?')) return;
+        state.coc.toaDo = MCT.calc.hinhDai.boTri3Coc(sBt, phia);
+        tinh();
+        $('#vung-nhap').innerHTML = TRANG.coc.nhap();
+        veKetQua();
+        luu();
+        datTrangThai('Đã bố trí 3 cọc tam giác đều cạnh ' + so(sBt, 2) + ' m');
+      }
       var them = e.target.closest('[data-action="them-coc"]');
       var xoa = e.target.closest('[data-action="xoa-coc"]');
       if ((them && !them.disabled) || (xoa && !xoa.disabled)) {
@@ -3026,6 +3119,10 @@
       ds.push(['sigma', BD.noiLuc(tatCa.TN.bang, 'sigma', 'HORIZONTAL PRESSURE ALONG PILE SHAFT', 'σz (kN/m2)', '#2f6db5', { w: 340, h: 400 }), 340, 400]);
     }
     if (tatCa.TT && tatCa.TT.hopLe) ds.push(['tuongTac', BD.tuongTac(tatCa.TT, { w: 480, h: 440 }), 480, 440]);
+    var hdv = tatCa.A && tatCa.A.dai && tatCa.A.dai.hinh;
+    if (hdv && hdv.kieu === 'vat' && hdv.hopLe && BD.matBangDaiVat) {   // móng 3 cọc vát: mặt bằng đài (mục A.4 thuyết minh giải tích)
+      ds.push(['matBangDai', BD.matBangDaiVat(hdv, state.coc.toaDo.map(function (c) { return { x: Number(c.x), y: Number(c.y) }; }), Number(state.sct.D), tatCa.A.Ht, { w: 480, h: 440 }), 480, 440]);
+    }
     var dMatCat = BD.duLieuMatCat ? BD.duLieuMatCat(state, tatCa, E ? E.m : null) : null;
     if (dMatCat) ds.push(['matCat', BD.matCat(dMatCat, { w: 780, h: 800 }), 780, 800]);
     if (E) {   // phương pháp ETABS: mặt bằng mô hình, bao nội lực cọc chính, các cặp N–M

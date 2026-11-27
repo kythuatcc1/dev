@@ -83,7 +83,7 @@
 
   /**
    * Tính phần A.
-   * @param {object} v  { cau, chieuCao, beTong, cotThep, a_cm, X, Y, H }
+   * @param {object} v  { cau, chieuCao, beTong, cotThep, a_cm, X, Y, H, hinh } – hinh: kết quả MCT.calc.hinhDai (đài vát: diện tích thật)
    */
   function tinhPhanA(v) {
     var loi = [];
@@ -113,8 +113,12 @@
     if (!ct) loi.push('Không có nhóm cốt thép "' + v.cotThep + '".');
 
     var X = Number(v.X), Y = Number(v.Y), H = Number(v.H);
-    // Ô L40: =25*X*Y*H*1.1
-    var P = 25 * X * Y * H * 1.1;
+    var hinh = v.hinh && v.hinh.kieu === 'vat' ? v.hinh : null;
+    if (hinh && !hinh.hopLe) loi = loi.concat(hinh.loi);
+    // Ô L40: =25*X*Y*H*1.1; đài vát (móng 3 cọc): 25 × diện tích đài × H × 1,1
+    var dienTich = hinh ? hinh.dienTich : X * Y;
+    var P = hinh ? 25 * dienTich * H * 1.1 : 25 * X * Y * H * 1.1;
+    if (hinh && hinh.hopLe && cau.beRongThan > 0) hinh.canhBao = hinh.canhBao.concat(MCT.calc.hinhDai.kiemTraChanCau(hinh, cau.beRongThan, 0, 0));
 
     // Ô H44:J45 – tổng ngoại lực quy về trọng tâm đáy đài
     function ngoaiLuc(q) {
@@ -141,7 +145,7 @@
         Rs: ct && ct.Rs, Rsc: ct && ct.Rsc,
         a_cm: Number(v.a_cm)
       },
-      dai: { X: X, Y: Y, H: H, P: P },
+      dai: { X: X, Y: Y, H: H, P: P, dienTich: dienTich, hinh: v.hinh || null },
       ngoaiLuc: { lv: ngoaiLuc(quyDoiLv), klv: ngoaiLuc(quyDoiKlv) },
       Pct: lucNhoChanCau(cau)
     };

@@ -17,10 +17,11 @@ execFileSync('dotnet', ['build', path.join(__dirname, 'MctEtabs', 'MctEtabs.cspr
 globalThis.MCT = {};
 const goc = path.join(__dirname, '..', '..', 'js');
 ['data/cau-thap', 'data/vat-lieu', 'data/bang-tra', 'data/mau-dia-chat', 'data/he-so-tai-ngang', 'mac-dinh', 'calc/dia-chat', 'calc/sct-coc',
-  'calc/phan-a-tai-trong', 'calc/phan-b-tai-coc', 'calc/phan-c-xuyen-thung', 'calc/phan-d-thep-dai', 'calc/phan-e-bulong', 'calc/phan-f-ket-luan',
+  'calc/hinh-dai', 'calc/phan-a-tai-trong', 'calc/phan-b-tai-coc', 'calc/phan-c-xuyen-thung', 'calc/phan-d-thep-dai', 'calc/phan-e-bulong', 'calc/phan-f-ket-luan',
   'calc/tai-ngang', 'calc/tuong-tac', 'calc/lun', 'calc/tinh-tat-ca', 'calc/etabs-mo-hinh', 'calc/etabs-tai-trong', 'calc/etabs-ket-qua'].forEach((f) => require(path.join(goc, f + '.js')));
 require(path.join(goc, 'data/cau-thap-new-data.js'));
 const trangThai = JSON.parse(JSON.stringify(globalThis.MCT.macDinh));
+trangThai.dai.hinh3 = 'chu-nhat';   // các tình huống cũ: đài chữ nhật; đài vát 3 cọc thử riêng
 const ketQuaTinh = globalThis.MCT.calc.tinhTatCa(trangThai);
 const moHinh = globalThis.MCT.calc.taoMoHinhEtabs(trangThai, ketQuaTinh);
 const taiTrong = globalThis.MCT.calc.taiTrongEtabs(trangThai, ketQuaTinh, moHinh);
@@ -49,6 +50,9 @@ const capNhatKhongChia = duLieuTheo((st) => {
   st.dai.H = 2.0; st.sct.L = 36; st.etabs.chiaDai = 'khong';
   st.damGiang.ds = [[1, 2], [2, 3], [3, 1]].map((c) => Object.assign({}, st.damGiang.mau, { tuCoc: c[0], denCoc: c[1] }));
 });
+// Đài vát móng 3 cọc: ô vỏ cắt theo cạnh vát (3–6 điểm), nút trên cạnh vát D0_<k>
+const capNhatVat = duLieuTheo((st) => { st.dai.hinh3 = 'vat'; st.dai.H = 2.0; st.sct.L = 36; st.etabs.diemDatLuc = 'chan'; });
+const dungVat = duLieuTheo((st) => { st.dai.hinh3 = 'vat'; st.etabs.chiaDai = 'toi-thieu'; });
 const capNhatDam = duLieuTheo((st) => {
   st.dai.H = 2.0; st.sct.L = 36;
   st.damGiang.ds = [[1, 2], [2, 3], [3, 1]].map((c) => Object.assign({}, st.damGiang.mau, { tuCoc: c[0], denCoc: c[1] }));
@@ -314,6 +318,30 @@ const ca = [
     assert.deepStrictEqual(g.diemRieng, capNhatKhongChia.m.diemRieng.slice().sort());
     khopMoHinh(fileEdb, capNhatKhongChia);
   }, fileEdb],
+  ['cập nhật mô hình: đổi sang đài vát 3 cọc, chia lực 4 chân – ô vỏ tam giác / ngũ giác ở cạnh vát', '', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatVat.gui, fileMoHinh: fileEdb } }, function (k) {
+    const g = capNhatKhongTaoMoi(k);
+    assert.strictEqual(capNhatVat.m.thongSo.kieuDai, 'vat');
+    assert.strictEqual(g.soVo, capNhatVat.m.vo.length);
+    const f = khopMoHinh(fileEdb, capNhatVat);
+    const soDiem = new Set([...f.A.values()].map((d) => d.length));
+    assert.ok(soDiem.has(3) && soDiem.has(4) && soDiem.has(5), 'số điểm mỗi ô vỏ: ' + [...soDiem]);
+    assert.ok([...f.P.keys()].some((t) => /^D0_\d+$/.test(t)), 'có nút trên cạnh vát');
+  }, fileEdb],
+  ['dựng mô hình: đài vát 3 cọc, chia tối thiểu', '', { lenh: 'dung-mo-hinh', duLieu: { moHinh: dungVat.gui, fileMoHinh: fileEdb + '.vat.EDB' } }, function (k) {
+    assert.strictEqual(k.ok, true, k.loi);
+    khopMoHinh(fileEdb + '.vat.EDB', dungVat);
+  }],
+  ['phân tích đài vát: mặt cắt lấy bề rộng thật của đài tại vị trí cắt', '', { lenh: 'phan-tich', duLieu: globalThis.MCT.calc.duLieuPhanTich(dungVat.m, dungVat.t) }, function (k) {
+    assert.strictEqual(k.ok, true, k.loi);
+    const r = globalThis.MCT.calc.ketQuaEtabs(k.ketQua, dungVat.m, dungVat.t, dungVat.s, dungVat.kq);
+    assert.strictEqual(r.hopLe, true, (r.loi || []).join('; '));
+    const hd = { dinh: dungVat.m.thongSo.dinhDai }, ts = dungVat.m.thongSo;
+    [['X', 'x'], ['Y', 'y']].forEach(([truc, cs]) => {
+      assert.ok(r.dai[truc].duoi, 'có thép lớp dưới theo ' + truc);
+      r.dai[truc].cat.forEach((d) => assert.ok(Math.abs(d.b - globalThis.MCT.calc.hinhDai.doanCat(hd, cs, d.viTri).dai) < 1e-3, truc + ' tại ' + d.viTri));
+    });
+    assert.ok(r.dai.X.cat.some((d) => d.b < 0.9 * (ts.y1 - ts.y0)), 'có mặt cắt X qua phần vát');
+  }, fileEdb + '.vat.EDB'],
   ['dựng mô hình: không chia tấm đài, rồi phân tích – nội lực đài đọc tại nút ETABS trả về', '', { lenh: 'dung-mo-hinh', duLieu: { moHinh: khongChia.gui, fileMoHinh: fileEdb + '.khong-chia.EDB' } }, function (k) {
     assert.strictEqual(k.ok, true, k.loi);
     const g = JSON.parse(fs.readFileSync(fileGhi, 'utf8'));
