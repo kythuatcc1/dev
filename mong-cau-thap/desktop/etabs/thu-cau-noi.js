@@ -177,7 +177,7 @@ const ca = [
     assert.strictEqual(g.soLoXoTongThe, 0);
     assert.match(k.thongTin.cachGanLoXo, /PropPointSpring/);
     assert.strictEqual(g.soGoi, 3);
-    assert.deepStrictEqual(g.tietDienThanh.sort(), ['COC', 'COC_TRONG_DAI']);
+    assert.deepStrictEqual(g.tietDienThanh.sort(), ['COC'], 'đoạn cọc trong đài cùng tiết diện COC');
     // tải trọng: dùng lại pattern "Dead" có sẵn (không tạo trùng "DEAD"), 11 pattern tải cẩu có lực tại tâm đài
     assert.deepStrictEqual(g.mau, ['Dead', 'Live', 'FX1', 'FY1', 'FZ1', 'MX1', 'MY1', 'MZ1', 'FX2', 'FY2', 'FZ2', 'MX2', 'MY2']);
     assert.strictEqual(g.banThanDead, 1);
@@ -278,7 +278,7 @@ const ca = [
     assert.strictEqual(k.thongTin.dongBo.veLai, true);
     assert.ok(k.buoc.some((b) => b.ten === 'tang' && /Xoa doi tuong cua app, dat lai/.test(b.chiTiet)));
     const f = khopMoHinh(fileEdb, capNhatH);
-    assert.ok(Math.abs(f.P.get(capNhatH.m.nutTai)[2] - (-2.6 + 1.0)) < 1e-9, 'tấm đài ở giữa đài mới (−1,6 m)');
+    assert.ok(Math.abs(f.P.get(capNhatH.m.nutTai)[2] - (-2.6 + 2.0)) < 1e-9, 'tấm đài ở đỉnh đài mới (đáy −2,6 + H 2,0 = −0,6 m)');
   }, fileEdb],
   ['cập nhật mô hình: cọc dài thêm 3 m – ETABS đổi được tầng khi có đối tượng → chỉ thêm nút / thanh, chuyển gối mũi cọc', 'tang-mo', { lenh: 'cap-nhat-mo-hinh', duLieu: { moHinh: capNhatCoc.gui, fileMoHinh: fileEdb } }, function (k) {
     const g = capNhatKhongTaoMoi(k);

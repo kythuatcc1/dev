@@ -38,7 +38,8 @@
     if (loi.length) return { hopLe: false, loi: loi.filter(function (v, i, d) { return d.indexOf(v) === i; }) };
 
     var n = A.n, t = m.thongSo;
-    var tayDon = tron(t.zMat - t.zGiua, 4);                 // từ mặt đài tới mặt phẳng giữa đài
+    // tay đòn từ mặt đài (nơi tải cẩu tác dụng) tới tấm đài trong mô hình: tấm ở đỉnh đài → 0, mômen giữ nguyên M
+    var tayDon = tron(t.zMat - (t.zTam !== undefined ? t.zTam : t.zGiua), 4);
     function tieuChuan(q, T) {
       var H = q.H / n, N = q.N / n, M = q.M / n;
       return { H: H, N: N, M: M, Mtam: M + H * tayDon, T: T || 0 };

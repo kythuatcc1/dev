@@ -16,11 +16,13 @@ function tao(sua) {
 }
 function gan(a, e, msg) { assert.ok(Math.abs(a - e) <= 1e-6 * Math.max(1, Math.abs(e)), `${msg}: ${a} ≠ ${e}`); }
 
-test('Hình học mặc định: đài 4 × 3,678 × 1,6, tấm ở giữa đài, cọc tới mũi −34,6', () => {
+test('Hình học mặc định: đài 4 × 3,678 × 1,6, tấm ở đỉnh đài (đáy đài + H), cọc tới mũi −34,6', () => {
   const m = tao();
   assert.equal(m.hopLe, true, m.loi.join('; '));
   const t = m.thongSo;
   gan(t.zMat, -1); gan(t.zGiua, -1.8); gan(t.zDay, -2.6); gan(t.zMui, -34.6); gan(t.bp, 1.8);
+  gan(t.zTam, t.zDay + t.H, 'tấm đài tại đỉnh đài = đáy đài + H');
+  m.diem.filter((d) => /^D/.test(d.ten)).forEach((d) => assert.equal(d.z, -1, 'nút tấm ' + d.ten + ' phải ở đỉnh đài'));
   assert.equal(t.soCoc, 3);
   // lưới qua mép đài, tâm đài (điểm đặt tải), tâm cọc; khoảng chia ≤ 0,25 m
   [-2, 2, 0, -1.2, 1.2].forEach((x) => assert.ok(m.xs.includes(x), 'thiếu đường lưới x = ' + x));
@@ -28,16 +30,16 @@ test('Hình học mặc định: đài 4 × 3,678 × 1,6, tấm ở giữa đài
   for (let i = 1; i < m.xs.length; i++) assert.ok(m.xs[i] - m.xs[i - 1] <= 0.25 + 1e-9);
   for (let i = 1; i < m.ys.length; i++) assert.ok(m.ys[i] - m.ys[i - 1] <= 0.25 + 1e-9);
   assert.equal(m.vo.length, (m.xs.length - 1) * (m.ys.length - 1));
-  // nút cọc từ giữa đài, đáy đài rồi mỗi 1 m tới mũi
-  assert.deepEqual(m.capDo.slice(0, 4), [-1.8, -2.6, -3.6, -4.6]);
+  // nút cọc từ tấm đài (đỉnh đài), đáy đài rồi mỗi 1 m tới mũi
+  assert.deepEqual(m.capDo.slice(0, 4), [-1, -2.6, -3.6, -4.6]);
   assert.equal(m.capDo[m.capDo.length - 1], -34.6);
 });
 
-test('Cọc nối đúng nút của tấm đài; đoạn trong đài là thanh cứng; tải đặt tại nút tâm đài', () => {
+test('Cọc nối thẳng lên nút tấm ở đỉnh đài; đoạn trong đài cùng tiết diện cọc; tải đặt tại nút tâm đài', () => {
   const m = tao();
   const ten = new Set(m.diem.map((d) => d.ten));
   assert.equal(ten.size, m.diem.length, 'tên điểm trùng');
-  const nutDai = new Map(m.diem.filter((d) => d.z === -1.8).map((d) => [d.ten, d]));
+  const nutDai = new Map(m.diem.filter((d) => d.z === -1).map((d) => [d.ten, d]));
   m.coc.forEach((c) => {
     const n = nutDai.get(c.nutDinh);
     assert.ok(n && n.x === c.x && n.y === c.y, 'đỉnh cọc ' + c.ten + ' không trùng nút tấm');
@@ -48,8 +50,13 @@ test('Cọc nối đúng nút của tấm đài; đoạn trong đài là thanh c
   m.vo.forEach((v) => v.diem.forEach((d) => assert.ok(ten.has(d), 'vỏ ' + v.ten + ' nối điểm không có')));
   const coc1 = m.thanh.filter((t) => t.ten.startsWith('C1_'));
   assert.equal(coc1.length, m.capDo.length - 1);
-  assert.equal(coc1[0].tietDien, 'COC_TRONG_DAI');
-  assert.ok(coc1.slice(1).every((t) => t.tietDien === 'COC'));
+  // đoạn 1 trong đài: từ tấm (−1,0) xuống đáy đài (−2,6), cùng tiết diện COC (có trọng lượng) như cọc bên dưới
+  const toaDo = new Map(m.diem.map((d) => [d.ten, d]));
+  assert.deepEqual([toaDo.get(coc1[0].dau).z, toaDo.get(coc1[0].cuoi).z], [-1, -2.6]);
+  assert.ok(coc1.every((t) => t.tietDien === 'COC'));
+  assert.deepEqual(m.tietDienThanh.map((t) => t.ten), ['COC'], 'không còn tiết diện thanh cứng');
+  // đầu cọc (lấy chuyển vị, kiểm tra cọc) ở đáy đài
+  m.coc.forEach((c) => assert.equal(toaDo.get(c.nutDau).z, -2.6));
   assert.equal(m.thanh.length, 3 * (m.capDo.length - 1), 'chỉ có thanh cọc');
   // mũi cọc chặn chuyển vị đứng
   assert.equal(m.gioiHan.length, 3);
@@ -93,9 +100,10 @@ test('Tầng ETABS: đáy ở mũi cọc, mỗi cao độ nút là một tầng'
   const m = tao();
   assert.equal(m.tang.caoDoDay, -34.6);
   const top = m.tang.ds[m.tang.ds.length - 1];
-  assert.equal(top.ten, 'GIUA_DAI'); gan(top.caoDo, -1.8);
-  gan(m.tang.ds.reduce((s, t) => s + t.cao, m.tang.caoDoDay), -1.8, 'tổng chiều cao tầng');
-  assert.deepEqual(m.tang.ds.slice(-2).map((t) => t.ten), ['DAY_DAI', 'GIUA_DAI']);
+  assert.equal(top.ten, 'MAT_DAI'); gan(top.caoDo, -1.0);
+  gan(m.tang.ds.reduce((s, t) => s + t.cao, m.tang.caoDoDay), -1.0, 'tổng chiều cao tầng');
+  assert.deepEqual(m.tang.ds.slice(-2).map((t) => t.ten), ['DAY_DAI', 'MAT_DAI']);
+  gan(top.cao, 1.6, 'tầng trên cùng cao bằng chiều cao đài');
   assert.equal(new Set(m.tang.ds.map((t) => t.ten)).size, m.tang.ds.length);
   const caoTang = new Set([m.tang.caoDoDay].concat(m.tang.ds.map((t) => t.caoDo)));
   m.diem.forEach((d) => assert.ok(caoTang.has(d.z), 'điểm ' + d.ten + ' không nằm trên cao độ tầng'));
@@ -116,14 +124,14 @@ function taiMacDinh(sua) {
   return { kq, m, t: MCT.calc.taiTrongEtabs(s, kq, m) };
 }
 
-test('Load pattern: giá trị = tải quy đổi CC1 / n, mômen cộng H·H_đài/2, đặt tại tâm đài', () => {
+test('Load pattern: giá trị = tải quy đổi CC1 / n, đặt tại tấm ở đỉnh đài – mômen giữ nguyên M (không cộng tay đòn)', () => {
   const { kq, m, t } = taiMacDinh();
   assert.equal(t.hopLe, true, (t.loi || []).join('; '));
-  gan(t.n, 1.2); gan(t.tayDon, 0.8);
+  gan(t.n, 1.2); gan(t.tayDon, 0);
   const q = kq.A.quyDoi;
   gan(t.thanhPhan.lv.H, q.lv.H / 1.2); gan(t.thanhPhan.lv.N, q.lv.N / 1.2);
-  gan(t.thanhPhan.lv.Mtam, q.lv.M / 1.2 + q.lv.H / 1.2 * 0.8);
-  gan(t.thanhPhan.klv.Mtam, q.klv.M / 1.2 + q.klv.H / 1.2 * 0.8);
+  gan(t.thanhPhan.lv.Mtam, q.lv.M / 1.2);
+  gan(t.thanhPhan.klv.Mtam, q.klv.M / 1.2);
   gan(t.thanhPhan.lv.T, 165.53);
   assert.deepEqual(t.mauTai.map((p) => p.ten), ['DEAD', 'FX1', 'FY1', 'FZ1', 'MX1', 'MY1', 'MZ1', 'FX2', 'FY2', 'FZ2', 'MX2', 'MY2']);
   assert.equal(t.mauTai[0].banThan, 1);
@@ -197,7 +205,7 @@ test('Tâm cẩu lệch tâm đài: lưới qua tâm cẩu, lực đặt tại t
   assert.equal(m.hopLe, true, (m.loi || []).join('; '));
   assert.ok(m.xs.includes(0.4) && m.ys.includes(-0.3) && m.xs.includes(0) && m.ys.includes(0));
   const nut = m.diem.find((d) => d.ten === m.nutTai);
-  assert.deepEqual([nut.x, nut.y, nut.z], [0.4, -0.3, m.thongSo.zGiua]);
+  assert.deepEqual([nut.x, nut.y, nut.z], [0.4, -0.3, m.thongSo.zTam]);
   assert.notEqual(m.nutTai, m.nutTamDai);
   const c1 = kq.B.coc[0], goc = Math.atan2(c1.y + 0.3, c1.x - 0.4) * 180 / Math.PI;
   assert.ok(t.huong.some((h) => Math.abs(h.goc - ((goc % 360) + 360) % 360) < 0.01 && h.nguon.includes('C1 nén')));
@@ -247,7 +255,7 @@ test('Không chia tấm đài: một ô vỏ, đầu cọc và điểm đặt l�
   m.coc.forEach((c) => {
     const d = toaDo.get(c.nutDinh);
     assert.ok(/^D0_\d+$/.test(c.nutDinh), c.nutDinh);
-    assert.deepEqual([d.x, d.y, d.z], [c.x, c.y, m.thongSo.zGiua]);
+    assert.deepEqual([d.x, d.y, d.z], [c.x, c.y, m.thongSo.zTam]);
     const t1 = m.thanh.find((th) => th.ten === c.ten + '_1');
     assert.equal(t1.dau, c.nutDinh);
   });
@@ -292,7 +300,7 @@ function kiemTraLuoiVat(m) {
   });
   // mọi điểm tấm đài đều được dùng (không có nút lưới thừa ngoài đài)
   const dung = new Set([].concat(...m.vo.map((v) => v.diem), m.diemRieng));
-  m.diem.filter((d) => d.z === m.thongSo.zGiua).forEach((d) => assert.ok(dung.has(d.ten), 'điểm thừa ' + d.ten));
+  m.diem.filter((d) => d.z === m.thongSo.zTam).forEach((d) => assert.ok(dung.has(d.ten), 'điểm thừa ' + d.ten));
   assert.equal(new Set(m.diem.map((d) => d.ten)).size, m.diem.length, 'tên điểm trùng');
   return tong;
 }
@@ -318,7 +326,7 @@ test('Đài vát: lưới cắt theo đa giác đài, tổng diện tích ô v�
     assert.ok(m.vo.length < (m.xs.length - 1) * (m.ys.length - 1));
     // đầu cọc là nút tấm; nút tâm đài ở trọng tâm hình đài, tải ở tâm cẩu
     const toaDo = new Map(m.diem.map((d) => [d.ten, d]));
-    m.coc.forEach((c) => { const d = toaDo.get(c.nutDinh); assert.ok(d && d.x === c.x && d.y === c.y && d.z === t.zGiua, c.ten); });
+    m.coc.forEach((c) => { const d = toaDo.get(c.nutDinh); assert.ok(d && d.x === c.x && d.y === c.y && d.z === t.zTam, c.ten); });
     const tam = toaDo.get(m.nutTamDai), tai = toaDo.get(m.nutTai);
     assert.deepEqual([tam.x, tam.y], t.tamDai);
     assert.deepEqual([tai.x, tai.y], [0, 0]);

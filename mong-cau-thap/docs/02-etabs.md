@@ -78,7 +78,7 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 
 ## Bước 2 – mô hình app tự dựng (`js/calc/etabs-mo-hinh.js`)
 - **Gốc toạ độ:** tâm đài = tâm cẩu (như toạ độ cọc mục B); Z = cao độ so với MĐTN; đơn vị kN, m.
-- **Đài:** tấm vỏ dày (`ShellThick`, tiết diện `DAI`, dày H) đặt ở mặt phẳng giữa đài; lưới chia ≤ 0,25 m (chỉnh được),
+- **Đài:** tấm vỏ dày (`ShellThick`, tiết diện `DAI`, dày H) đặt ở **đỉnh đài** – cao độ = đáy đài nhập + H (`thongSo.zTam` = `zMat`; trước đây ở mặt phẳng giữa đài), mặt tấm trùng đỉnh đài, không lệch tâm; lưới chia ≤ 0,25 m (chỉnh được),
   đường lưới đi qua tâm cọc, 4 chân cẩu, tâm đài và mép đài – cọc và chân cẩu nối đúng nút của tấm.
 - **Chia tấm đài** (`etabs.chiaDai`): `deu` – lưới đều ≤ kích thước lưới (mặc định); `toi-thieu` – chỉ các đường qua mép đài, tâm đài,
   tâm cọc, điểm đặt lực (ô lớn); `khong` – **không chia**: một ô vỏ `V1_1` cả đài, đầu cọc / tâm đài / điểm đặt lực / chân cẩu là điểm nằm
@@ -88,8 +88,10 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
   nếu ETABS không nối điểm đặt lực / đầu cọc với tấm, dùng `toi-thieu`.
 - **Đài vát móng 3 cọc:** ô lưới cắt theo đa giác đài (tam giác / ngũ giác ở cạnh vát, nút trên cạnh vát `D0_<k>`), tâm đài ở trọng tâm hình đài,
   mặt cắt nội lực theo bề rộng thật – xem [04-dai-vat-3-coc.md](04-dai-vat-3-coc.md).
-- **Cọc:** thanh tròn D (`COC`), nút ở đáy đài rồi mỗi 1 m (chỉnh được) tới mũi; đoạn từ giữa đài tới đáy đài là
-  thanh cứng `COC_TRONG_DAI` (hệ số độ cứng ×100, khối lượng và trọng lượng = 0 vì đã tính trong đài).
+- **Cọc:** thanh tròn D (`COC`) nối thẳng từ nút tấm ở đỉnh đài xuống, nút ở đáy đài rồi mỗi 1 m (chỉnh được) tới mũi; đoạn trong đài
+  (đỉnh → đáy đài, dài H) cùng tiết diện `COC` như cọc bên dưới (theo yêu cầu người dùng; bỏ thanh cứng `COC_TRONG_DAI` của bản trước –
+  lưu ý đoạn này có trọng lượng bản thân, trùng với bê tông đài ≈ 25·πD²/4·H mỗi cọc). Kiểm tra cọc và chuyển vị "đầu cọc" vẫn lấy từ
+  đáy đài xuống (`coc[i].nutDau` ở đáy đài; nội lực đoạn trong đài không xét).
 - **Lò xo đất ngang:** K = k·z·b<sub>p</sub>·l tại mỗi nút cọc dưới cao độ bắt đầu, gán cả U1 và U2; k theo lớp (bảng A.1),
   b<sub>p</sub> như phần sức chịu tải; cao độ bắt đầu: đáy đài (mặc định) hoặc đáy hố đào (chèn thêm nút tại cao độ này).
 - **Lò xo trong ETABS:** gán bằng thuộc tính lò xo điểm có tên (Define → Spring Properties → Point Springs; xem bằng
@@ -103,7 +105,7 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
   F<sub>Z</sub> mỗi chân 1/4; M<sub>X</sub> → F<sub>z</sub> = M<sub>X</sub>·y'/Σy'² (= ±M/(2H<sub>t</sub>)); M<sub>Y</sub> → F<sub>z</sub> = −M<sub>Y</sub>·x'/Σx'²;
   M<sub>Z</sub> → F<sub>x</sub> = −T·y'/Σr², F<sub>y</sub> = T·x'/Σr² – tổng lực và mômen quanh tâm cẩu đúng bằng tải pattern (`mauTai[i].luc` là hợp lực,
   `mauTai[i].diemLuc` là các lực điểm gửi ETABS). Hướng bất lợi của từng cọc tính từ tâm cẩu.
-- **Tầng ETABS:** mỗi cao độ nút là một tầng, đáy công trình ở mũi cọc; tầng trên cùng `GIUA_DAI`, rồi `DAY_DAI`, `DAY_HO`, `Zm13p6`…
+- **Tầng ETABS:** mỗi cao độ nút là một tầng, đáy công trình ở mũi cọc; tầng trên cùng `MAT_DAI` (đỉnh đài, cao H), rồi `DAY_DAI`, `DAY_HO`, `Zm13p6`…
 - **Lệnh cầu nối:** `InitializeNewModel(kN_m_C)` → `File.NewBlank` → `Story.SetStories_2` (dự phòng SimilarToStory "None",
   `SetStories`, `NewGridOnly`) → vật liệu, tiết diện → `PointObj.AddCartesian` → `FrameObj.AddByPoint` → `AreaObj.AddByPoint`
   → lò xo: `PropPointSpring.SetPointSpringProp` (mỗi độ cứng một thuộc tính `LX_<K>`, hệ "Local") + `PointObj.SetSpringAssignment`
@@ -114,7 +116,8 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
 - **Load pattern:** `DEAD` (bản thân ×1; dùng lại pattern Dead có sẵn của mô hình mới) và tải cẩu tách thành phần đặt tại nút tâm đài:
   làm việc `FX1 FY1` (= H), `FZ1` (= N, hướng xuống), `MX1 MY1` (= M), `MZ1` (= mômen xoắn T); không làm việc `FX2 FY2 FZ2 MX2 MY2`.
 - **Giá trị:** tải quy đổi của mục A (form CC1) chia n → tổ hợp nhân lại n nên tổ hợp đúng bằng tải quy đổi CC1.
-  Mômen đặt ở tâm đài = M + H·H<sub>đài</sub>/2 (CC1 coi tải đặt ở mặt đài; điểm đặt tải ở mặt phẳng giữa đài).
+  Tải đặt tại nút tấm ở đỉnh đài – đúng cao độ tải cẩu tác dụng – nên mômen giữ nguyên M (`tayDon` = z<sub>mặt đài</sub> − z<sub>tấm</sub> = 0; bản trước đặt ở giữa đài, cộng H·H<sub>đài</sub>/2).
+  Hình vẽ, chữ mô tả trên app và thuyết minh ETABS ("mặt phẳng giữa đài", hình 3D, hướng dẫn chụp tầng `GIUA_DAI`) chưa sửa theo – chờ người dùng xem mô hình.
 - **Tổ hợp theo hướng θ:** cọc nén `1,1·DEAD + n·cosθ·FX + n·sinθ·FY + n·FZ − n·sinθ·MX + n·cosθ·MY (+ n·MZ1)`;
   cọc kéo `0,9·DEAD + … + 0,9·FZ`; hệ số 1,1 / 0,9 / 0,9 chỉnh được (trang "Tải trọng & tổ hợp").
   Kiểm tra với PDF: θ = 0° → Fx 1,2; My 1,2 (Combo1); θ = 90° → Fy 1,2; Mx −1,2 (Combo3); θ = 45° → 0,707×1,2 (Combo5).

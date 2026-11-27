@@ -46,7 +46,7 @@ test('Dữ liệu gửi lệnh phân tích: cọc, tổ hợp tuyến tính (kh�
   assert.ok(!gui.toHop.includes('BAO'));
   assert.equal(gui.nutChuyenVi[0], m.nutTai);
   assert.equal(gui.nutChuyenVi.length, 4);
-  assert.deepEqual(gui.diem[m.nutTai], [0, 0, -1.8]);
+  assert.deepEqual(gui.diem[m.nutTai], [0, 0, -1.0], 'điểm đặt tải trên tấm ở đỉnh đài');
 });
 
 const r = MCT.calc.ketQuaEtabs(raw, m, t, s, kq);
@@ -62,17 +62,19 @@ test('Cọc: lực dọc lớn nhất / nhỏ nhất trên toàn thân cọc (kh
   assert.equal(r.cocKiemTra.Pnen.coc, 'C3');
   assert.equal(r.cocKiemTra.Pnen.toHop, gui.toHop[n]);
   gan(r.cocKiemTra.Pnen.z, -34.6, 'tại mũi cọc');
-  // nhỏ nhất: cọc C1, tổ hợp đầu, tại đáy đài (−2,6) – cuối đoạn cọc trong đài: 1000 + 100 + 1 + 0,5·0,8
-  gan(r.cocKiemTra.Pmin.gt, 1101.4, 'N nhỏ nhất trên thân cọc');
+  // nhỏ nhất: cọc C1, tổ hợp đầu, tại đáy đài (−2,6) – cuối đoạn cọc trong đài (dài H = 1,6 từ tấm ở đỉnh đài): 1000 + 100 + 1 + 0,5·1,6
+  const nMin = 1000 + 100 + 1 + 0.5 * (m.capDo[0] - m.capDo[1]);
+  gan(nMin, 1101.8, 'đoạn cọc trong đài dài H');
+  gan(r.cocKiemTra.Pmin.gt, nMin, 'N nhỏ nhất trên thân cọc');
   assert.deepEqual([r.cocKiemTra.Pmin.coc, r.cocKiemTra.Pmin.toHop], ['C1', gui.toHop[0]]);
   gan(r.cocKiemTra.Pmin.z, -2.6, 'tại đáy đài');
-  gan(r.cocKiemTra.PminCC1, 1101.4, 'Pmin quy ước CC1');
+  gan(r.cocKiemTra.PminCC1, nMin, 'Pmin quy ước CC1');
   assert.equal(r.cocKiemTra.Pkeo, null, 'không có cọc kéo');
   assert.equal(r.cocKiemTra.okNen, nenMax <= kq.B.Qa);
   // từng cọc: N lớn nhất, nhỏ nhất trên thân, kèm cao độ và tổ hợp
   r.coc.forEach((c, i) => {
     gan(c.Nmax.gt, 1000 + 100 * (i + 1) + 10 * n + K + 0.5, c.ten + ' Nmax'); gan(c.Nmax.z, -34.6, c.ten + ' z Nmax');
-    gan(c.Nmin.gt, 1000 + 100 * (i + 1) + 1.4, c.ten + ' Nmin'); gan(c.Nmin.z, -2.6, c.ten + ' z Nmin');
+    gan(c.Nmin.gt, nMin + 100 * i, c.ten + ' Nmin'); gan(c.Nmin.z, -2.6, c.ten + ' z Nmin');
   });
   assert.match(r.ketLuan[0].ten, /thân cọc/);
   // bao theo chiều sâu cọc C1: bỏ đoạn cọc trong đài – trạm đầu tiên ở đáy đài (−2,6), cuối cùng ở mũi
