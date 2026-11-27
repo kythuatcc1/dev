@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Móng cẩu tháp – thử đăng nhập</title>
+<style>
+  :root { --accent:#106b3c; --ink:#1f2623; --muted:#5e6a63; --line:#e2e6e3; --bg:#f5f6f5; --fail:#c4300b; --ok:#0e5a32; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 "Segoe UI", system-ui, sans-serif; color:var(--ink); background:var(--bg); }
+  header { background:#fff; border-top:3px solid var(--accent); border-bottom:1px solid var(--line); padding:12px 20px; display:flex; justify-content:space-between; align-items:center; }
+  h1 { margin:0; font-size:18px; color:var(--accent); }
+  main { max-width:760px; margin:24px auto; padding:0 16px; }
+  .the { background:#fff; border:1px solid var(--line); border-radius:8px; padding:18px 20px; margin-bottom:16px; }
+  h2 { margin:0 0 10px; font-size:16px; color:var(--accent); }
+  label { display:block; margin:10px 0 4px; font-weight:600; }
+  input { width:100%; padding:8px 10px; border:1px solid #4f8f70; background:#e9f3ec; border-radius:4px; font:inherit; }
+  button { font:inherit; padding:8px 16px; border:1px solid var(--accent); background:var(--accent); color:#fff; border-radius:4px; cursor:pointer; margin-top:12px; }
+  button.phu { background:#fff; color:var(--ink); border-color:#c9d0cb; }
+  .loi { color:var(--fail); margin-top:10px; } .ok { color:var(--ok); margin-top:10px; } .nho { color:var(--muted); font-size:13px; }
+  table { border-collapse:collapse; width:100%; } th,td { border:1px solid var(--line); padding:6px 10px; text-align:right; } th { background:#f0f3f1; } td:first-child, th:first-child { text-align:left; }
+  .an { display:none; } .hang { display:flex; gap:8px; flex-wrap:wrap; align-items:end; } .hang > div { flex:1; min-width:110px; }
+</style>
+</head>
+<body>
+<header><h1>Móng cẩu tháp – bản thử đăng nhập (Supabase)</h1><span id="nguoi" class="nho"></span></header>
+<main>
+  <section class="the" id="cau-hinh">
+    <h2>1. Kết nối Supabase (làm một lần)</h2>
+    <p class="nho">Supabase → Project Settings → API: copy <b>Project URL</b> và khoá <b>anon public</b> (khoá này được phép công khai; KHÔNG dán khoá service_role).</p>
+    <label for="url">Project URL</label><input id="url" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off">
+    <label for="khoa">anon public key</label><input id="khoa" placeholder="eyJ… hoặc sb_publishable_…" autocomplete="off">
+    <button id="luu-cau-hinh" type="button">Lưu kết nối</button>
+    <p id="tb-cau-hinh" class="nho"></p>
+  </section>
+
+  <section class="the an" id="dang-nhap">
+    <h2>2. Đăng nhập</h2>
+    <p class="nho">Tài khoản do quản trị tạo trên Supabase (không tự đăng ký).</p>
+    <form id="form-dn">
+      <label for="email">Email</label><input id="email" type="email" required autocomplete="username">
+      <label for="mk">Mật khẩu</label><input id="mk" type="password" required autocomplete="current-password">
+      <button type="submit">Đăng nhập</button>
+      <button type="button" class="phu" id="quen">Quên mật khẩu (gửi email đặt lại)</button>
+    </form>
+    <p id="tb-dn" class="loi"></p>
+  </section>
+
+  <section class="the an" id="cho-duyet">
+    <h2>Chưa được duyệt</h2>
+    <p>Tài khoản đã đăng nhập nhưng <b>chưa được quản trị duyệt</b> (hoặc đã hết hạn / bị khoá). Dữ liệu và phép tính của phần mềm vẫn bị khoá trên máy chủ.</p>
+    <p id="chi-tiet-duyet" class="nho"></p>
+    <button type="button" class="phu" data-dx>Đăng xuất</button>
+  </section>
+
+  <section class="an" id="trong">
+    <div class="the">
+      <h2>Đã đăng nhập và được duyệt ✓</h2>
+      <p id="thong-tin" class="nho"></p>
+      <button type="button" class="phu" data-dx>Đăng xuất</button>
+    </div>
+    <div class="the">
+      <h2>Dữ liệu chỉ người đã duyệt đọc được (bảng tai_lieu_mau)</h2>
+      <p class="nho">Lấy từ máy chủ – không nằm trong file phần mềm. Người chưa đăng nhập / chưa duyệt chỉ nhận danh sách rỗng.</p>
+      <table id="bang"><thead><tr><th>Tên</th><th>N (kN)</th><th>H (kN)</th><th>M (kNm)</th></tr></thead><tbody></tbody></table>
+    </div>
+    <div class="the">
+      <h2>Phép tính chạy trên máy chủ</h2>
+      <p class="nho">Trọng lượng đài P = 25·X·Y·H·1,1 – công thức nằm trong hàm của cơ sở dữ liệu, chỉ gọi được khi đã được duyệt.</p>
+      <div class="hang">
+        <div><label for="X">X (m)</label><input id="X" type="number" step="any" value="4"></div>
+        <div><label for="Y">Y (m)</label><input id="Y" type="number" step="any" value="3.678"></div>
+        <div><label for="H">H (m)</label><input id="H" type="number" step="any" value="1.6"></div>
+        <div><button type="button" id="tinh">Tính</button></div>
+      </div>
+      <p id="kq-tinh" class="ok"></p>
+    </div>
+  </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var KHOA_LUU = 'thu-bao-mat.supabase', sb = null;
+  function doc() { try { return JSON.parse(localStorage.getItem(KHOA_LUU) || 'null'); } catch (e) { return null; } }
+  function hien(ids) { ['cau-hinh', 'dang-nhap', 'cho-duyet', 'trong'].forEach(function (i) { $(i).classList.toggle('an', ids.indexOf(i) < 0); }); }
+  function chuanLoi(e) {
+    var m = (e && e.message) || String(e);
+    if (/Invalid login credentials/i.test(m)) return 'Sai email hoặc mật khẩu.';
+    if (/Failed to fetch|NetworkError|network/i.test(m)) return 'Không kết nối được máy chủ – phần mềm cần internet để đăng nhập.';
+    if (/not been approved|chua duoc duyet/i.test(m)) return 'Tài khoản chưa được duyệt.';
+    return m;
+  }
+  function khoiTao() {
+    var c = doc();
+    if (!c || !c.url || !c.khoa) { sb = null; hien(['cau-hinh']); return; }
+    $('url').value = c.url; $('khoa').value = c.khoa;
+    sb = supabase.createClient(c.url, c.khoa, { auth: { persistSession: true, autoRefreshToken: true } });
+    sb.auth.onAuthStateChange(function () { capNhat(); });
+    capNhat();
+  }
+  async function capNhat() {
+    $('nguoi').textContent = '';
+    var r = await sb.auth.getSession(), ss = r.data && r.data.session;
+    if (!ss) { hien(['cau-hinh', 'dang-nhap']); return; }
+    // xác thực lại phiên với máy chủ (người bị xoá / khoá thì phiên cũ không còn hiệu lực)
+    var u = await sb.auth.getUser();
+    if (u.error || !u.data.user) { await sb.auth.signOut(); hien(['cau-hinh', 'dang-nhap']); $('tb-dn').textContent = 'Phiên đã hết hạn, đăng nhập lại.'; return; }
+    $('nguoi').textContent = u.data.user.email;
+    var ok = await sb.rpc('da_duyet');
+    if (ok.error) { hien(['cau-hinh', 'cho-duyet']); $('chi-tiet-duyet').textContent = chuanLoi(ok.error) + ' – đã chạy file supabase.sql chưa?'; return; }
+    if (!ok.data) {
+      var hs = await sb.from('ho_so').select('duoc_duyet,het_han').maybeSingle();
+      $('chi-tiet-duyet').textContent = hs.data ? ('duoc_duyet = ' + hs.data.duoc_duyet + (hs.data.het_han ? '; hết hạn ' + hs.data.het_han : '')) : '';
+      hien(['cho-duyet']); return;
+    }
+    hien(['trong']);
+    $('thong-tin').textContent = 'Tài khoản: ' + u.data.user.email;
+    var tl = await sb.from('tai_lieu_mau').select('*').order('id'), tb = $('bang').tBodies[0];
+    tb.innerHTML = '';
+    (tl.data || []).forEach(function (d) {
+      var tr = tb.insertRow();
+      [d.ten, d.tai_lv_n, d.tai_lv_h, d.tai_lv_m].forEach(function (v, i) { var td = tr.insertCell(); td.textContent = v; });
+    });
+  }
+  $('luu-cau-hinh').onclick = function () {
+    var url = $('url').value.trim().replace(/\/+$/, ''), khoa = $('khoa').value.trim();
+    if (!/^https:\/\/.+\.supabase\.co$/.test(url)) { $('tb-cau-hinh').textContent = 'Project URL dạng https://xxxx.supabase.co'; return; }
+    if (khoa.length < 20) { $('tb-cau-hinh').textContent = 'Chưa đúng khoá anon public.'; return; }
+    if (/service_role/.test(khoa) || /"role"\s*:\s*"service_role"/.test(atob((khoa.split('.')[1] || '').replace(/-/g, '+').replace(/_/g, '/') || 'e30=') || '')) { $('tb-cau-hinh').textContent = 'Đây là khoá service_role – KHÔNG dùng. Dùng khoá anon public.'; return; }
+    localStorage.setItem(KHOA_LUU, JSON.stringify({ url: url, khoa: khoa }));
+    $('tb-cau-hinh').textContent = 'Đã lưu.'; khoiTao();
+  };
+  $('form-dn').onsubmit = async function (e) {
+    e.preventDefault(); $('tb-dn').textContent = '';
+    if (!sb) return;
+    var r = await sb.auth.signInWithPassword({ email: $('email').value.trim(), password: $('mk').value }).catch(function (x) { return { error: x }; });
+    $('mk').value = '';
+    if (r.error) $('tb-dn').textContent = chuanLoi(r.error); else capNhat();
+  };
+  $('quen').onclick = async function () {
+    var em = $('email').value.trim(); if (!em) { $('tb-dn').textContent = 'Nhập email trước.'; return; }
+    var r = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.href.split('#')[0] });
+    $('tb-dn').className = r.error ? 'loi' : 'ok'; $('tb-dn').textContent = r.error ? chuanLoi(r.error) : 'Đã gửi email đặt lại mật khẩu (nếu email có tài khoản).';
+  };
+  document.querySelectorAll('[data-dx]').forEach(function (b) { b.onclick = async function () { await sb.auth.signOut(); capNhat(); }; });
+  $('tinh').onclick = async function () {
+    var r = await sb.rpc('tinh_trong_luong_dai', { x: +$('X').value, y: +$('Y').value, h: +$('H').value });
+    $('kq-tinh').className = r.error ? 'loi' : 'ok';
+    $('kq-tinh').textContent = r.error ? chuanLoi(r.error) : 'P = ' + r.data + ' kN';
+  };
+  khoiTao();
+})();
+</script>
+</body>
+</html>
