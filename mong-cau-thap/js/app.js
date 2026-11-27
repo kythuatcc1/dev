@@ -2186,10 +2186,11 @@
     }
     var ck = r.cocKiemTra, cv = r.chuyenVi, d = r.dai, noiDung = '';
     if (trang === 'coc') {
-      noiDung = dongKiemTra('<i>P</i><sub>nén</sub> = ' + so(ck.Pnen.gt) + ' kN (' + esc(ck.Pnen.coc) + ', ' + esc(ck.Pnen.toHop) + ')', ck.okNen ? '≤' : '>',
+      noiDung = dongKiemTra('<i>P</i><sub>max</sub> = ' + so(ck.Pnen.gt) + ' kN (' + esc(ck.Pnen.coc) + ', z = ' + so(ck.Pnen.z, 2) + ', ' + esc(ck.Pnen.toHop) + ')', ck.okNen ? '≤' : '>',
         '<i>Q</i><sub>a</sub> = ' + so(ck.Qa) + ' kN', ck.okNen) +
-        dongKiemTra('<i>P</i><sub>min</sub> = ' + so(ck.PminCC1) + ' kN', ck.PminCC1 >= -ck.QaKeo ? '≥' : '<', '−<i>Q</i><sub>a</sub>\' = ' + so(-ck.QaKeo) + ' kN',
-          ck.PminCC1 >= -ck.QaKeo);
+        dongKiemTra('<i>P</i><sub>min</sub> = ' + so(ck.PminCC1) + ' kN (' + esc(ck.Pmin.coc) + ', z = ' + so(ck.Pmin.z, 2) + ', ' + esc(ck.Pmin.toHop) + ')',
+          ck.PminCC1 >= -ck.QaKeo ? '≥' : '<', '−<i>Q</i><sub>a</sub>\' = ' + so(-ck.QaKeo) + ' kN', ck.PminCC1 >= -ck.QaKeo) +
+        '<p class="hint">P<sub>max</sub>, P<sub>min</sub>: lực dọc lớn nhất, nhỏ nhất trên toàn thân cọc (từ đáy đài tới mũi cọc, mọi tổ hợp, nén dương, kéo âm).</p>';
     } else if (trang === 'thep') {
       noiDung = '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Lớp</th><th>M (kNm)</th><th>A<sub>s</sub> cần (mm²/m)</th><th>A<sub>s</sub> chọn (mm²/m)</th><th></th></tr></thead><tbody>' +
         [d.X.duoi, d.Y.duoi, d.X.tren, d.Y.tren].map(function (l) {
@@ -2273,18 +2274,21 @@
         (r.tatCaOk ? 'Móng đủ khả năng chịu lực theo nội lực ETABS' : 'Có mục không đạt – xem chi tiết bên dưới') + '</div></section>';
       // Cọc
       html += '<section class="card"><h2>Cọc: lực dọc, mômen, lực cắt</h2>' +
-        '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Cọc</th><th>Nén đầu cọc (kN)</th><th>Tổ hợp</th><th>Kéo đầu cọc (kN)</th><th>Tổ hợp</th>' +
+        '<p class="hint">Lực dọc N (nén dương, kéo âm) lớn nhất và nhỏ nhất trên toàn thân cọc: mọi mặt cắt từ đáy đài (' + so(r.thongSo.zDay, 2) + ' m' +
+        ') tới mũi cọc, mọi tổ hợp – gồm cả trọng lượng bản thân cọc trong mô hình ETABS.</p>' +
+        '<div class="table-wrap"><table class="tbl compact"><thead><tr><th>Cọc</th><th>N lớn nhất (kN)</th><th>tại z (m)</th><th>Tổ hợp</th>' +
+        '<th>N nhỏ nhất (kN)</th><th>tại z (m)</th><th>Tổ hợp</th>' +
         '<th>M lớn nhất (kNm)</th><th>tại z (m)</th><th>V lớn nhất (kN)</th><th>tại z (m)</th></tr></thead><tbody>' +
         r.coc.map(function (c) {
-          return '<tr><td class="c">' + esc(c.ten) + '</td><td class="r">' + gtTh(c.dauNen) + '</td><td>' + th(c.dauNen) + '</td><td class="r">' +
-            (c.dauKeo && c.dauKeo.gt > 0 ? gtTh(c.dauKeo) : '–') + '</td><td>' + (c.dauKeo && c.dauKeo.gt > 0 ? th(c.dauKeo) : '') + '</td><td class="r">' +
+          return '<tr><td class="c">' + esc(c.ten) + '</td><td class="r">' + gtTh(c.Nmax) + '</td><td class="r">' + (c.Nmax ? so(c.Nmax.z, 2) : '') + '</td><td class="nowrap">' + th(c.Nmax) +
+            '</td><td class="r">' + gtTh(c.Nmin) + '</td><td class="r">' + (c.Nmin ? so(c.Nmin.z, 2) : '') + '</td><td class="nowrap">' + th(c.Nmin) + '</td><td class="r">' +
             gtTh(c.Mmax) + '</td><td class="r">' + (c.Mmax ? so(c.Mmax.z, 2) : '') + '</td><td class="r">' + gtTh(c.Vmax) + '</td><td class="r">' +
             (c.Vmax ? so(c.Vmax.z, 2) : '') + '</td></tr>';
         }).join('') + '</tbody></table></div>' +
         '<div class="kiem-tra-dong">' +
-        dongKiemTra('<i>P</i><sub>nén</sub> = ' + gtTh(ck.Pnen, 'kN') + ' (' + esc(ck.Pnen ? ck.Pnen.coc : '') + ')', ck.okNen ? '≤' : '>', '<i>Q</i><sub>a</sub> = ' + so(ck.Qa) + ' kN', ck.okNen) +
-        (ck.Pkeo ? dongKiemTra('<i>P</i><sub>kéo</sub> = ' + gtTh(ck.Pkeo, 'kN') + ' (' + esc(ck.Pkeo.coc) + ')', ck.okKeo ? '≤' : '>', '<i>Q</i><sub>a</sub>\' = ' + so(ck.QaKeo) + ' kN', ck.okKeo)
-          : '<p>Không có cọc chịu kéo trong các tổ hợp.</p>') +
+        dongKiemTra('<i>P</i><sub>nén</sub> = ' + gtTh(ck.Pnen, 'kN') + ' (' + esc(ck.Pnen ? ck.Pnen.coc + ', z = ' + so(ck.Pnen.z, 2) : '') + ')', ck.okNen ? '≤' : '>', '<i>Q</i><sub>a</sub> = ' + so(ck.Qa) + ' kN', ck.okNen) +
+        (ck.Pkeo ? dongKiemTra('<i>P</i><sub>kéo</sub> = ' + gtTh(ck.Pkeo, 'kN') + ' (' + esc(ck.Pkeo.coc) + ', z = ' + so(ck.Pkeo.z, 2) + ')', ck.okKeo ? '≤' : '>', '<i>Q</i><sub>a</sub>\' = ' + so(ck.QaKeo) + ' kN', ck.okKeo)
+          : '<p>Không có cọc chịu kéo trong các tổ hợp (N nhỏ nhất trên thân cọc vẫn là nén).</p>') +
         (ck.Qgh !== null ? dongKiemTra('<i>V</i><sub>max</sub> = ' + gtTh(ck.Vmax, 'kN') + ' (' + esc(ck.Vmax ? ck.Vmax.coc : '') + ')', ck.okCat ? '≤' : '>',
           '[<i>Q</i>] = ' + so(ck.Qgh) + ' kN (phần tải ngang)', ck.okCat) : '') +
         (ck.tuongTac ? dongKiemTra('Cặp N–M bất lợi nhất: N = ' + so(ck.tuongTac.N) + ' kN, M = ' + so(ck.tuongTac.M) + ' kNm (' + esc(ck.tuongTac.coc) + ', z = ' +

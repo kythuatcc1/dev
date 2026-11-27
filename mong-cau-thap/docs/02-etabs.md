@@ -128,7 +128,7 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
   (cao độ trạm tính từ 2 đầu đoạn `FrameObj.GetPoints`), `Results.JointDispl` tại tâm đài và đầu cọc,
   `Results.AreaForceShell` từng ô vỏ (trung bình tại nút; điểm ETABS tự chia lưới lấy toạ độ bằng `PointElm.GetCoordCartesian`).
 - **App:** bao P, M = √(M2² + M3²), V = √(V2² + V3²) theo chiều sâu, từ đáy đài tới mũi cọc (bỏ đoạn cọc nằm trong đài –
-  thanh cứng; bản tóm tắt có `phienBan` = 3 – thêm bao từng thành phần P, V2, V3, M2, M3 theo chiều sâu `coc[i].tp`, bao nội lực tại nút đài `dai.nutBao`, nội lực dầm `dam`; kết quả lưu bằng bản cũ phải chạy lại phân tích); lực đầu cọc (đáy đài) so với Qa, Qa' (như mục B);
+  thanh cứng; bản tóm tắt có `phienBan` = 3 – thêm bao từng thành phần P, V2, V3, M2, M3 theo chiều sâu `coc[i].tp`, bao nội lực tại nút đài `dai.nutBao`, nội lực dầm `dam`; kết quả lưu bằng bản cũ phải chạy lại phân tích); **sức chịu tải cọc lấy lực dọc N lớn nhất và nhỏ nhất trên toàn thân cọc** (mọi mặt cắt từ đáy đài tới mũi cọc, mọi tổ hợp, gồm trọng lượng bản thân cọc trong ETABS; tính ở giai đoạn kiểm tra từ `capNM`, ghi cao độ z và tổ hợp – `coc[i].Nmax`, `coc[i].Nmin`, `cocKiemTra.Pnen`, `Pmin`, `Pkeo`) so với Qa, Qa' (như mục B) – trước đây chỉ lấy tại đầu cọc (đáy đài);
   mọi cặp (N = −P, M) so với biểu đồ tương tác của form CC1; V lớn nhất so với [Q] của phần tải ngang;
   Δ = √(U1² + U2²), ψ = √(R1² + R2²) so với giới hạn phần tải ngang;
   đài: mômen/lực cắt mặt cắt = ∫M11 dy, ∫V13 dy trên mỗi đường lưới x = const (thép theo X) và ∫M22 dx, ∫V23 dx
@@ -142,7 +142,7 @@ Chạy cầu nối bằng tay trên máy có ETABS (in kết quả ra màn hình
   – bao nội lực cọc, mọi cặp N–M, chuyển vị lớn nhất, bao mômen/lực cắt từng mặt cắt đài). Kiểm tra (`kiemTraEtabs`) tính lại
   theo thông số hiện tại (Qa, thép chọn, biểu đồ tương tác, giới hạn chuyển vị) mà không cần chạy lại ETABS; nếu mô hình/tải
   trọng đã đổi so với lúc phân tích thì app cảnh báo kết quả chưa cập nhật.
-- Phương pháp ETABS (`ketLuanEtabs`): mục B (nén/kéo đầu cọc) và D (4 lớp thép đài) lấy theo ETABS; thêm cọc chịu cắt,
+- Phương pháp ETABS (`ketLuanEtabs`): mục B (N lớn nhất / nhỏ nhất trên toàn thân cọc) và D (4 lớp thép đài) lấy theo ETABS; thêm cọc chịu cắt,
   tương tác N–M, chuyển vị, góc xoay, đài chịu cắt; giữ C (xuyên thủng) và E (bulong). Các trang B, D, tải ngang, tương tác
   hiện khung "Đang dùng phương pháp ETABS", dấu ✓/✗ ở danh mục theo ETABS.
 
@@ -157,9 +157,9 @@ ETABS được **app tự vẽ hình từ kết quả ETABS và chèn sẵn** (x
 | 1. Cơ sở tính toán | Cơ sở, tiêu chuẩn, phần mềm (thêm ETABS) |
 | 2. Thông số đầu vào | 2.1 vật liệu · 2.2 thông số cẩu (Bảng 2.1 tải chân đế, **ô dán Hình 2.1 catalogue**, Bảng 2.2, tải tính toán ×n) · 2.3 tổ hợp (Bảng 2.3 load pattern, bảng tổ hợp LV/KLV × nén/kéo, BAO, "Trong đó") · 2.4 địa chất (**ô dán Hình 2.2 mặt bằng hố khoan, 2.3 mặt bằng bố trí cẩu, 2.4 hình trụ hố khoan**) |
 | 3. Mô hình tính toán | Mô tả mô hình, **ô dán Hình 3.1 mô hình 3D**, Bảng 3.1 lò xo, Hình 3.2 mặt bằng (app vẽ); 3.1 tên cẩu: **ô dán Hình 3.3–3.6 lực Fx1…Mz1, Fx2…My2** (kèm giá trị app gán để đối chiếu) |
-| 4. Kết quả nội lực | 4.1 tên cẩu: **Bảng 4.1 BAO-MIN, 4.2 BAO-MAX** – 5 ô dán hình (P, M2-2, M3-3, V2-2, V3-3) và P<sub>min</sub>/P<sub>max</sub> app đọc; Bảng 4.3 nội lực cọc, Hình 4.1 bao P–M–V |
+| 4. Kết quả nội lực | 4.1 tên cẩu: **Bảng 4.1 BAO-MIN, 4.2 BAO-MAX** – 5 ô dán hình (P, M2-2, M3-3, V2-2, V3-3) và P<sub>min</sub>/P<sub>max</sub> app đọc (trên toàn thân cọc, kèm z); Bảng 4.3 nội lực cọc (N<sub>max</sub>, N<sub>min</sub> trên thân cọc kèm z), Hình 4.1 bao P–M–V |
 | 5. Tính toán sức chịu tải cọc | Phần sức chịu tải cọc của form CC1, đánh số 5.1–5.3 |
-| 6. Tính toán móng cẩu tháp | 6.1 kiểm tra cọc (sức chịu tải P<sub>min</sub>/P<sub>max</sub> vs R<sub>c,d</sub>/R<sub>t,d</sub>, Hình 6.1 Check P-M + Bảng 6.2 điểm nguy hiểm, Bảng 6.3 Check Shear, **ô dán Hình 6.2 chuyển vị**, Δ/ψ, áp lực ngang – ổn định đất) · 6.2 đài (**ô dán Hình 6.3 mômen, 6.4 lực cắt đài**, Bảng 6.4–6.5 uốn, 6.6 cắt, **6.7 nứt**, xuyên thủng) · 6.3 bulong (a–g form CC1, **h kéo + cắt đồng thời**) · 6.4 ổn định – lún móng khối quy ước |
+| 6. Tính toán móng cẩu tháp | 6.1 kiểm tra cọc (sức chịu tải P<sub>min</sub>/P<sub>max</sub> trên toàn thân cọc vs R<sub>c,d</sub>/R<sub>t,d</sub>, Bảng 6.1 từng cọc kèm z và tổ hợp, Hình 6.1 Check P-M + Bảng 6.2 điểm nguy hiểm, Bảng 6.3 Check Shear, **ô dán Hình 6.2 chuyển vị**, Δ/ψ, áp lực ngang – ổn định đất) · 6.2 đài (**ô dán Hình 6.3 mômen, 6.4 lực cắt đài**, Bảng 6.4–6.5 uốn, 6.6 cắt, **6.7 nứt**, xuyên thủng) · 6.3 bulong (a–g form CC1, **h kéo + cắt đồng thời**) · 6.4 ổn định – lún móng khối quy ước |
 | 7. Kết luận, kiến nghị | Bảng 7.1 tổng hợp, kết luận cọc / đài / bulong; kiến nghị (sửa ở trang Thông tin dự án, mặc định như báo cáo thẩm tra) |
 
 - **Kiểm tra P–M** như hình Check P-M của báo cáo thẩm tra: kiểm tra M ≤ M<sub>gh</sub>(N) cho mọi cặp (N, M) của mọi cọc, mọi mặt cắt,

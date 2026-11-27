@@ -51,15 +51,30 @@ test('Dữ liệu gửi lệnh phân tích: cọc, tổ hợp tuyến tính (kh�
 
 const r = MCT.calc.ketQuaEtabs(raw, m, t, s, kq);
 
-test('Cọc: lực đầu cọc, bao theo chiều sâu, so với Qa', () => {
+test('Cọc: lực dọc lớn nhất / nhỏ nhất trên toàn thân cọc (không chỉ đầu cọc), bao theo chiều sâu, so với Qa', () => {
   assert.equal(r.hopLe, true, (r.loi || []).join('; '));
-  const n = gui.toHop.length - 1;
-  // nén lớn nhất tại đầu cọc (−2,6): cọc C3, tổ hợp cuối, đoạn 2 → 1000 + 300 + 10·47 + 2
-  gan(r.cocKiemTra.Pnen.gt, 1000 + 300 + 10 * n + 2, 'Pnén đầu cọc');
+  const n = gui.toHop.length - 1, K = m.capDo.length - 1;   // số thanh mỗi cọc (thanh 1 nằm trong đài)
+  // giả lập: N = 1000 + 100·cọc + 10·tổ hợp + thanh + 0,5·trạm → nén lớn nhất ở mũi cọc (thanh cuối, cuối thanh dài 1 m),
+  // lớn hơn giá trị tại đầu cọc (−2,6) là 1000 + 300 + 10·n + 2
+  const nenMax = 1000 + 300 + 10 * n + K + 0.5;
+  gan(r.cocKiemTra.Pnen.gt, nenMax, 'N nén lớn nhất trên thân cọc');
+  assert.ok(r.cocKiemTra.Pnen.gt > 1000 + 300 + 10 * n + 2, 'lớn hơn lực đầu cọc');
   assert.equal(r.cocKiemTra.Pnen.coc, 'C3');
   assert.equal(r.cocKiemTra.Pnen.toHop, gui.toHop[n]);
+  gan(r.cocKiemTra.Pnen.z, -34.6, 'tại mũi cọc');
+  // nhỏ nhất: cọc C1, tổ hợp đầu, tại đáy đài (−2,6) – cuối đoạn cọc trong đài: 1000 + 100 + 1 + 0,5·0,8
+  gan(r.cocKiemTra.Pmin.gt, 1101.4, 'N nhỏ nhất trên thân cọc');
+  assert.deepEqual([r.cocKiemTra.Pmin.coc, r.cocKiemTra.Pmin.toHop], ['C1', gui.toHop[0]]);
+  gan(r.cocKiemTra.Pmin.z, -2.6, 'tại đáy đài');
+  gan(r.cocKiemTra.PminCC1, 1101.4, 'Pmin quy ước CC1');
   assert.equal(r.cocKiemTra.Pkeo, null, 'không có cọc kéo');
-  assert.equal(r.cocKiemTra.okNen, 1772 <= kq.B.Qa);
+  assert.equal(r.cocKiemTra.okNen, nenMax <= kq.B.Qa);
+  // từng cọc: N lớn nhất, nhỏ nhất trên thân, kèm cao độ và tổ hợp
+  r.coc.forEach((c, i) => {
+    gan(c.Nmax.gt, 1000 + 100 * (i + 1) + 10 * n + K + 0.5, c.ten + ' Nmax'); gan(c.Nmax.z, -34.6, c.ten + ' z Nmax');
+    gan(c.Nmin.gt, 1000 + 100 * (i + 1) + 1.4, c.ten + ' Nmin'); gan(c.Nmin.z, -2.6, c.ten + ' z Nmin');
+  });
+  assert.match(r.ketLuan[0].ten, /thân cọc/);
   // bao theo chiều sâu cọc C1: bỏ đoạn cọc trong đài – trạm đầu tiên ở đáy đài (−2,6), cuối cùng ở mũi
   const doc = r.coc[0].doc;
   gan(doc[0].z, -2.6); gan(doc[doc.length - 1].z, -34.6);
@@ -152,6 +167,7 @@ test('Tóm tắt lưu được (JSON) và kiểm tra lại cho cùng kết quả
   assert.ok(chuoi.length < 1.5e6, 'tóm tắt quá lớn: ' + chuoi.length);
   const lai = MCT.calc.kiemTraEtabs(JSON.parse(chuoi), s, kq);
   gan(lai.cocKiemTra.Pnen.gt, r.cocKiemTra.Pnen.gt, 'Pnén');
+  gan(lai.cocKiemTra.Pmin.gt, r.cocKiemTra.Pmin.gt, 'Pmin');
   gan(lai.cocKiemTra.tuongTac.tiSo, r.cocKiemTra.tuongTac.tiSo, 'tỉ số N–M');
   gan(lai.dai.X.duoi.can.As, r.dai.X.duoi.can.As, 'As');
   gan(lai.chuyenVi.DeltaMax.gt, r.chuyenVi.DeltaMax.gt, 'Δ');
@@ -229,4 +245,23 @@ test('Đài vát 3 cọc: mặt cắt lấy suốt bề rộng thật của đà
   assert.ok(rv.dai.Y.cat.some((d) => d.b < 0.9 * (mv.thongSo.x1 - mv.thongSo.x0)), 'không có mặt cắt Y qua phần vát');
   // mômen lớn nhất ở mặt cắt rộng nhất
   gan(rv.dai.X.Mduong.gt, 10 * Math.max(...rv.dai.X.cat.map((d) => d.b)), 'M lớn nhất theo X');
+});
+
+test('Cọc chịu kéo: N nhỏ nhất trên thân cọc âm → kiểm tra kéo, lấy đúng cao độ', () => {
+  // giả lập lực dọc đổi dấu theo chiều sâu: kéo lớn nhất ở giữa thân cọc (z = −10,6), đầu cọc vẫn nén
+  const rawK = JSON.parse(JSON.stringify(raw));
+  rawK.coc.forEach((c, ip) => c.dong.forEach((d) => { d[2] = Math.abs(d[0] + 10.6) < 1e-6 ? 300 + 50 * ip : -500; }));
+  const rk = MCT.calc.ketQuaEtabs(rawK, m, t, s, kq);
+  assert.equal(rk.hopLe, true, (rk.loi || []).join('; '));
+  const ck = rk.cocKiemTra;
+  gan(ck.Pmin.gt, -400, 'N nhỏ nhất (kéo) trên thân cọc C3');
+  assert.equal(ck.Pmin.coc, 'C3'); gan(ck.Pmin.z, -10.6, 'z');
+  gan(ck.Pkeo.gt, 400, 'lực kéo lớn nhất'); assert.equal(ck.Pkeo.coc, 'C3');
+  gan(ck.PminCC1, -400);
+  assert.equal(ck.okKeo, 400 <= Math.abs(kq.B.QaKeo));
+  gan(ck.Pnen.gt, 500, 'nén lớn nhất');
+  // kết luận mục F theo ETABS dùng P min trên thân cọc
+  const F = MCT.calc.ketLuanEtabs(kq.F, rk);
+  const keo = F.ds.find((x) => x.ten === 'Tải trọng kéo lên cọc');
+  gan(keo.trai.v, -400, 'Pmin ở mục F');
 });

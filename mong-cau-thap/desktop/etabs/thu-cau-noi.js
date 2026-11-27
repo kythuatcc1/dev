@@ -215,7 +215,11 @@ const ca = [
     // ETABS (và bản giả lập) đặt đầu I của đoạn cọc ở nút dưới: đầu cọc ở trạm cuối sta = L = 1 m → |P| thêm 0,5·L.
     // App tính cao độ trạm từ toạ độ hai đầu nên vẫn lấy đúng giá trị tại đầu cọc.
     const L1 = Math.abs(moHinh.capDo[1] - moHinh.capDo[2]);
-    assert.ok(Math.abs(r.cocKiemTra.Pnen.gt - (1000 + 300 + 10 * (n - 1) + 2 + 0.5 * L1)) < 1e-6, 'Pnén đầu cọc ' + r.cocKiemTra.Pnen.gt);
+    assert.ok(Math.abs(r.coc[2].dauNen.gt - (1000 + 300 + 10 * (n - 1) + 2 + 0.5 * L1)) < 1e-6, 'Pnén đầu cọc ' + r.coc[2].dauNen.gt);
+    // kiểm tra sức chịu tải lấy N lớn nhất trên toàn thân cọc: giả lập |P| tăng theo chiều sâu → thanh cuối (K), đầu trên (sta = L)
+    const K = moHinh.capDo.length - 1, LK = Math.abs(moHinh.capDo[K - 1] - moHinh.capDo[K]);
+    assert.ok(Math.abs(r.cocKiemTra.Pnen.gt - (1000 + 300 + 10 * (n - 1) + K + 0.5 * LK)) < 1e-6, 'N nén lớn nhất trên thân cọc ' + r.cocKiemTra.Pnen.gt);
+    assert.ok(Math.abs(r.cocKiemTra.Pnen.z - moHinh.capDo[K - 1]) < 1e-6, 'cao độ N nén lớn nhất ' + r.cocKiemTra.Pnen.z);
     assert.ok(Math.abs(r.dai.X.Mduong.gt - (10 + n - 1) * moHinh.thongSo.Y) < 1e-6, 'M đài theo X ' + r.dai.X.Mduong.gt);
     assert.ok(k.buoc.some(function (b) { return b.ten === 'phan-tich' && b.ok; }));
   }, fileEdb],

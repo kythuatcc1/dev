@@ -1501,18 +1501,19 @@
         'chọn Min hoặc Max; hiện giá trị trên biểu đồ). Quy ước ETABS: lực dọc nén âm, kéo dương.'));
     var TP = ['P', 'M2', 'M3', 'V2', 'V3'];
     out = out.concat(bangDanHinhNoiLuc('Bảng 4.1 Nội lực cọc tổ hợp BAO-MIN', cot('min'),
-      'P_{min} = ' + (Pmin !== null ? f(Pmin, 0) : '-') + ' kN' + (ck.Pnen ? ' (cọc ' + ck.Pnen.coc + ', ' + ck.Pnen.toHop + ')' : ''), 9000,
+      'P_{min} = ' + (Pmin !== null ? f(Pmin, 0) : '-') + ' kN' + (ck.Pnen ? ' (cọc ' + ck.Pnen.coc + ', z = ' + f(ck.Pnen.z, 2) + ' m, ' + ck.Pnen.toHop + ')' : ''), 9000,
       TP.map(function (k) { return hinh['etabsBao_min_' + k]; })));
     out = out.concat(bangDanHinhNoiLuc('Bảng 4.2 Nội lực cọc tổ hợp BAO-MAX', cot('max'),
-      'P_{max} = ' + (Pmax !== null ? f(Pmax, 0) : '-') + ' kN' + (ck.Pkeo ? ' (cọc ' + ck.Pkeo.coc + ', ' + ck.Pkeo.toHop + ')' : ''), 9000,
+      'P_{max} = ' + (Pmax !== null ? f(Pmax, 0) : '-') + ' kN' + (ck.Pmin ? ' (cọc ' + ck.Pmin.coc + ', z = ' + f(ck.Pmin.z, 2) + ' m, ' + ck.Pmin.toHop + ')' : ''), 9000,
       TP.map(function (k) { return hinh['etabsBao_max_' + k]; })));
     out.push(tieuMuc('Tổng hợp nội lực cọc (app đọc từ kết quả phân tích ETABS)'));
     out.push(doan('Nội lực cọc bao mọi tổ hợp, từ đáy đài (cao độ ' + f(ts.zDay, 2) + ' m) tới mũi cọc (đoạn cọc nằm trong đài không xét). ' +
-      'Lực dọc: nén dương; mômen M = √(M_{2}^{2} + M_{3}^{2}), lực cắt V = √(V_{2}^{2} + V_{3}^{2}).'));
-    out.push(bangDayDu(['Cọc', 'Nén đầu cọc (kN)', 'Tổ hợp', 'P đầu cọc nhỏ nhất (kN)', 'M_{max} (kNm)', 'tại z (m)', 'V_{max} (kN)', 'tại z (m)'],
+      'Lực dọc N: nén dương, kéo âm, lấy lớn nhất (N_{max}) và nhỏ nhất (N_{min}) trên toàn thân cọc; ' +
+      'mômen M = √(M_{2}^{2} + M_{3}^{2}), lực cắt V = √(V_{2}^{2} + V_{3}^{2}).'));
+    out.push(bangDayDu(['Cọc', 'N_{max} (kN)', 'tại z (m)', 'N_{min} (kN)', 'tại z (m)', 'M_{max} (kNm)', 'tại z (m)', 'V_{max} (kN)', 'tại z (m)'],
       kE.coc.map(function (c) {
-        return [c.ten, f(c.dauNen.gt, 0), c.dauNen.toHop, f(-c.dauKeo.gt, 0), f(c.Mmax.gt, 1), f(c.Mmax.z, 2), f(c.Vmax.gt, 1), f(c.Vmax.z, 2)];
-      }), [700, 1150, 2200, 1350, 1100, 900, 1100, 1138], { fillTieuDe: 'F2F2F2' }));
+        return [c.ten, f(c.Nmax.gt, 0), f(c.Nmax.z, 2), f(c.Nmin.gt, 0), f(c.Nmin.z, 2), f(c.Mmax.gt, 1), f(c.Mmax.z, 2), f(c.Vmax.gt, 1), f(c.Vmax.z, 2)];
+      }), [700, 1200, 1000, 1200, 1000, 1200, 1000, 1200, 1138], { fillTieuDe: 'F2F2F2' }));
     out.push(chuThich('Bảng 4.3 Nội lực cọc từ đáy đài tới mũi cọc (ETABS, bao mọi tổ hợp)'));
     var c0 = cocChinh(E);
     return out.concat(hinhNgang([hinh.etabsP, hinh.etabsM, hinh.etabsV], 200, 'Biểu đồ bao nội lực cọc',
@@ -1547,14 +1548,14 @@
     out.push(bangDayDu(['Cẩu', 'P_{min} (kN)', 'P_{max} (kN)', 'R_{c,d} (kN)', 'Check |P_{min}| < R_{c,d}', 'R_{t,d} (kN)', 'Check P_{max} < R_{t,d}'],
       [[tenCau, f(-Pmin, 0), f(Pkeo, 0), f(ck.Qa, 0), ck.okNen ? 'Đạt' : 'Không đạt', f(ck.QaKeo, 0), okKeo ? 'Đạt' : 'Không đạt']],
       [2300, 1100, 1100, 1100, 1438, 1100, 1500], { fillTieuDe: 'F2F2F2' }));
-    out.push(p('P_{min}, P_{max}: lực dọc đầu cọc nhỏ nhất (nén lớn nhất) và lớn nhất (kéo lớn nhất) theo quy ước ETABS (nén âm, kéo dương), bao mọi tổ hợp; ' +
-      'R_{c,d}, R_{t,d}: sức chịu tải nén, kéo thiết kế (mục 5.3).', { italics: true, size: 22, align: x.AlignmentType.JUSTIFIED }));
-    out.push(bangDayDu(['Cọc', 'Nén lớn nhất (kN)', 'Tổ hợp', 'P nhỏ nhất (kN)', 'Tổ hợp', 'R_{c,d} (kN)', "R_{t,d} (kN)", 'Kiểm tra'],
+    out.push(p('P_{min}, P_{max}: lực dọc nhỏ nhất (nén lớn nhất) và lớn nhất (kéo lớn nhất) trên toàn thân cọc – mọi mặt cắt từ đáy đài tới mũi cọc, ' +
+      'bao mọi tổ hợp – theo quy ước ETABS (nén âm, kéo dương); R_{c,d}, R_{t,d}: sức chịu tải nén, kéo thiết kế (mục 5.3).', { italics: true, size: 22, align: x.AlignmentType.JUSTIFIED }));
+    out.push(bangDayDu(['Cọc', 'N_{max} (kN)', 'tại z (m)', 'Tổ hợp', 'N_{min} (kN)', 'tại z (m)', 'Tổ hợp', 'Kiểm tra'],
       kE.coc.map(function (c) {
-        var ok = c.dauNen.gt <= ck.Qa && -c.dauKeo.gt >= -ck.QaKeo;
-        return [c.ten, f(c.dauNen.gt, 0), c.dauNen.toHop, f(-c.dauKeo.gt, 0), c.dauKeo.toHop, f(ck.Qa, 0), f(-ck.QaKeo, 0), okKl(ok)];
-      }), [650, 1000, 2150, 1000, 2150, 950, 950, 788], { fillTieuDe: 'F2F2F2' }));
-    out.push(chuThich('Bảng 6.1 Lực dọc đầu cọc từng cọc (nén dương, kéo âm)'));
+        var ok = c.Nmax.gt <= ck.Qa && c.Nmin.gt >= -ck.QaKeo;
+        return [c.ten, f(c.Nmax.gt, 0), f(c.Nmax.z, 2), c.Nmax.toHop, f(c.Nmin.gt, 0), f(c.Nmin.z, 2), c.Nmin.toHop, okKl(ok)];
+      }), [600, 800, 900, 2400, 800, 900, 2400, 838], { fillTieuDe: 'F2F2F2' }));
+    out.push(chuThich('Bảng 6.1 Lực dọc lớn nhất, nhỏ nhất trên toàn thân từng cọc (nén dương, kéo âm; kiểm tra N_{max} ≤ R_{c,d}, N_{min} ≥ −R_{t,d})'));
     var okSct = ck.okNen && okKeo;
     out.push(p('Kết luận: ' + (okSct ? 'Cọc đảm bảo sức chịu tải.' : 'Cọc KHÔNG đảm bảo sức chịu tải.'), { bold: true, color: okSct ? MAU.ok : MAU.fail }));
 

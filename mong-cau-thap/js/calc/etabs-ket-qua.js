@@ -1,6 +1,6 @@
 // Kết quả ETABS (bước 4): dữ liệu gửi lệnh "phan-tich" và xử lý nội lực cầu nối trả về
-//   Cọc   : bao lực dọc P, mômen M = √(M2² + M3²), lực cắt V = √(V2² + V3²) theo chiều sâu; lực tại đầu cọc (đáy đài)
-//           so với Qa, Qa' (như mục B); cặp (N = −P, M) mọi mặt cắt so với biểu đồ tương tác của form CC1;
+//   Cọc   : bao lực dọc P, mômen M = √(M2² + M3²), lực cắt V = √(V2² + V3²) theo chiều sâu; lực dọc lớn nhất và nhỏ nhất
+//           trên toàn thân cọc (đáy đài → mũi cọc, mọi tổ hợp) so với Qa, Qa' (như mục B); cặp (N = −P, M) mọi mặt cắt so với biểu đồ tương tác của form CC1;
 //           lực cắt lớn nhất so với khả năng chịu cắt cọc của phần tải ngang.
 //   Đài   : mômen, lực cắt trên mặt cắt suốt bề rộng đài: ∫M11 dy, ∫V13 dy trên mỗi đường lưới x = const (thép theo X)
 //           và ∫M22 dx, ∫V23 dx trên mỗi đường y = const (thép theo Y). Quy ước CSI: M > 0 → thớ dưới chịu kéo.
@@ -250,11 +250,21 @@
     // Tương tác N–M (như hình Check P-M của báo cáo thẩm tra): vẽ mọi cặp (N, M) của mọi cọc, mọi mặt cắt, mọi tổ hợp;
     // kiểm tra từng cặp M ≤ M_gh(N); lập bảng điểm nguy hiểm của từng cọc: N nén lớn nhất, N nhỏ nhất (kéo lớn nhất),
     // M lớn nhất, tỉ số M/M_gh lớn nhất (trùng điểm thì gộp).
-    var tongNen = null, tongKeo = null, MmaxAll = null, VmaxAll = null, tuongTacXau = null, diemTT = [], daCoDiem = {};
+    // Sức chịu tải: lực dọc N (nén dương, kéo âm) lớn nhất và nhỏ nhất trên TOÀN THÂN CỌC – mọi mặt cắt từ đáy đài tới mũi cọc,
+    // mọi tổ hợp (kể cả trọng lượng bản thân cọc trong ETABS), không chỉ tại đầu cọc; ghi cao độ z và tổ hợp.
+    var dsCoc = tt.coc.map(function (c) {
+      var Nmax = null, Nmin = null;
+      c.capNM.forEach(function (p) {
+        if (Nmax === null || p[0] > Nmax.gt) Nmax = { gt: p[0], z: p[3], toHop: tt.toHop[p[2]] };
+        if (Nmin === null || p[0] < Nmin.gt) Nmin = { gt: p[0], z: p[3], toHop: tt.toHop[p[2]] };
+      });
+      return Object.assign({}, c, { Nmax: Nmax, Nmin: Nmin });
+    });
+    var tongNen = null, tongMin = null, MmaxAll = null, VmaxAll = null, tuongTacXau = null, diemTT = [], daCoDiem = {};
     var nguyHiem = [], soCap = 0, soCapVuot = 0;
-    tt.coc.forEach(function (c) {
-      if (c.dauNen && hon(tongNen && tongNen.gt, c.dauNen.gt)) tongNen = { gt: c.dauNen.gt, toHop: c.dauNen.toHop, coc: c.ten };
-      if (c.dauKeo && hon(tongKeo && tongKeo.gt, c.dauKeo.gt)) tongKeo = { gt: c.dauKeo.gt, toHop: c.dauKeo.toHop, coc: c.ten };
+    dsCoc.forEach(function (c) {
+      if (c.Nmax && (tongNen === null || c.Nmax.gt > tongNen.gt)) tongNen = Object.assign({ coc: c.ten }, c.Nmax);
+      if (c.Nmin && (tongMin === null || c.Nmin.gt < tongMin.gt)) tongMin = Object.assign({ coc: c.ten }, c.Nmin);
       if (c.Mmax && hon(MmaxAll && MmaxAll.gt, c.Mmax.gt)) MmaxAll = Object.assign({ coc: c.ten }, c.Mmax);
       if (c.Vmax && hon(VmaxAll && VmaxAll.gt, c.Vmax.gt)) VmaxAll = Object.assign({ coc: c.ten }, c.Vmax);
       var nMax = null, nMin = null, mMax = null, xau = null;
@@ -276,14 +286,14 @@
         var khoa = Math.round(p[0] / 10) + '|' + Math.round(p[1] / 2);    // điểm trùng trên hình (10 kN × 2 kNm) chỉ vẽ một lần
         if (!daCoDiem[khoa]) { daCoDiem[khoa] = true; diemTT.push({ N: p[0], M: p[1] }); }
       });
-      var dsCoc = [];
+      var dsDiem = [];
       [[nMax, 'N nén lớn nhất'], [nMin, nMin && nMin.p[0] < 0 ? 'Kéo lớn nhất' : 'N nén nhỏ nhất'], [mMax, 'M lớn nhất'], [xau, 'Tỉ số M/Mgh lớn nhất']]
         .forEach(function (h) {
           if (!h[0]) return;
-          var cu = dsCoc.filter(function (x) { return x.d === h[0]; })[0];
-          if (cu) cu.loai.push(h[1]); else dsCoc.push({ d: h[0], loai: [h[1]] });
+          var cu = dsDiem.filter(function (x) { return x.d === h[0]; })[0];
+          if (cu) cu.loai.push(h[1]); else dsDiem.push({ d: h[0], loai: [h[1]] });
         });
-      dsCoc.forEach(function (x) {
+      dsDiem.forEach(function (x) {
         var p = x.d.p;
         nguyHiem.push({
           coc: c.ten, loai: x.loai.join('; '), N: p[0], M: p[1], z: p[3], toHop: tt.toHop[p[2]],
@@ -295,10 +305,11 @@
     var Qa = kq.B.Qa, QaKeo = Math.abs(kq.B.QaKeo);   // như mục B (tự tính từ sức chịu tải cọc hoặc nhập tay)
     var Qgh = TN && TN.hopLe ? TN.Qgh : null;
     var cocKiemTra = {
-      Pnen: tongNen, Pkeo: tongKeo && tongKeo.gt > 0 ? tongKeo : null, Qa: Qa, QaKeo: QaKeo,
-      PminCC1: tongKeo ? -tongKeo.gt : null,          // lực đầu cọc nhỏ nhất, quy ước CC1 (nén dương, kéo âm)
+      // Pnen: N nén lớn nhất; Pkeo: lực kéo lớn nhất (khi N nhỏ nhất < 0); PminCC1: N nhỏ nhất (nén dương, kéo âm) – trên toàn thân cọc
+      Pnen: tongNen, Pkeo: tongMin && tongMin.gt < 0 ? Object.assign({}, tongMin, { gt: -tongMin.gt }) : null, Qa: Qa, QaKeo: QaKeo,
+      Pmin: tongMin, PminCC1: tongMin ? tongMin.gt : null,
       okNen: tongNen ? tongNen.gt <= Qa : null,
-      okKeo: tongKeo ? tongKeo.gt <= QaKeo : null,
+      okKeo: tongMin ? -tongMin.gt <= QaKeo : null,
       Mmax: MmaxAll, Vmax: VmaxAll, Qgh: Qgh, okCat: Qgh !== null && VmaxAll ? VmaxAll.gt <= Qgh : null,
       tuongTac: tuongTacXau, okTuongTac: tuongTacXau ? tuongTacXau.tiSo <= 1 : null,
       nguyHiem: nguyHiem, soCapNM: soCap, soCapVuot: soCapVuot
@@ -385,8 +396,8 @@
     });
 
     var ketLuan = [
-      { ten: 'Cọc chịu nén (đầu cọc)', ok: cocKiemTra.okNen },
-      { ten: 'Cọc chịu kéo (đầu cọc)', ok: cocKiemTra.Pkeo ? cocKiemTra.okKeo : true },
+      { ten: 'Cọc chịu nén (N lớn nhất trên thân cọc)', ok: cocKiemTra.okNen },
+      { ten: 'Cọc chịu kéo (N nhỏ nhất trên thân cọc)', ok: cocKiemTra.Pkeo ? cocKiemTra.okKeo : true },
       { ten: 'Biểu đồ tương tác N–M', ok: cocKiemTra.okTuongTac },
       { ten: 'Cọc chịu cắt', ok: cocKiemTra.okCat },
       { ten: 'Chuyển vị ngang', ok: chuyenVi.okDelta },
@@ -399,7 +410,7 @@
     damGiang.forEach(function (d) { ketLuan.push({ ten: 'Dầm giằng ' + d.ten, ok: d.hopLe ? d.ok : null }); });
     return {
       hopLe: true, loi: [],
-      toHop: tt.toHop, coc: tt.coc, cocKiemTra: cocKiemTra, diemTuongTac: diemTT,
+      toHop: tt.toHop, thongSo: tt.thongSo, coc: dsCoc, cocKiemTra: cocKiemTra, diemTuongTac: diemTT,
       chuyenVi: chuyenVi, dai: dai, bulong: bulong, damGiang: damGiang, ketLuan: ketLuan,
       tatCaOk: ketLuan.every(function (k) { return k.ok !== false; })
     };
