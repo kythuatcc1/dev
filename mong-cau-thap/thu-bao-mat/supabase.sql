@@ -1,4 +1,4 @@
--- BẢN THỬ BẢO MẬT (Supabase). Dán toàn bộ file này vào Supabase → SQL Editor → Run. Chạy lại nhiều lần vẫn an toàn.
+-- BẢN THỬ BẢO MẬT (Supabase) – bản 2 đã siết quyền. Dán toàn bộ file này vào Supabase → SQL Editor → Run. Chạy lại nhiều lần vẫn an toàn.
 
 -- 1. Hồ sơ người dùng: tài khoản do quản trị tạo (Authentication → Users), chỉ vào được phần mềm khi duoc_duyet = true (và chưa hết hạn)
 create table if not exists public.ho_so (
@@ -57,6 +57,20 @@ revoke all on function public.tinh_trong_luong_dai(numeric, numeric, numeric) fr
 grant execute on function public.tinh_trong_luong_dai(numeric, numeric, numeric) to authenticated;
 revoke all on function public.da_duyet() from public, anon;
 grant execute on function public.da_duyet() to authenticated;
+
+-- 5b. SIẾT CHẶT (quan trọng): khoá cả ở tầng quyền lẫn tầng RLS – khoá anon và người đăng nhập KHÔNG được ghi / sửa / xoá gì
+alter table public.ho_so force row level security;
+alter table public.tai_lieu_mau force row level security;
+revoke all on public.ho_so from anon, authenticated;
+revoke all on public.tai_lieu_mau from anon, authenticated;
+grant select on public.ho_so to authenticated;          -- chỉ đọc dòng của mình (policy ở trên)
+grant select on public.tai_lieu_mau to authenticated;   -- chỉ khi da_duyet() (policy ở trên)
+revoke all on sequence public.tai_lieu_mau_id_seq from anon, authenticated;
+revoke all on function public.tao_ho_so_moi() from public, anon, authenticated;
+-- mọi bảng / hàm / chuỗi TẠO SAU NÀY trong schema public sẽ không tự cấp quyền cho anon, authenticated
+alter default privileges in schema public revoke all on tables from anon, authenticated;
+alter default privileges in schema public revoke all on sequences from anon, authenticated;
+alter default privileges in schema public revoke all on functions from anon, authenticated;
 
 -- 6. Duyệt / khoá tài khoản (chạy khi cần, thay email):
 --   update public.ho_so set duoc_duyet = true  where email = 'nguoidung@cc1.vn';

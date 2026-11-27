@@ -76,6 +76,13 @@
       <p id="kq-tinh" class="ok"></p>
     </div>
   </section>
+
+  <section class="the an" id="kiem-tra-bm">
+    <h2>3. Tự kiểm tra bảo mật (tấn công thử)</h2>
+    <p class="nho">Dùng chính khoá anon (chưa đăng nhập) và tài khoản đang đăng nhập để thử đọc / ghi / sửa / xoá các bảng. Kết quả mong muốn: tất cả đều "CHẶN".</p>
+    <button type="button" id="tan-cong">Chạy kiểm tra</button>
+    <table id="kq-bm" style="margin-top:10px"><thead><tr><th>Thử</th><th>Kết quả</th></tr></thead><tbody></tbody></table>
+  </section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -149,6 +156,45 @@
     $('kq-tinh').className = r.error ? 'loi' : 'ok';
     $('kq-tinh').textContent = r.error ? chuanLoi(r.error) : 'P = ' + r.data + ' kN';
   };
+  // Tấn công thử: mỗi phép thử trả "CHẶN" (bị từ chối / không ảnh hưởng dòng nào) hoặc "THỦNG" (đọc / ghi được)
+  async function thu(ten, ch, khach, laGhi) {
+    var tb = $('kq-bm').tBodies[0], tr = tb.insertRow(); tr.insertCell().textContent = ten; var o = tr.insertCell(); o.textContent = '…';
+    var r; try { r = await ch(); } catch (e) { r = { error: e }; }
+    var co = r && r.data && (Array.isArray(r.data) ? r.data.length > 0 : r.data !== null && r.data !== false && r.data !== undefined);
+    var chan = !!(r && r.error) || !co;
+    o.textContent = chan ? 'CHẶN' + (r && r.error ? ' (' + (r.error.code || '') + ' ' + String(r.error.message).slice(0, 60) + ')' : ' (không có dòng nào)') : 'THỦNG – ' + JSON.stringify(r.data).slice(0, 80);
+    o.style.color = chan ? '#0e5a32' : '#c4300b'; o.style.fontWeight = '700';
+    return chan;
+  }
+  $('tan-cong').onclick = async function () {
+    var c = doc(); if (!c) return;
+    $('kq-bm').tBodies[0].innerHTML = '';
+    var kh = supabase.createClient(c.url, c.khoa, { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'khach-an-danh' } });   // KHÔNG đăng nhập
+    var ss = (await sb.auth.getSession()).data.session, tong = [];
+    var T = async function () { tong.push(await thu.apply(null, arguments)); };
+    await T('Khách (anon): đọc tai_lieu_mau', function () { return kh.from('tai_lieu_mau').select('*'); });
+    await T('Khách: đọc ho_so', function () { return kh.from('ho_so').select('*'); });
+    await T('Khách: thêm dòng vào tai_lieu_mau', function () { return kh.from('tai_lieu_mau').insert({ ten: 'hack' }).select(); });
+    await T('Khách: sửa tai_lieu_mau', function () { return kh.from('tai_lieu_mau').update({ ten: 'hack' }).gte('id', 0).select(); });
+    await T('Khách: xoá tai_lieu_mau', function () { return kh.from('tai_lieu_mau').delete().gte('id', 0).select(); });
+    await T('Khách: tự duyệt (sửa ho_so)', function () { return kh.from('ho_so').update({ duoc_duyet: true }).gte('tao_luc', '2000-01-01').select(); });
+    await T('Khách: thêm hồ sơ đã duyệt', function () { return kh.from('ho_so').insert({ id: '00000000-0000-0000-0000-000000000001', duoc_duyet: true }).select(); });
+    await T('Khách: gọi hàm tính trên máy chủ', function () { return kh.rpc('tinh_trong_luong_dai', { x: 4, y: 3, h: 1 }); });
+    await T('Khách: gọi da_duyet()', function () { return kh.rpc('da_duyet'); });
+    if (ss) {
+      var tu = (await sb.auth.getUser()).data.user;
+      await T('Đang đăng nhập: tự duyệt mình (sửa ho_so của mình)', async function () {
+        var r = await sb.from('ho_so').update({ duoc_duyet: true, het_han: null }).eq('id', tu.id).select(); return r; });
+      await T('Đang đăng nhập: sửa / xoá dữ liệu mẫu', async function () {
+        var a = await sb.from('tai_lieu_mau').update({ ten: 'hack' }).gte('id', 0).select(); if (a.data && a.data.length) return a;
+        return sb.from('tai_lieu_mau').delete().gte('id', 0).select(); });
+      await T('Đang đăng nhập: thêm hồ sơ cho người khác', function () { return sb.from('ho_so').insert({ id: '00000000-0000-0000-0000-000000000002', duoc_duyet: true }).select(); });
+    } else { var tr = $('kq-bm').tBodies[0].insertRow(); tr.insertCell().textContent = '(Đăng nhập để thử thêm các phép thử của người dùng đã có tài khoản)'; tr.insertCell(); }
+    var tr2 = $('kq-bm').tBodies[0].insertRow(), a1 = tr2.insertCell(), a2 = tr2.insertCell();
+    a1.textContent = 'TỔNG KẾT'; a2.textContent = tong.every(Boolean) ? 'ĐẠT – không phép tấn công nào thành công' : 'CÓ LỖ HỔNG – xem dòng THỦNG'; a2.style.fontWeight = '700'; a2.style.color = tong.every(Boolean) ? '#0e5a32' : '#c4300b';
+  };
+  var ganKT = function () { $('kiem-tra-bm').classList.toggle('an', !sb); };
+  setInterval(ganKT, 800);
   khoiTao();
 })();
 </script>

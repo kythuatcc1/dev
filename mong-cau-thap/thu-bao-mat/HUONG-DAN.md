@@ -22,3 +22,12 @@ Mở `index.html` bằng Chrome / Edge → dán URL + anon key → Lưu → đă
 - Dữ liệu và công thức nằm trên máy chủ, được khoá bằng Row Level Security; file phần mềm không chứa chúng.
 - Khoá `anon` công khai không đọc được gì nếu chưa đăng nhập và được duyệt. **Không bao giờ** đưa khoá `service_role` vào phần mềm.
 - Quản trị duyệt / khoá / đặt hạn từng tài khoản bằng một ô trong bảng `ho_so`.
+
+## Nếu thấy "anon vẫn sửa được bảng"
+Khoá anon **chỉ an toàn khi bảng bật RLS và không có quyền ghi**. Các nguyên nhân thường gặp:
+1. Bảng tạo bằng Table Editor mà **chưa bật RLS** (Table Editor có nhãn "RLS disabled") → bảng mở hoàn toàn. Bản `supabase.sql` mới đã bật `ENABLE` + `FORCE` RLS và thu hồi mọi quyền ghi của anon / authenticated.
+2. Đã dùng nhầm khoá **service_role** (khoá này bỏ qua mọi RLS) – trang sẽ từ chối khoá này.
+3. Có policy cũ dạng `using (true)` tạo từ lần thử trước: vào Authentication → Policies, xoá policy lạ, rồi chạy lại `supabase.sql`.
+4. Chạy bằng SQL Editor / Table Editor trong bảng điều khiển thì luôn là quyền quản trị (vai trò postgres) – đó là quyền của chủ dự án, không phải của khoá anon.
+
+Chạy lại `supabase.sql` (bản mới) rồi bấm **Chạy kiểm tra** ở mục 3 của trang: mọi dòng phải là CHẶN. Nếu có dòng THỦNG, chụp màn hình gửi lại.
