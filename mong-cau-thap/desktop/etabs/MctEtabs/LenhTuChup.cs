@@ -188,33 +188,28 @@ namespace MctEtabs
 
         static void ChuanBi()
         {
-            ShowWindow(HwndChinh, 3);   // SW_MAXIMIZE
+            ShowWindow(HwndChinh, 3);   // SW_MAXIMIZE cửa sổ chính ETABS
             Thread.Sleep(500);
             var khung = KhungNhinCon();
             KQ.Dat("khungNhinTruoc", new JsonArray(khung.Select(k => (JsonNode)MoTa(k, false)).ToArray()));
-            if (khung.Count > 1)
-            {
-                try { KQ.GhiBuoc("mot-khung-nhin", true, MoMenu(new[] { "Options", "Windows", "One" })); }
-                catch (Exception ex) { KQ.GhiBuoc("mot-khung-nhin", false, Api.GocLoi(ex).Message); DongCuaSoMoThem(); }
-                Thread.Sleep(500);
-                khung = KhungNhinCon();
-            }
-            // phóng to khung nhìn còn lại trong cửa sổ chính
-            foreach (var k in khung)
+            // ETABS v23: khung nhìn mô hình (ModelForm) nằm trong DockPanel cạnh Model Explorer – không phóng to (khung vượt sang Model
+            // Explorer, dải tab). Bản tự chụp trước đã phóng to thì trả về kích thước thường để DockPanel xếp lại như cũ.
+            foreach (var k in khung.Where(k => Id(k) == "ModelForm"))
             {
                 try
                 {
-                    if (k.GetCurrentPattern(P_Window) is IUIAutomationWindowPattern wp && wp.CurrentCanMaximize != 0)
+                    if (k.GetCurrentPattern(P_Window) is IUIAutomationWindowPattern wp && wp.CurrentWindowVisualState == WindowVisualState.WindowVisualState_Maximized)
                     {
-                        wp.SetWindowVisualState(WindowVisualState.WindowVisualState_Maximized);
-                        KQ.GhiBuoc("phong-to-khung-nhin", true, Ten(k));
-                        break;
+                        wp.SetWindowVisualState(WindowVisualState.WindowVisualState_Normal);
+                        KQ.GhiBuoc("tra-lai-khung-nhin", true, Ten(k) + " (bo phong to)");
                     }
                 }
-                catch (Exception ex) { KQ.GhiBuoc("phong-to-khung-nhin", false, Api.GocLoi(ex).Message); }
+                catch (Exception ex) { KQ.GhiBuoc("tra-lai-khung-nhin", false, Api.GocLoi(ex).Message); }
             }
             Thread.Sleep(300);
         }
+
+        static string Id(IUIAutomationElement e) => SafeStr(() => e.CurrentAutomationId) ?? "";
 
         // Các khung nhìn mô hình (cửa sổ con MDI: "3-D View", "Plan View - …")
         static List<IUIAutomationElement> KhungNhinCon()
@@ -233,7 +228,48 @@ namespace MctEtabs
         {
             var ungVien = new JsonArray();
             (int, int, int, int, string)? chon = null;
-            foreach (var k in KhungNhinCon())
+            var goc = CuaSoChinh();
+            // (1) ETABS v23 (DockPanel): ô tài liệu = ô dock lớn nhất có dải tab ở trên; bỏ dải tab
+            (int l, int t, int r, int b)? oTaiLieu = null;
+            var dock = TimMot(goc, TreeScope.TreeScope_Descendants, e => Id(e) == "DockPanel1", 1);
+            if (dock != null)
+            {
+                var rd = dock.CurrentBoundingRectangle;
+                foreach (var o in TatCa(dock, TreeScope.TreeScope_Descendants, e => e.CurrentControlType == CT_Pane && DienTich(e) > 0, 80))
+                {
+                    var r = o.CurrentBoundingRectangle;
+                    // bỏ ô phủ cả DockPanel (lớp chứa, gồm cả Model Explorer)
+                    if (Math.Abs(r.left - rd.left) <= 1 && Math.Abs(r.top - rd.top) <= 1 && Math.Abs(r.right - rd.right) <= 1 && Math.Abs(r.bottom - rd.bottom) <= 1) continue;
+                    int rong = r.right - r.left;
+                    int dai = 0;
+                    foreach (var c in Con(o))
+                    {
+                        var rc = c.CurrentBoundingRectangle;
+                        if (rc.top == r.top && rc.bottom - rc.top <= 40 && rc.right - rc.left >= rong * 0.9) dai = Math.Max(dai, rc.bottom - r.top);
+                    }
+                    if (dai == 0) continue;
+                    var trong = (r.left, r.top + dai, r.right, r.bottom);
+                    ungVien.Add(new JsonObject { ["kieu"] = "o-dock", ["r"] = new JsonArray(r.left, r.top, rong, r.bottom - r.top), ["daiTab"] = dai });
+                    if (oTaiLieu == null || DT(trong) > DT(oTaiLieu.Value)) oTaiLieu = trong;
+                }
+            }
+            // (2) vùng vẽ mô hình (ModelDrawArea) – giao với ô tài liệu
+            (int l, int t, int r, int b)? vungVe = null;
+            foreach (var v in TatCa(goc, TreeScope.TreeScope_Descendants, e => Id(e) == "ModelDrawArea" && e.CurrentIsOffscreen == 0, 10))
+            {
+                ungVien.Add(MoTa(v, false));
+                var rv = v.CurrentBoundingRectangle;
+                var x = (rv.left, rv.top, rv.right, rv.bottom);
+                if (oTaiLieu.HasValue) x = GiaoNhau(x, oTaiLieu.Value);
+                if (DT(x) > 0 && (vungVe == null || DT(x) > DT(vungVe.Value))) vungVe = x;
+            }
+            var hop = vungVe ?? oTaiLieu;
+            if (hop.HasValue && DT(hop.Value) > 10000)
+            {
+                var h0 = hop.Value;
+                chon = (h0.l, h0.t, h0.r - h0.l, h0.b - h0.t, vungVe.HasValue ? (oTaiLieu.HasValue ? "ModelDrawArea trong o tai lieu" : "ModelDrawArea") : "o tai lieu DockPanel");
+            }
+            if (chon == null) foreach (var k in KhungNhinCon())
             {
                 ungVien.Add(MoTa(k, false));
                 IntPtr h = k.CurrentNativeWindowHandle;
@@ -248,7 +284,6 @@ namespace MctEtabs
             if (chon == null)
             {
                 // không có MDI: vùng Pane lớn nhất trong cửa sổ chính
-                var goc = CuaSoChinh();
                 var rc = goc.CurrentBoundingRectangle;
                 double dtGoc = Math.Max(1.0, (double)(rc.right - rc.left) * (rc.bottom - rc.top));
                 var ds = TatCa(goc, TreeScope.TreeScope_Descendants, e => { int ct = e.CurrentControlType; return (ct == CT_Pane || ct == CT_Window) && DienTich(e) > 0.25 * dtGoc && DienTich(e) < 0.97 * dtGoc; }, 400);
@@ -866,6 +901,9 @@ namespace MctEtabs
             TatCa(goc, pham, loc, 1).FirstOrDefault();
 
         static string Ten(IUIAutomationElement e) => SafeStr(() => e.CurrentName) ?? "";
+        static double DT((int l, int t, int r, int b) x) => Math.Max(0, x.r - x.l) * (double)Math.Max(0, x.b - x.t);
+        static (int l, int t, int r, int b) GiaoNhau((int l, int t, int r, int b) a, (int l, int t, int r, int b) b) =>
+            (Math.Max(a.l, b.l), Math.Max(a.t, b.t), Math.Min(a.r, b.r), Math.Min(a.b, b.b));
         static string Lop(IUIAutomationElement e) => SafeStr(() => e.CurrentClassName) ?? "";
         static double DienTich(IUIAutomationElement e)
         {

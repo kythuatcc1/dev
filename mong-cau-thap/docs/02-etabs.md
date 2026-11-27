@@ -279,7 +279,12 @@ ETABS bằng **Windows UI Automation** (gói `Interop.UIAutomationClient`, chạ
 - Vòng 2 (theo ảnh người dùng, ETABS v23.2.0): menu View → Set Plan View mở hộp thoại "Select Plan View" nhưng chưa chọn được tầng trong danh
   sách (ETABS báo "Nothing is selected!") → mặt bằng dùng 3 phương án: Filter + chọn mục; Filter + Tab, Tab, Home; "At Specified Global Z
   Coordinate" + cao độ Z của tấm đài.
-- Hình đầu: `chuanBi` (đưa ETABS lên trước, phóng to, Options → Windows → One, phóng to khung nhìn) và `thamDo` (ghi cây menu File / View / Display /
+- Vòng 3 (nhật ký người dùng 27/11/2026, ETABS Ultimate v23.2.0): menu View có "Set 3D View..." (không có "Set Default 3D View") → khung 3D
+  = View → Set 3D View + OK (bỏ qua khi tiêu đề có "3-D View"); Options không có "Windows → One" (chỉ "Arrange Windows...") → bỏ bước này.
+  Khung nhìn là `ModelForm` (MDI) chứa `ModelDrawArea`, xếp trong DockPanel (`DockPanel1`) cạnh Model Explorer – **không phóng to** ModelForm
+  (bản trước phóng to làm khung chụp tràn sang Model Explorer và dải tab; bản này trả về kích thước thường nếu đang phóng to). Vùng chụp =
+  ModelDrawArea giao với ô tài liệu của DockPanel (ô dock lớn nhất có dải tab ở trên, bỏ dải tab).
+- Hình đầu: `chuanBi` (đưa ETABS lên trước, phóng to cửa sổ ETABS) và `thamDo` (ghi cây menu File / View / Display /
   Options, cây cửa sổ chính). Mỗi hộp thoại được ghi cây điều khiển trước và sau khi đặt (`thongTin.hopThoai`).
 - Chụp: vùng client của khung nhìn mô hình (cửa sổ con MDI; không có MDI thì vùng Pane lớn) – GDI BitBlt từ màn hình, ghi PNG (bộ mã PNG tự viết,
   ZLibStream); tiến trình đặt Per-Monitor DPI aware nên toạ độ là pixel thật.

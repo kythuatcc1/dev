@@ -23,14 +23,18 @@ function kiemTraThaoTac(ds, khoa) {
     if (tt.loai === 'hop-thoai') {
       assert.equal(tt.xong, 'OK', khoa);
       const dsDat = tt.phuongAn ? tt.phuongAn.map((p) => p.dat) : [tt.dat];
-      assert.ok(dsDat.length > 0 && dsDat.every((d) => Array.isArray(d) && d.length > 0), khoa);
+      assert.ok(dsDat.length > 0 && dsDat.every((d) => Array.isArray(d)), khoa);
       dsDat.forEach((dat) => dat.forEach((d) => assert.equal(Object.keys(d).filter((k) => ['chon', 'radio', 'tick', 'danhSach', 'nhap', 'phim'].includes(k)).length, 1, khoa + ' ' + JSON.stringify(d))));
     }
   });
   // mỗi menu mở hộp thoại phải có thao tác hộp thoại theo sau (trừ View → Set Default 3D View, Display → Undeformed Shape)
   ds.forEach((tt, i) => {
-    if (tt.loai === 'menu' && !/Set Default 3D View|Undeformed Shape/.test(tt.duong.join('>'))) assert.equal((ds[i + 1] || {}).loai, 'hop-thoai', khoa + ': ' + tt.duong.join(' > '));
+    if (tt.loai === 'menu' && !/Undeformed Shape/.test(tt.duong.join('>'))) assert.equal((ds[i + 1] || {}).loai, 'hop-thoai', khoa + ': ' + tt.duong.join(' > '));
+    // bỏ qua (khung nhìn đã đúng) thì bỏ luôn hộp thoại theo sau
+    if (tt.boQuaNeu) assert.equal(tt.boQuaTiep, 1, khoa);
   });
+  // tên menu đúng như ETABS v23 (nhật ký vòng 1): không còn "Set Default 3D View"
+  assert.ok(!ds.some((tt) => tt.loai === 'menu' && tt.duong.includes('Set Default 3D View')), khoa);
 }
 
 test('Mọi vị trí hình ETABS có kịch bản tự chụp; ảnh ngoài ETABS thì không', () => {
@@ -58,7 +62,8 @@ test('Kịch bản dùng đúng tên trong mô hình: tầng tấm đài, tổ h
   assert.ok(pa[2].dat.some((d) => d.radio && d.radio[0] === 'At Specified Global Z Coordinate'));
   assert.equal(pa[2].dat.find((d) => d.nhap).gt, String(e.m.thongSo.zTam), 'cao độ tấm đài');
   const p = HC.kichBan('etabsBao_min_P', e), hop = p[p.length - 1];
-  assert.deepEqual(p[1].duong, ['Display', 'Force/Stress Diagrams', 'Frame/Pier/Spandrel/Link Forces']);
+  assert.deepEqual(p[0].duong, ['View', 'Set 3D View']);
+  assert.deepEqual(p[2].duong, ['Display', 'Force/Stress Diagrams', 'Frame/Pier/Spandrel/Link Forces']);
   assert.deepEqual(hop.dat[0].chon, ['BAO']);
   assert.ok(hop.dat.some((d) => d.radio && d.radio.includes('Min')));
   assert.ok(hop.dat.some((d) => d.radio && d.radio.includes('Axial Force')));
@@ -67,7 +72,7 @@ test('Kịch bản dùng đúng tên trong mô hình: tầng tấm đài, tổ h
   assert.ok(m22[m22.length - 1].dat.some((d) => d.radio && d.radio.includes('M22')));
   const cv = HC.kichBan('etabsChuyenVi', e);
   assert.deepEqual(cv[cv.length - 1].dat[0].chon, ['KLV-KEO-327.31']);
-  assert.deepEqual(HC.kichBan('etabsTai1', e)[2].dat[1].danhSach, ['FX1', 'FY1', 'FZ1']);
+  assert.deepEqual(HC.kichBan('etabsTai1', e)[3].dat[1].danhSach, ['FX1', 'FY1', 'FZ1']);
   // hướng dẫn chụp tay ghi tầng của mô hình hiện tại
   assert.match(HC.viTri(e).find((v) => v.khoa === 'etabsMatBang').huongDan, /MAT_DAI/);
   assert.ok(!HC.viTri(e).some((v) => /GIUA_DAI/.test(v.huongDan)));

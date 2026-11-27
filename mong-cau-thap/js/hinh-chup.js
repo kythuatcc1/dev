@@ -61,7 +61,9 @@
   // ---------------- Tự chụp: kịch bản thao tác giao diện ETABS v23 (tiếng Anh) cho từng vị trí hình ----------------
   // Cầu nối (lệnh tu-chup) bấm menu / chỉnh hộp thoại theo tên – so tên bỏ "&", "...", hoa thường; tên nào chưa đúng với ETABS
   // trên máy người dùng thì nhật ký ghi lại các tên đang có để sửa ở đây.
-  var MENU_3D = { loai: 'menu', duong: ['View', 'Set Default 3D View'] };
+  // ETABS v23 (theo nhật ký vòng 1): menu View không có "Set Default 3D View" – dùng "Set 3D View..." (hộp thoại góc nhìn, bấm OK);
+  // đang ở khung nhìn 3D thì bỏ qua
+  var V3D = [{ loai: 'menu', duong: ['View', 'Set 3D View'], boQuaNeu: '3-D View', boQuaTiep: 1 }, { loai: 'hop-thoai', dat: [], xong: 'OK' }];
   var MENU_KHONG_BD = { loai: 'menu', duong: ['Display', 'Undeformed Shape'] };
   // Mặt bằng tầng tấm đài. Hộp thoại "Select Plan View" của ETABS v23: Plan View Options (Default Plan from Story Level or Reference Plane /
   // At Specified Global Z Coordinate), Filter + danh sách tầng, OK / Close / Apply. ETABS đang ở đúng mặt bằng thì bỏ qua cả hai bước.
@@ -79,9 +81,9 @@
   }
   function chonMaxMin(mm) { return mm === 'min' ? ['Min', 'Envelope Min', 'Minimum'] : ['Max', 'Envelope Max', 'Maximum']; }
   function lucThanh(toHop, mm, tp) {
-    return [MENU_3D, { loai: 'menu', duong: ['Display', 'Force/Stress Diagrams', 'Frame/Pier/Spandrel/Link Forces'] },
+    return V3D.concat([{ loai: 'menu', duong: ['Display', 'Force/Stress Diagrams', 'Frame/Pier/Spandrel/Link Forces'] },
       { loai: 'hop-thoai', dat: [{ chon: [toHop] }, { radio: chonMaxMin(mm) }, { radio: [tp] },
-        { tick: ['Show Values on Diagram', 'Show Values'], gt: true }, { tick: ['Fill Diagram'], gt: true }], xong: 'OK' }];
+        { tick: ['Show Values on Diagram', 'Show Values'], gt: true }, { tick: ['Fill Diagram'], gt: true }], xong: 'OK' }]);
   }
   function lucVo(tang, z, toHop, tp, mm) {
     return matBang(tang, z).concat([{ loai: 'menu', duong: ['Display', 'Force/Stress Diagrams', 'Shell Stresses/Forces'] },
@@ -89,9 +91,9 @@
         xong: 'OK' }]);
   }
   function taiNut(mau) {
-    return [MENU_3D, { loai: 'menu', duong: ['Display', 'Load Assigns', 'Joint'] },
+    return V3D.concat([{ loai: 'menu', duong: ['Display', 'Load Assigns', 'Joint'] },
       { loai: 'hop-thoai', dat: [{ chon: [mau[0]] }, { danhSach: mau }, { tick: ['Show Load Assign Values', 'Show Load Values', 'Show Values'], gt: true }],
-        xong: 'OK' }];
+        xong: 'OK' }]);
   }
   /** Danh sách thao tác cho vị trí khoa (null: vị trí ảnh ngoài ETABS, không tự chụp). */
   function kichBan(khoa, E) {
@@ -100,7 +102,7 @@
     var zTam = m && m.thongSo ? (m.thongSo.zTam !== undefined ? m.thongSo.zTam : m.thongSo.zGiua) : null;
     var coMZ = t && t.hopLe && t.mauTai.some(function (p) { return p.ten === 'MZ1'; });
     var x;
-    if (khoa === 'etabsMoHinh3D') return [MENU_3D, MENU_KHONG_BD];
+    if (khoa === 'etabsMoHinh3D') return V3D.concat([MENU_KHONG_BD]);
     if (khoa === 'etabsMatBang') return matBang(tang, zTam).concat([MENU_KHONG_BD]);
     if (khoa === 'etabsTai1') return taiNut(['FX1', 'FY1', 'FZ1']);
     if (khoa === 'etabsTai2') return taiNut(['MX1', 'MY1'].concat(coMZ ? ['MZ1'] : []));
@@ -110,7 +112,7 @@
       return lucThanh('BAO', x[1], { P: 'Axial Force', M2: 'Moment 2-2', M3: 'Moment 3-3', V2: 'Shear 2-2', V3: 'Shear 3-3' }[x[2]]);
     }
     if (khoa === 'etabsChuyenVi') {
-      return [MENU_3D, { loai: 'menu', duong: ['Display', 'Deformed Shape'] }, { loai: 'hop-thoai', dat: [{ chon: [toHopCv] }], xong: 'OK' }];
+      return V3D.concat([{ loai: 'menu', duong: ['Display', 'Deformed Shape'] }, { loai: 'hop-thoai', dat: [{ chon: [toHopCv] }], xong: 'OK' }]);
     }
     if ((x = /^etabsMomenDai_(M11|M22)(max|min)$/.exec(khoa))) return lucVo(tang, zTam, 'BAO', x[1], x[2]);
     if ((x = /^etabsCatDai_(V13|V23)$/.exec(khoa))) return lucVo(tang, zTam, 'BAO', x[1], 'max');
