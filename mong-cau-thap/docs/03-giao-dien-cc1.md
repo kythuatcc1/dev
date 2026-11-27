@@ -1,6 +1,6 @@
 # Giao diện theo nhận diện CC1
 
-Bộ màu, font, logo và biểu tượng của phần mềm. Mọi màu của giao diện nằm ở khối `:root` đầu `css/app.css`; đổi màu chỉ cần sửa các biến ở đó.
+Bộ màu, logo và biểu tượng của phần mềm. Font giữ như bản đầu (Segoe UI / font hệ thống). Mọi màu của giao diện nằm ở khối `:root` đầu `css/app.css`; đổi màu chỉ cần sửa các biến ở đó.
 
 ## Nguyên tắc
 
@@ -37,7 +37,7 @@ Màu logo đo trên file logo: xanh `#106B3D`, đỏ cam `#FF3200`. Bộ màu gi
 
 ## Font, logo, biểu tượng
 
-- **Font** (`css/fonts.css`, `css/fonts/`): Barlow 400 / 500 / 600 / 700 cho nội dung, Montserrat 600 / 700 cho tiêu đề; Latin + tiếng Việt, file woff2 (khoảng 200 KB), đóng gói kèm app nên chạy được offline. Giấy phép SIL OFL 1.1 (`css/fonts/LICENSE-*.txt`). Lỗi nạp font thì rơi về Segoe UI / font hệ thống.
+- **Font**: giữ font ban đầu của phần mềm (`--font`: Segoe UI, font hệ thống), cỡ chữ và độ đậm như cũ. Bản thử dùng Barlow / Montserrat đã bỏ vì khó đọc.
 - **Logo** (`css/img/`): `cc1-logo.png` là bản dùng ở thanh trên, đã bỏ dòng khẩu hiệu "TẬN TÂM VÌ GIÁ TRỊ BỀN VỮNG" vì ở cao 41 px chữ chỉ còn khoảng 3 px; `cc1-logo-goc.png` là file logo gốc đầy đủ. Nếu CC1 có bản logo không khẩu hiệu chính thức thì thay `cc1-logo.png` (cao 82 px trở lên cho màn hình độ phân giải cao).
 - **Biểu tượng .exe** (`desktop/icon.svg`): nền xanh `#106B3C`, cẩu trắng, đối trọng đỏ cam `#FF3200`. Tạo lại `icon.png`, `icon.ico` sau khi sửa SVG: `node tools/tao-icon.js desktop` (cần Playwright).
 

@@ -33,8 +33,7 @@
   --row-hi: #fff6d6;
   --radius: 8px;
   --nav-w: 270px;
-  --font: Barlow, "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-head: Montserrat, Barlow, "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --font: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
   color-scheme: light;
 }
 
@@ -42,7 +41,7 @@
 html, body { margin: 0; }
 body {
   font-family: var(--font);
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--ink);
   background: var(--bg);
@@ -59,8 +58,8 @@ body {
 }
 .brand-logo { height: 41px; width: auto; flex: none; display: block; }
 .brand { display: flex; flex-direction: column; min-width: 0; border-left: 1px solid var(--line); padding-left: 12px; }
-.brand-title { font-family: var(--font-head); font-weight: 600; font-size: 15.5px; }
-.brand-sub { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand-title { font-weight: 700; font-size: 16px; }
+.brand-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .status { font-size: 12px; color: var(--muted); }
 .nav-toggle {
@@ -68,12 +67,12 @@ body {
   border-radius: 6px; width: 36px; height: 36px; font-size: 18px; cursor: pointer;
 }
 .btn {
-  font: inherit; font-size: 15px; font-weight: 600; padding: 7px 14px; border-radius: 6px;
+  font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 6px;
   border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer;
 }
 .btn:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
 .btn:disabled { background: #eef0ee; border-color: #eef0ee; color: #8a938d; cursor: not-allowed; }
-.btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--line-strong); font-weight: 500; }
+.btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
 .btn-ghost:hover:not(:disabled) { background: var(--bg); border-color: #a9b2ac; }
 
 /* ---------- Bố cục ---------- */
@@ -83,11 +82,11 @@ body {
   background: var(--surface); border-right: 1px solid var(--line);
   padding: 12px 8px; position: sticky; top: 62px; height: calc(100vh - 62px); overflow-y: auto;
 }
-.nav-group { font-family: var(--font-head); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+.nav-group { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
   color: var(--heading); padding: 14px 10px 6px; }
 .nav-item {
   display: flex; align-items: baseline; gap: 8px; width: 100%;
-  text-align: left; font: inherit; font-size: 15px;
+  text-align: left; font: inherit; font-size: 14px;
   padding: 7px 10px; border: 0; border-radius: 6px; background: none; color: var(--ink); cursor: pointer;
 }
 .nav-item:hover { background: var(--bg); }
@@ -104,15 +103,15 @@ body {
 .content:focus { outline: none; }
 
 /* ---------- Trang ---------- */
-.page-title { font-family: var(--font-head); font-weight: 600; font-size: 22px; margin: 0 0 4px; color: var(--heading); }
+.page-title { font-size: 22px; margin: 0 0 4px; color: var(--heading); }
 .page-lead { color: var(--muted); margin: 0 0 20px; }
 .card {
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
   padding: 18px 20px; margin-bottom: 18px;
 }
-.card h2 { font-family: var(--font-head); font-weight: 600; font-size: 15.5px; margin: 0 0 12px; color: var(--heading); }
-.card h3 { font-size: 14px; margin: 16px 0 8px; color: var(--heading); font-weight: 700; }
-.hint { font-size: 14.5px; color: var(--muted); margin: 8px 0 0; }
+.card h2 { font-size: 16px; margin: 0 0 12px; color: var(--heading); }
+.card h3 { font-size: 14px; margin: 16px 0 8px; color: var(--heading); font-weight: 600; }
+.hint { font-size: 13px; color: var(--muted); margin: 8px 0 0; }
 
 /* Dòng thông số kiểu thuyết minh: nhãn ...... ký hiệu = giá trị đơn vị */
 .params { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; row-gap: 6px; align-items: center; }
@@ -126,7 +125,7 @@ body {
 .params-mo-ta .val .sym:empty, .params-mo-ta .val .unit:empty { display: none; }
 .params-mo-ta .val .unit { min-width: 24px; }
 .sym { font-style: italic; color: var(--muted); min-width: 44px; text-align: right; }
-.unit { color: var(--muted); min-width: 44px; font-size: 14px; }
+.unit { color: var(--muted); min-width: 44px; font-size: 13px; }
 .num { font-variant-numeric: tabular-nums; min-width: 92px; text-align: right; font-weight: 600; }
 
 input.in, select.in {
@@ -147,7 +146,7 @@ textarea.in { font: inherit; resize: vertical; line-height: 1.45; }
 
 /* Bảng kết quả */
 .table-wrap { overflow-x: auto; }
-table.tbl { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 15px; }
+table.tbl { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 14px; }
 .tbl th, .tbl td { border: 1px solid var(--line-tbl); padding: 6px 10px; }
 .tbl thead th { background: var(--th); font-weight: 600; text-align: center; }
 .tbl thead tr.units th { background: var(--th-soft); font-weight: 400; color: var(--muted); font-size: 12px; }
@@ -168,14 +167,14 @@ table.tbl { border-collapse: collapse; width: 100%; font-variant-numeric: tabula
 .alert { border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
 .alert-fail { background: var(--fail-soft); color: var(--fail-ink); border: 1px solid var(--fail-line); border-left: 4px solid var(--fail); }
 .alert-info { background: #f1f6f3; color: #24473a; border: 1px solid #d4e4d9; }
-.badge { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+.badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
 .badge-ok { background: var(--ok-soft); color: var(--accent-ink); }
 .badge-ok::before { content: "✓ "; }
 .badge-fail { background: var(--fail); color: #fff; }
 .badge-fail::before { content: "✕ "; }
 
 details.more { margin-top: 12px; }
-details.more summary { cursor: pointer; color: var(--accent); font-size: 14px; font-weight: 600; }
+details.more summary { cursor: pointer; color: var(--accent); font-size: 14px; }
 
 /* Mục B – tọa độ cọc và sơ đồ */
 table.tbl.tbl-nhap { width: auto; }
@@ -206,9 +205,9 @@ table.tbl.tbl-nhap { width: auto; }
 .tbl td.nowrap { white-space: nowrap; }
 .ghi-chu-lech {
   background: var(--warn-soft); border: 1px solid var(--warn-line); border-left: 4px solid var(--warn);
-  border-radius: 6px; padding: 10px 12px; font-size: 14.5px;
+  border-radius: 6px; padding: 10px 12px; font-size: 13px;
 }
-.ghi-chu-lech h3 { margin: 0 0 6px; font-size: 15px; color: var(--warn-ink); }
+.ghi-chu-lech h3 { margin: 0 0 6px; font-size: 14px; color: var(--warn-ink); }
 .ghi-chu-lech p { margin: 6px 0; }
 .ghi-chu-lech table.tbl { background: #fff; }
 .canh-bao { color: var(--warn-ink); font-weight: 700; cursor: help; }
@@ -216,10 +215,10 @@ table.tbl.tbl-nhap { width: auto; }
 .tbl tbody tr td.o-lech { background: #fff3d6; white-space: nowrap; }
 /* Kết luận chung */
 .ket-luan-lon {
-  font-family: var(--font-head); font-size: 18px; font-weight: 600; padding: 14px 18px; border-radius: var(--radius); margin-bottom: 18px;
+  font-size: 18px; font-weight: 700; padding: 14px 18px; border-radius: var(--radius); margin-bottom: 18px;
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px;
 }
-.ket-luan-lon span { font-family: var(--font); font-size: 14px; font-weight: 600; }
+.ket-luan-lon span { font-size: 14px; font-weight: 600; }
 .ket-luan-lon.ok { background: #f1f8f3; color: var(--accent-ink); border: 1px solid var(--ok-line); border-left: 4px solid var(--ok); }
 .ket-luan-lon.ok::before { content: "✓"; }
 .ket-luan-lon.fail { background: var(--fail-soft); color: var(--fail-ink); border: 1px solid var(--fail-line); border-left: 4px solid var(--fail); }
